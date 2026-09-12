@@ -74,7 +74,14 @@ class MediaCutPreviewView(context: Context, appContext: AppContext) : ExpoView(c
     }
   }
   }
-  fun setPlaying(value: Boolean) { wantsPlay = value; player?.playWhenReady = value }
+  fun setPlaying(value: Boolean) {
+    wantsPlay = value
+    player?.let { current ->
+      // A repeated zero seek prop may not cross the React Native bridge.
+      if (value && current.playbackState == Player.STATE_ENDED) current.seekTo(0)
+      current.playWhenReady = value
+    }
+  }
   fun seek(value: Double) { if (!value.isFinite()) return; pendingSeek = value.coerceAtLeast(0.0); player?.seekTo((pendingSeek * 1000).toLong()) }
   override fun onAttachedToWindow() { super.onAttachedToWindow(); load(); handler.post(ticker) }
   override fun onDetachedFromWindow() { loadJob?.cancel(); wantsPlay = false; handler.removeCallbacksAndMessages(null); surface.player = null; player?.release(); player = null; loadedSource = null; super.onDetachedFromWindow() }

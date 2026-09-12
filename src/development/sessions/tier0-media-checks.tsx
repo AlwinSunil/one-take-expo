@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Directory, File, Paths } from 'expo-file-system';
+import { router } from 'expo-router';
+import { beginProjectPickup, completeProjectPickup, saveProject } from '@/lib/store';
 import media, { NativeCutPreview, type MediaExportRequest } from '../../../modules/one-take-media';
 
 const folder = () => new Directory(Paths.document, 'research');
@@ -48,6 +50,7 @@ export default function Tier0MediaChecks() {
       const prepared = await plan(id, stress ? 15 : 1);
       log(`Start production ${stress ? 120 : 8}-second two-source export ${id}`);
       const started = Date.now();
+      new File(folder(), 'tier0-active-id.txt').write(id);
       await media.startExport(prepared);
       const result = await waitFor(id);
       if (result.status !== 'completed' || !result.uri || !new File(result.uri).exists) throw new Error(JSON.stringify(result));
@@ -56,10 +59,17 @@ export default function Tier0MediaChecks() {
       if (stress) return;
       const cancelId = `${id}-cancel`;
       await media.startExport(await plan(cancelId, 15));
+      await delay(250);
+      const beforeDeletion = await media.getExport(cancelId);
+      if (beforeDeletion.status !== 'running') throw new Error(`Cancellation fixture was ${beforeDeletion.status}, not running`);
       await media.deleteExport(cancelId, false);
       log('PASS active export deletion settled');
       let rejected = false;
-      try { await media.startExport({ ...prepared, id: `${id}-missing`, segments: [{ uri: new File(folder(), 'tier0-absent.mp4').uri, t0: 0, t1: 4 }] }); }
+      try {
+        await media.startExport({ ...prepared, id: `${id}-missing`, segments: [{ uri: new File(folder(), 'tier0-absent.mp4').uri, t0: 0, t1: 4 }] });
+        const failed = await waitFor(`${id}-missing`);
+        rejected = failed.status === 'failed' && !failed.uri;
+      }
       catch { rejected = true; }
       if (!rejected) throw new Error('Missing source was accepted');
       log('PASS missing source rejected');
@@ -71,6 +81,29 @@ export default function Tier0MediaChecks() {
       if (!source().exists) throw new Error('Original fixture lost');
       log('PASS original preserved');
     } catch (error) { log(`FAIL ${String(error)}`); }
+    finally { setBusy(false); }
+  }
+  async function openReviewFixture() {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const id = `tier0-review-${Date.now()}`;
+      const saved = await saveProject({ id, mode: 'script', createdAt: Date.now(), duration: 12,
+        script: 'This is the first clean take. This is the final clean take.', videoUri: source().uri, clips: [],
+        scriptLines: [{ id: 'first', spokenText: 'This is the first clean take.', actionCues: [] },
+          { id: 'last', spokenText: 'This is the final clean take.', actionCues: [{ id: 'show', text: 'Show the product', required: true, resolved: false }] }],
+        transcript: [{ id: 'first-caption', t0: 0, t1: 4, text: 'This is the first clean take.', isFinal: true, timingSource: 'saved-audio' }],
+        takes: [{ id: 'first-take', t0: 0, t1: 4, mediaUri: source().uri, playable: true, quality: 'clean', inFrame: true, transcriptSegmentIds: ['first-caption'] }],
+      });
+      await beginProjectPickup(saved.id, 'pickup', ['last']);
+      await completeProjectPickup(saved.id, 'pickup', { videoUri: source().uri, duration: 12,
+        transcript: [{ id: 'last-caption', t0: 8, t1: 12, text: 'This is the final clean take.', isFinal: true, timingSource: 'saved-audio' }],
+        takes: [{ id: 'last-take', t0: 8, t1: 12, mediaUri: source().uri, playable: true, quality: 'clean', inFrame: true, transcriptSegmentIds: ['last-caption'] }],
+      });
+      new File(folder(), 'tier0-review-id.txt').write(saved.id);
+      setPlaying(false); setVisible(false);
+      router.push({ pathname: '/editor', params: { projectId: saved.id } });
+    } catch (error) { log(`FAIL review fixture ${String(error)}`); }
     finally { setBusy(false); }
   }
   const button = (title: string, action: () => void) => <Pressable accessibilityRole="button" disabled={busy} onPress={action} style={{ minHeight: 48, padding: 14, backgroundColor: '#262626', borderRadius: 10 }}><Text style={{ color: 'white' }}>{title}</Text></Pressable>;
@@ -91,6 +124,15 @@ export default function Tier0MediaChecks() {
           }} /></View>}
           {button('Run production export checks', () => { void run(); })}
           {button('Run 120-second export', () => { void run(true); })}
+          {button('Open synthetic pickup in editor', () => { void openReviewFixture(); })}
+          {button('Recover last test export', () => { void (async () => {
+            try {
+              const id = new File(folder(), 'tier0-active-id.txt').textSync();
+              const result = await media!.getExport(id);
+              log(`RECOVERY ${JSON.stringify(result)}`);
+              if (result.status === 'completed') new File(folder(), 'tier0-output.json').write(JSON.stringify(result));
+            } catch (error) { log(`FAIL recovery ${String(error)}`); }
+          })(); })}
           <Text selectable style={{ color: '#ddd' }}>{lines.join('\n') || 'No results yet.'}</Text>
         </ScrollView>
       </SafeAreaView>

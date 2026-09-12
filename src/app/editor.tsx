@@ -207,7 +207,7 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
     </View>
     {!!nativeError && <Text accessibilityRole="alert" className="text-amber-200 px-6 py-3">Clean preview failed: {nativeError}. Preview the original recording or attach replacement footage. Coverage is not verified.</Text>}
     {status === 'error' && <Text accessibilityRole="alert" className="text-red-300 px-6 py-3">{playbackError?.message ?? 'This video could not be opened. The file may no longer be available.'}</Text>}
-    <ScrollView className="px-6 pt-4 pb-6 w-full self-center" style={{ maxWidth: 600, maxHeight: '55%' }}>
+    <ScrollView keyboardShouldPersistTaps="handled" className="px-6 pt-4 pb-6 w-full self-center" style={{ maxWidth: 600, maxHeight: '55%' }}>
       {!NativeCutPreview && proposedSegments.some(segment => segment.uri !== uri) && <Text className="text-amber-200 text-xs mb-3">Multi-recording preview needs the Android development build with the media player. Your original recording remains available.</Text>}
       {takePreview && <Pressable accessibilityRole="button" className="py-3" onPress={() => { setTakePreview(undefined); setNativePlaying(false); setNativeSeek(0); }}><Text className="text-white text-xs">Return to clean cut</Text></Pressable>}
       {review && <Text accessibilityLiveRegion="polite" className="text-neutral-300 text-xs mb-3">
@@ -310,7 +310,9 @@ export default function Editor() {
   if (!loading && project && (!project.videoUri || project.mediaMissing)) return <SafeAreaView className="flex-1 bg-black px-6">
     <Pressable onPress={() => router.back()} className="py-4"><Text className="text-white">Back</Text></Pressable>
     <Text className="text-amber-200">{project.recoveryMessage ?? 'The original recording is unavailable. Your saved transcript is still here.'}</Text>
-    <TranscriptReview project={project} onChange={async next => { setProject(next); await saveProjectMetadata(next); }} onSeek={() => {}} />
+    <ScrollView keyboardShouldPersistTaps="handled">
+      <TranscriptReview project={project} onChange={async next => { setProject(next); await saveProjectMetadata(next); }} onSeek={() => {}} />
+    </ScrollView>
   </SafeAreaView>;
   const uri = project?.videoUri ?? videoUri;
   if (loading || error || !uri) return <SafeAreaView className="flex-1 bg-black items-center justify-center px-6">

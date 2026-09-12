@@ -49,6 +49,8 @@ internal class MediaExportService : Service() {
           initialNotification,
           ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROCESSING,
         )
+      } else if (Build.VERSION.SDK_INT >= 29) {
+        startForeground(NOTIFICATION_ID, initialNotification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
       } else {
         startForeground(NOTIFICATION_ID, initialNotification)
       }

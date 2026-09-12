@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Alert, Pressable, Text, TextInput, View } from 'react-native';
 import captions from '../../../modules/one-take-captions';
 import type { Project } from '@/lib/session';
 import { projectScriptLines, replaceWithRefined } from '@/lib/project-workflow';
@@ -91,7 +91,7 @@ export function TranscriptReview({ project, onChange, onSeek, onPreviewTake, dur
     <Pressable accessibilityRole="button" accessibilityState={{ expanded }} onPress={() => setExpanded(v => !v)} className="py-3">
       <Text className="text-white font-semibold">Captions and coverage · {expanded ? 'Hide' : 'Show'}</Text>
     </Pressable>
-    {expanded && <ScrollView pointerEvents={importing ? 'none' : 'auto'} style={{ maxHeight: 260 }} keyboardShouldPersistTaps="handled">
+    {expanded && <View pointerEvents={importing ? 'none' : 'auto'}>
       {!!project.recoveryMessage && <Text className="text-amber-200 text-xs mb-3">{project.recoveryMessage}</Text>}
       <View className="flex-row flex-wrap gap-2 mb-3">
         <Pressable disabled={multiSource || !captions || project.mediaMissing || progress !== null} onPress={() => refine()} className="bg-neutral-800 rounded-lg p-3 disabled:opacity-40">
@@ -266,6 +266,6 @@ export function TranscriptReview({ project, onChange, onSeek, onPreviewTake, dur
       </Pressable>)}
       {importing && <Text className="text-neutral-300 text-xs py-3">Attaching pickup recording…</Text>}
       {!!message && <Text accessibilityRole="alert" className="text-neutral-200 text-xs py-3">{message}</Text>}
-    </ScrollView>}
+    </View>}
   </View>;
 }
