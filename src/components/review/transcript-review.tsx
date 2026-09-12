@@ -13,6 +13,7 @@ export function TranscriptReview({ project, onChange, onSeek, duration }: {
   const [progress, setProgress] = useState<number | null>(null);
   const [message, setMessage] = useState('');
   const [original, setOriginal] = useState(false);
+  const [showCandidate, setShowCandidate] = useState(false);
   const latest = useRef(project);
   latest.current = project;
   const refinementId = useRef<string | null>(null);
@@ -101,8 +102,8 @@ export function TranscriptReview({ project, onChange, onSeek, duration }: {
       <Text className="text-neutral-400 text-xs mb-3">Rechecking works offline on recordings up to five minutes. Live caption timing is approximate until rechecked against saved audio.</Text>
       {!project.transcript.length && <Text className="text-neutral-300 text-sm mb-3">No speech transcript was saved. Recheck the recording or retain the original video.</Text>}
       {project.refinementCandidate && <View className="mb-3">
-        <Text className="text-neutral-400 text-xs">Latest recognition result before preserving your edits</Text>
-        <Text selectable className="text-neutral-200 text-sm">{project.refinementCandidate.map(s => s.text).join(' ')}</Text>
+        <Pressable className="py-3" onPress={() => setShowCandidate(v => !v)}><Text className="text-neutral-400 text-xs">{showCandidate ? 'Hide' : 'Compare'} latest recognition result</Text></Pressable>
+        {showCandidate && <Text selectable className="text-neutral-200 text-sm">{project.refinementCandidate.map(s => s.text).join(' ')}</Text>}
       </View>}
       {original && <View className="mb-3 bg-neutral-950 rounded-lg p-3">
         <Text className="text-neutral-400 text-xs mb-2">Previous raw transcript</Text>

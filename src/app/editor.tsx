@@ -9,6 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { Project } from '@/lib/session';
 import { getProject, saveProject, saveProjectMetadata } from '@/lib/store';
+import { partitionCaptionTimeline, activeCaptionAt } from '@/lib/caption-timeline';
 import { LOCAL_VIDEO_BUFFER } from '@/lib/video-buffer';
 import { ExportControls } from '@/components/review/export-controls';
 import { TranscriptReview } from '@/components/review/transcript-review';
@@ -78,8 +79,12 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
   const previewFullSource = previewOriginal || project?.cuts?.length === 0;
   const limit = end || duration;
   const valid = Number.isFinite(duration) && duration > 0;
-  const visibleCaption = project?.transcript.find(s => s.isFinal !== false && currentTime >= s.t0 && currentTime < s.t1);
-  const captionText = visibleCaption ? (visibleCaption.manualCorrection ?? visibleCaption.correctedText ?? visibleCaption.text) : '';
+  const captionCues = useMemo(() => {
+    try { return partitionCaptionTimeline((project?.transcript ?? []).map(s => ({ ...s, text: s.manualCorrection ?? s.correctedText ?? s.text }))); }
+    catch { return []; }
+  }, [project?.transcript]);
+  const captionText = activeCaptionAt(captionCues, currentTime)?.text ?? '';
+
 
   useEffect(() => navigation.addListener('blur', () => player.pause()), [navigation, player]);
 

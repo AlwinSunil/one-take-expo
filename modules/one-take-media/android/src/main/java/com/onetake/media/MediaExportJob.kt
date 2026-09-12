@@ -166,7 +166,11 @@ internal object MediaExportJobJson {
 }
 
 internal class MediaExportStore(context: android.content.Context) {
-  private val lock = Any()
+  // The Expo module and the foreground service each create a store instance,
+  // but both instances run in the same app process and share these files.
+  // A process-wide lock keeps cancellation, progress, and state replacement
+  // from interleaving their temporary-file writes.
+  private val lock = PROCESS_LOCK
   private val directory = File(context.applicationContext.filesDir, "exports")
   private val stateFile = File(directory, "jobs.json")
   private val temporaryStateFile = File(directory, ".jobs.json.part")
@@ -351,6 +355,7 @@ internal class MediaExportStore(context: android.content.Context) {
   }
 
   companion object {
+    private val PROCESS_LOCK = Any()
     private const val MAX_ERROR_LENGTH = 1_000
   }
 }

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { activeCaptionAt, partitionCaptionTimeline } from '../src/lib/caption-timeline.ts';
 import { buildExportPlan, ExportPlanError } from '../src/lib/export-plan.ts';
 
 function project(overrides = {}) {
@@ -68,7 +69,7 @@ test('a blank manual correction intentionally omits that caption', () => {
   assert.equal(result.hasEstimatedCaptions, false);
 });
 
-test('caption gaps are retained while overlapping caption intervals are rejected', () => {
+test('caption gaps are retained while overlapping intervals are partitioned into cues', () => {
   const result = buildExportPlan(project({
     transcript: [
       { id: 'one', t0: 1, t1: 2, text: 'one', isFinal: true },
@@ -80,12 +81,45 @@ test('caption gaps are retained while overlapping caption intervals are rejected
     { t0: 3, t1: 4, text: 'two' },
   ]);
 
-  assert.throws(() => buildExportPlan(project({
+  const overlapping = buildExportPlan(project({
     transcript: [
       { id: 'one', t0: 1, t1: 3, text: 'one', isFinal: true },
       { id: 'two', t0: 2, t1: 4, text: 'two', isFinal: true },
     ],
-  }), 0, 5), (error) => error instanceof ExportPlanError && error.code === 'caption-overlap');
+  }), 0, 5);
+  assert.deepEqual(overlapping.captions, [
+    { t0: 1, t1: 2, text: 'one' },
+    { t0: 2, t1: 3, text: 'one\ntwo' },
+    { t0: 3, t1: 4, text: 'two' },
+  ]);
+});
+
+test('caption partitioning skips drafts and blanks and keeps active text stable', () => {
+  const cues = partitionCaptionTimeline([
+    { t0: 0, t1: 2, text: 'first', isFinal: true },
+    { t0: 1, t1: 3, text: 'second', isFinal: true },
+    { t0: 1.5, t1: 2.5, text: '   ', isFinal: true },
+    { t0: 2, t1: 4, text: 'draft', isFinal: false },
+  ]);
+
+  assert.deepEqual(cues, [
+    { t0: 0, t1: 1, text: 'first' },
+    { t0: 1, t1: 2, text: 'first\nsecond' },
+    { t0: 2, t1: 3, text: 'second' },
+  ]);
+  assert.equal(activeCaptionAt(cues, 0.5)?.text, 'first');
+  assert.equal(activeCaptionAt(cues, 1.5)?.text, 'first\nsecond');
+  assert.equal(activeCaptionAt(cues, 2)?.text, 'second');
+  assert.equal(activeCaptionAt(cues, 4), undefined);
+});
+
+test('caption partitioning rejects invalid source times without clamping them', () => {
+  assert.throws(() => partitionCaptionTimeline([
+    { t0: 3, t1: 2, text: 'backwards' },
+  ]), /interval 1 is invalid/i);
+  assert.throws(() => partitionCaptionTimeline([
+    { t0: 0, t1: Number.POSITIVE_INFINITY, text: 'unbounded' },
+  ]), /interval 1 is invalid/i);
 });
 
 test('nonfinite ranges and missing source media fail before an export request can start', () => {

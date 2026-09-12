@@ -1,5 +1,6 @@
 import { validateExportCaptions, validateExportCuts } from '../../modules/one-take-media/timeline.ts';
 
+import { partitionCaptionTimeline } from './caption-timeline.ts';
 import type { Project, TranscriptSeg } from './session';
 
 export type ExportCut = { t0: number; t1: number };
@@ -67,7 +68,7 @@ export function buildExportPlan(project: Project, start: number, end: number): E
   const captionBuild = buildCaptions(project.transcript);
   let captions: ExportCaption[];
   try {
-    captions = validateExportCaptions(captionBuild.captions);
+    captions = validateExportCaptions(partitionCaptionTimeline(captionBuild.captions));
   } catch (error) {
     const message = error instanceof Error ? error.message : 'The caption intervals are invalid.';
     const code: ExportPlanErrorCode = /overlap/i.test(message) ? 'caption-overlap' : 'invalid-caption';
