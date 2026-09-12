@@ -40,5 +40,9 @@ example
 
 # generated native folders
 /ios
-/android
 android/local.properties
+
+# android build outputs (source in android/ is tracked)
+/android/build/
+/android/app/build/
+/android/.gradle/
