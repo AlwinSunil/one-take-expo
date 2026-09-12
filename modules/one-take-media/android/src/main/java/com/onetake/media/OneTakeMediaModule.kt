@@ -1,5 +1,7 @@
 package com.onetake.media
 
+import android.media.MediaMetadataRetriever
+import android.net.Uri
 import android.content.Intent
 import android.content.ContentValues
 import android.os.Build
@@ -37,6 +39,29 @@ class OneTakeMediaModule : Module() {
     OnCreate {
       store = MediaExportStore(applicationContext())
       store?.markInterruptedRunningJobs()
+    }
+
+    AsyncFunction("getMediaInfo") Coroutine { uri: String ->
+      withContext(Dispatchers.IO) {
+        val source = Uri.parse(uri)
+        require(source.scheme in setOf("file", "content", "android.resource")) { "Only local recordings are supported" }
+        val retriever = MediaMetadataRetriever()
+        try {
+          retriever.setDataSource(applicationContext(), source)
+          val durationMs = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull()
+            ?: error("Could not read recording duration")
+          val width = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toIntOrNull()
+            ?: error("Could not read recording width")
+          val height = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toIntOrNull()
+            ?: error("Could not read recording height")
+          require(durationMs > 0 && width > 0 && height > 0) { "Recording metadata is invalid" }
+          val rotation = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION)?.toIntOrNull() ?: 0
+          val sideways = ((rotation % 360) + 360) % 180 == 90
+          mapOf("duration" to durationMs / 1000.0,
+            "width" to if (sideways) height else width,
+            "height" to if (sideways) width else height)
+        } finally { retriever.release() }
+      }
     }
 
     AsyncFunction("startExport") Coroutine { request: Map<String, Any?> ->

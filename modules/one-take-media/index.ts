@@ -40,7 +40,11 @@ export type MediaExport = {
   error?: string;
 };
 
+export type MediaInfo = { duration: number; width: number; height: number };
+
 export declare class OneTakeMediaModule extends NativeModule {
+  /** Encoded duration in seconds and display-oriented dimensions; absent on older builds. */
+  getMediaInfo?: (uri: string) => Promise<MediaInfo>;
   startExport(request: MediaExportRequest): Promise<{ id: string }>;
   getExport(id: string): Promise<MediaExport>;
   cancelExport(id: string): Promise<void>;
