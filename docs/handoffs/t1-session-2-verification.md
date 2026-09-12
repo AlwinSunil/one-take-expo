@@ -81,3 +81,4 @@ A separate Luna review identified four issues: track/frame identity mismatch, se
 Each now has a regression check; `npm test` passes 278/278, TypeScript passes, and the replay output was regenerated successfully.
 The review is a separate code pass, not cross-family independence or the required named human reproduction.
 `EXPO_NO_DOTENV=1 npx expo export --platform android --output-dir /tmp/one-take-t1-session2-reviewed-export` also passes after the review fixes.
+The reviewer rechecked `e6adb71`, ran 27/27 targeted tests, and confirmed all four findings resolved.
