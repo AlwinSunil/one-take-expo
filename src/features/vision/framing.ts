@@ -74,6 +74,8 @@ export type FramingRegionObservation = Readonly<{
 export type FramingRegionTrack = Readonly<{
   /** Prevents tracks from a previous take or analysis from being reused. */
   identity: FramingIdentity;
+  /** Coordinate geometry used by the producer for these observations. */
+  frame: FramingFrame;
   trackId: string;
   kind: FramingRegionKind;
   /** Explicit creator selection takes precedence over model relevance. */
@@ -396,7 +398,7 @@ export function validateFramingRequest(request: FramingAnalysisRequest): Framing
   }
   validateFrame(request.frame, errors);
   validateProvenance(request.provenance, errors);
-  const reason = errors.some(error => error.startsWith('provenance'))
+  const reason = errors.length > 0 && errors.every(error => error.startsWith('provenance'))
     ? 'invalid-provenance'
     : 'invalid-request';
   return validResult(errors, reason);
@@ -448,6 +450,9 @@ export function validateFramingTracks(
       } else if (track.identity.analysisRevision !== request.analysisRevision) {
         errors.push(`track ${String(track.trackId)} identity analysisRevision does not match request identity`);
       }
+    }
+    if (!sameFrame(track.frame, request.frame)) {
+      errors.push(`track ${String(track.trackId)} frame identity does not match request geometry`);
     }
     if (!VALID_KINDS.includes(track.kind as string)) errors.push('track kind is invalid');
     if (!isBoolean(track.selected) || !isBoolean(track.relevant)) {
@@ -818,7 +823,7 @@ export function buildFramingSuggestion(
   if (!isRecord(request)) return fallbackSuggestion(fallbackRequest(request), 'invalid-request');
   const requestValidation = validateFramingRequest(request);
   if (!requestValidation.valid) {
-    return fallbackSuggestion(request, requestValidation.reason ?? 'invalid-request');
+    return fallbackSuggestion(fallbackRequest(request), requestValidation.reason ?? 'invalid-request');
   }
   const optionsValidation = validateOptions(options);
   if (!optionsValidation.valid) return fallbackSuggestion(request, 'invalid-options');
@@ -840,7 +845,7 @@ export function buildFramingSuggestion(
     if (!tracks.some(track => track.kind === 'product' && track.selected)) {
       return fallbackSuggestion(request, 'product-not-selected');
     }
-    if (!tracks.some(track => track.kind === 'hand' && track.relevant)) {
+    if (!tracks.some(track => track.kind === 'hand' && (track.selected || track.relevant))) {
       return fallbackSuggestion(request, 'hands-missing');
     }
     required = eligible.filter(track =>
@@ -850,7 +855,7 @@ export function buildFramingSuggestion(
     if (!required.some(track => track.kind === 'product' && track.selected)) {
       return fallbackSuggestion(request, 'product-not-selected');
     }
-    if (!required.some(track => track.kind === 'hand' && track.relevant)) {
+    if (!required.some(track => track.kind === 'hand' && (track.selected || track.relevant))) {
       return fallbackSuggestion(request, 'hands-missing');
     }
   } else {

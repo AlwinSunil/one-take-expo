@@ -67,6 +67,9 @@ export type FramingFixtureReplay = Readonly<{
   passed: boolean;
 }>;
 
+type FixtureTrack = Omit<FramingRegionTrack, 'frame'>;
+type FixtureDraft = Omit<FramingFixture, 'tracks'> & { tracks: readonly FixtureTrack[] };
+
 function identity(id: string): FramingIdentity {
   return {
     sourceMediaId: `fixture-media-${id}`,
@@ -126,7 +129,7 @@ function track(
   timestamps: readonly number[],
   rects: readonly FramingRect[],
   confidence?: number | readonly number[],
-): FramingRegionTrack {
+): FixtureTrack {
   return {
     identity: { ...sourceIdentity },
     trackId,
@@ -146,7 +149,7 @@ function repeated(
   timestamps: readonly number[],
   rect: FramingRect,
   confidence = 0.93,
-): FramingRegionTrack {
+): FixtureTrack {
   return track(sourceIdentity, trackId, kind, selected, relevant, timestamps, timestamps.map(() => rect), confidence);
 }
 
@@ -162,7 +165,7 @@ const portraitTalkingHeadRequest = request(
   frame(1080, 1920),
 );
 
-const portraitTalkingHead: FramingFixture = {
+const portraitTalkingHead: FixtureDraft = {
   id: 'portrait-talking-head',
   description: 'A single face moves gently across an upright portrait take.',
   request: portraitTalkingHeadRequest,
@@ -188,7 +191,7 @@ const portraitTalkingHead: FramingFixture = {
 };
 
 const movingVlogIdentity = identity('moving-vlog-subject');
-const movingVlog: FramingFixture = {
+const movingVlog: FixtureDraft = {
   id: 'moving-vlog-subject',
   description: 'A selected subject travels across the interval and needs one temporal union crop.',
   request: request('moving-vlog-subject', 'vlog', 3000, { startMs: 0, endMs: 3000 }, frame(1920, 1080)),
@@ -213,7 +216,7 @@ const movingVlog: FramingFixture = {
 
 const productHandsIdentity = identity('product-demo-with-hands');
 const productHandsTimes = shortTimes;
-const productHands: FramingFixture = {
+const productHands: FixtureDraft = {
   id: 'product-demo-with-hands',
   description: 'A selected product and two relevant hands remain in one static crop.',
   request: request('product-demo-with-hands', 'product-demo', 3000, { startMs: 0, endMs: 3000 }, frame(1920, 1080)),
@@ -229,7 +232,7 @@ const productHands: FramingFixture = {
 };
 
 const multiplePeopleIdentity = identity('multiple-people-safe');
-const multiplePeopleSafe: FramingFixture = {
+const multiplePeopleSafe: FixtureDraft = {
   id: 'multiple-people-safe',
   description: 'Two selected faces fit within one conservative union crop.',
   request: request('multiple-people-safe', 'talking-head', 3000, { startMs: 0, endMs: 3000 }, frame(1920, 1080)),
@@ -243,7 +246,7 @@ const multiplePeopleSafe: FramingFixture = {
 };
 
 const unsafePeopleIdentity = identity('multiple-people-unsafe');
-const multiplePeopleUnsafe: FramingFixture = {
+const multiplePeopleUnsafe: FixtureDraft = {
   id: 'multiple-people-unsafe',
   description: 'Two faces at opposite edges exceed the safe zoom and margin envelope.',
   request: request('multiple-people-unsafe', 'talking-head', 3000, { startMs: 0, endMs: 3000 }, frame(1920, 1080)),
@@ -257,7 +260,7 @@ const multiplePeopleUnsafe: FramingFixture = {
 };
 
 const missingIdentity = identity('missing-detections');
-const missingDetections: FramingFixture = {
+const missingDetections: FixtureDraft = {
   id: 'missing-detections',
   description: 'The provider has no regions for the selected interval.',
   request: request('missing-detections', 'talking-head', 3000, { startMs: 0, endMs: 3000 }, frame(1920, 1080)),
@@ -266,7 +269,7 @@ const missingDetections: FramingFixture = {
 };
 
 const offFrameIdentity = identity('off-frame-detection');
-const offFrameDetection: FramingFixture = {
+const offFrameDetection: FixtureDraft = {
   id: 'off-frame-detection',
   description: 'A malformed selected box crosses the right edge of the source.',
   request: request('off-frame-detection', 'talking-head', 3000, { startMs: 0, endMs: 3000 }, frame(1920, 1080)),
@@ -276,7 +279,7 @@ const offFrameDetection: FramingFixture = {
 };
 
 const lowConfidenceIdentity = identity('low-confidence');
-const lowConfidence: FramingFixture = {
+const lowConfidence: FixtureDraft = {
   id: 'low-confidence',
   description: 'A selected track is present but below the conservative confidence floor.',
   request: request('low-confidence', 'talking-head', 3000, { startMs: 0, endMs: 3000 }, frame(1920, 1080)),
@@ -286,7 +289,7 @@ const lowConfidence: FramingFixture = {
 };
 
 const discontinuousIdentity = identity('discontinuous-track');
-const discontinuous: FramingFixture = {
+const discontinuous: FixtureDraft = {
   id: 'discontinuous-track',
   description: 'A selected track disappears for longer than the safe temporal gap.',
   request: request('discontinuous-track', 'vlog', 3000, { startMs: 0, endMs: 3000 }, frame(1920, 1080)),
@@ -301,7 +304,7 @@ const discontinuous: FramingFixture = {
 };
 
 const missingHandsIdentity = identity('product-demo-missing-hands');
-const productWithoutHands: FramingFixture = {
+const productWithoutHands: FixtureDraft = {
   id: 'product-demo-missing-hands',
   description: 'A selected product without relevant hands cannot receive a presenter-only crop.',
   request: request('product-demo-missing-hands', 'product-demo', 3000, { startMs: 0, endMs: 3000 }, frame(1920, 1080)),
@@ -311,7 +314,7 @@ const productWithoutHands: FramingFixture = {
 };
 
 const productOnlyIntentIdentity = identity('product-only-talk-intent');
-const productOnlyTalkIntent: FramingFixture = {
+const productOnlyTalkIntent: FixtureDraft = {
   id: 'product-only-talk-intent',
   description: 'Product and hands in a talking-head intent have no face-centric subject target.',
   request: request('product-only-talk-intent', 'talking-head', 3000, { startMs: 0, endMs: 3000 }, frame(1920, 1080)),
@@ -336,7 +339,7 @@ export const FRAMING_FIXTURES: readonly FramingFixture[] = Object.freeze([
   discontinuous,
   productWithoutHands,
   productOnlyTalkIntent,
-]);
+].map(fixture => ({ ...fixture, tracks: fixture.tracks.map(track => ({ ...track, frame: { ...fixture.request.frame } })) })));
 
 /**
  * Replays the fixture catalog into JSON-friendly rows. The replay is opt-in:

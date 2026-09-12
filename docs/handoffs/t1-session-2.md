@@ -99,7 +99,8 @@ No fixture is converted into `on-device-vision` evidence.
 ## Final framing API and fixtures
 
 Import `FramingAnalysisRequest`, `FramingRegionTrack`, `buildFramingSuggestion`, and `validateFramingSuggestion` from `src/features/vision/framing.ts`.
-Each track carries `identity: { sourceMediaId, takeId, analysisId, analysisRevision }` matching the request.
+Each track carries `identity: { sourceMediaId, takeId, analysisId, analysisRevision }` and `frame: FramingFrame` matching the request.
+The validator rejects tracks from a different rotation or upright geometry even if the producer accidentally reuses the analysis ID.
 The request uses `sourceDurationMs`, `selectedInterval: { startMs, endMs }`, and the explicit `frame` and `provenance` structures.
 Each region track has `trackId`, `kind`, explicit `selected`/`relevant` flags, and ordered `observations: { timestampMs, rect, confidence }[]`.
 Increment analysis identity/revision whenever orientation, source, intent, region selection or analysis configuration changes.

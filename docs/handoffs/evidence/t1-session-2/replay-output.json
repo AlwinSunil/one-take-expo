@@ -6,8 +6,8 @@
     "unit": "ms per complete fixture catalog",
     "warmups": 100,
     "runs": 500,
-    "p50": 0.019124999999995396,
-    "p95": 0.053249999999998465,
+    "p50": 0.01895799999999781,
+    "p95": 0.046416999999998154,
     "excludes": "camera extraction, inference, device, UI, native export, thermal and memory measurements"
   },
   "framing": [

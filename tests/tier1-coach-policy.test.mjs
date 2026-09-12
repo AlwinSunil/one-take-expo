@@ -258,3 +258,12 @@ test('invalid clocks and missing speech evidence fail closed while setup remains
   });
   assert.equal(gateTier1Coach({ ...baseInput, speech: null }).kind, 'delegate');
 });
+
+test('malformed enable and recording booleans cannot bypass coaching gates', () => {
+  for (const enabled of ['false', 'true', 1, null, undefined]) {
+    assert.equal(gateTier1Coach({ ...baseInput, enabled }).kind, 'hidden');
+  }
+  for (const recording of [0, 1, 'false', 'true', null, undefined]) {
+    assert.deepEqual(gateTier1Coach({ ...baseInput, recording }), { kind: 'hidden', reason: 'invalid-recording-state' });
+  }
+});

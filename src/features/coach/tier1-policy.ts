@@ -286,7 +286,8 @@ export type Tier1CoachHiddenReason =
   | 'speech-unknown'
   | 'speech-stale'
   | 'waiting-between-lines'
-  | 'invalid-clock';
+  | 'invalid-clock'
+  | 'invalid-recording-state';
 
 export type Tier1CoachGate =
   | { kind: 'hidden'; reason: Tier1CoachHiddenReason }
@@ -351,7 +352,8 @@ function priorityIsStale(
  * cooldown, all-good and unavailable states.
  */
 export function gateTier1Coach(input: Tier1CoachGateInput): Tier1CoachGate {
-  if (!input.enabled) return { kind: 'hidden', reason: 'disabled' };
+  if (input.enabled !== true) return { kind: 'hidden', reason: 'disabled' };
+  if (typeof input.recording !== 'boolean') return { kind: 'hidden', reason: 'invalid-recording-state' };
   if (!isFiniteNonNegative(input.nowMs)) return { kind: 'hidden', reason: 'invalid-clock' };
   if (!isTier1Intent(input.intent)) return { kind: 'hidden', reason: 'missing-intent' };
 

@@ -49,7 +49,7 @@ Do not mark these checks complete from host tests or the prior research harness.
 - `git diff --check`: exit 0.
 
 The replay JSON is the output sample and contains exact host benchmark values.
-At the recorded run, one complete 11-case framing catalog measured approximately 0.019 ms p50 and 0.053 ms p95 after 100 warmups over 500 runs on Apple M5.
+The JSON records measured p50/p95 for one complete 11-case framing catalog after 100 warmups over 500 runs on Apple M5.
 These numbers measure host policy arithmetic plus validation/allocation only; they are not camera throughput or mobile performance.
 Re-running changes timings but preserves deterministic suggestions and expected outcomes.
 
@@ -74,3 +74,10 @@ The setup sheet remains unavailable during preparation/recording/saving, so no f
 `EXPO_NO_DOTENV=1 npx expo export --platform android --output-dir /tmp/one-take-t1-session2-integrated-export` passes after integration.
 The isolated Chrome camera flow was repeated on the integrated tree and still fails at SQLite wasm resolution before rendering.
 See `evidence/t1-session-2/web-integrated-blocker.png`; no successful UI or device flow is claimed.
+
+## Separate code review fixes
+
+A separate Luna review identified four issues: track/frame identity mismatch, selected-hand relevance handling, malformed boolean gate inputs, and incomplete malformed-object diagnostics.
+Each now has a regression check; `npm test` passes 278/278, TypeScript passes, and the replay output was regenerated successfully.
+The review is a separate code pass, not cross-family independence or the required named human reproduction.
+`EXPO_NO_DOTENV=1 npx expo export --platform android --output-dir /tmp/one-take-t1-session2-reviewed-export` also passes after the review fixes.

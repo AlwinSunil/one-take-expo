@@ -231,3 +231,35 @@ test('target-aspect conversion remains an original-frame fallback until validate
   assert.equal(result.reason, 'target-aspect-unvalidated');
   assert.deepEqual(result.crop, ORIGINAL_FRAME_RECT);
 });
+
+test('tracks cannot be reinterpreted in another orientation or source geometry', () => {
+  const sample = fixture('portrait-talking-head');
+  for (const frame of [
+    { ...sample.request.frame, rotationDegrees: 90 },
+    { ...sample.request.frame, uprightWidthPx: 720, uprightHeightPx: 1280 },
+  ]) {
+    const result = buildFramingSuggestion({ ...sample.request, frame }, sample.tracks, enabled);
+    assert.equal(result.originalFrameFallback, true);
+    assert.equal(result.reason, 'identity-mismatch');
+  }
+});
+
+test('explicitly selected hands override a negative relevance suggestion', () => {
+  const sample = fixture('product-demo-with-hands');
+  const tracks = sample.tracks.map(track => track.kind === 'hand'
+    ? { ...track, selected: true, relevant: false } : track);
+  const result = buildFramingSuggestion(sample.request, tracks, enabled);
+  assert.equal(result.originalFrameFallback, false);
+  assert.deepEqual(result.supportingTrackIds, ['hand-left', 'hand-right', 'product-phone']);
+});
+
+test('malformed object requests produce complete diagnostic fallbacks without invented usable identity', () => {
+  for (const request of [{}, { frame: null }, { selectedInterval: null }]) {
+    const result = buildFramingSuggestion(request, [], enabled);
+    assert.equal(result.reason, 'invalid-request');
+    assert.equal(result.originalFrameFallback, true);
+    assert.equal(typeof result.sourceMediaId, 'string');
+    assert.ok(result.frame && result.provenance && result.selectedInterval);
+    assert.equal(validateFramingSuggestion(result, request).valid, false);
+  }
+});
