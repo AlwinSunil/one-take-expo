@@ -26,6 +26,9 @@ export type PrompterEngineState = 'ready' | 'delayed' | 'unavailable';
 
 export interface PromptLine {
   id: string;
+  /** 1-based position the creator sees.  The coverage strip and every prompt
+   * use this number, so it must be the same value in both places. */
+  number: number;
   status: CoverageStatus;
 }
 
@@ -39,8 +42,6 @@ export interface PrompterActionCue {
 
 /** The component-facing line shape.  Action cue text is never part of `spokenText`. */
 export interface PrompterLine extends PromptLine {
-  /** 1-based position the creator sees, matching the coverage strip. */
-  number: number;
   spokenText: string;
   actionCues: PrompterActionCue[];
 }
@@ -60,13 +61,15 @@ export interface LineVerdict {
 }
 
 export interface PromptInput {
-  /** Script order.  The prompt line number is the position in this list. */
+  /** Script order.  Prompt text uses each line's own `number`, not its index. */
   lines: readonly PromptLine[];
   lineEnds?: readonly LineEnd[];
   verdicts?: readonly LineVerdict[];
   now: number;
   /** True while the creator is speaking; no `again` prompt may interrupt. */
   midLine?: boolean;
+  /** False during the take.  The full batched list is only for after it. */
+  takeEnded?: boolean;
   engineState?: PrompterEngineState;
   budgetMs?: number;
   holdMs?: number;
@@ -74,6 +77,9 @@ export interface PromptInput {
 
 export type PromptDecision =
   | { kind: 'again'; lineId: string; lineNumber: number; text: string }
+  /** A quiet count while the take is still running.  It names no line and asks
+   * for nothing, so it cannot compete with the line the creator is reading. */
+  | { kind: 'deferred'; lineIds: string[]; lineNumbers: number[]; count: number; text: string }
   | { kind: 'batched'; lineIds: string[]; lineNumbers: number[]; text: string };
 
 /**
@@ -82,11 +88,11 @@ export type PromptDecision =
  * An `again` prompt is only offered when the verdict arrived within the budget
  * after the line ended, before the next line started, while the creator is not
  * speaking, and while the engine is keeping up.  Everything else that still
- * needs a read is batched with text that promises a check after the take
- * rather than implying a live result.
+ * needs a read waits: a quiet `deferred` count during the take, and the full
+ * `We will check lines N, M after this take` list once `takeEnded` is true.
  */
 export function decideRetakePrompt(input: PromptInput): PromptDecision | null {
-  const numbers = new Map(input.lines.map((line, index) => [line.id, index + 1]));
+  const numbers = new Map(input.lines.map((line) => [line.id, line.number]));
   const budget = input.budgetMs ?? PROMPT_BUDGET_MS;
   const hold = input.holdMs ?? PROMPT_HOLD_MS;
   const engineReady = (input.engineState ?? 'ready') === 'ready';
@@ -119,10 +125,24 @@ export function decideRetakePrompt(input: PromptInput): PromptDecision | null {
 
   const lineIds = unconfirmed.map((line) => line.id);
   const lineNumbers = lineIds.map((id) => numbers.get(id)!);
+  if (!input.takeEnded) {
+    return {
+      kind: 'deferred',
+      lineIds,
+      lineNumbers,
+      count: lineIds.length,
+      text: `${lineIds.length} ${lineIds.length === 1 ? 'line' : 'lines'} to check after this take`,
+    };
+  }
   return { kind: 'batched', lineIds, lineNumbers, text: batchedText(lineNumbers) };
 }
 
-export type PromptMissReason = 'no-verdict' | 'late-verdict' | 'next-line-started' | 'delayed-engine';
+export type PromptMissReason =
+  | 'no-verdict'
+  | 'before-line-end'
+  | 'late-verdict'
+  | 'next-line-started'
+  | 'delayed-engine';
 
 export interface PromptSessionLog {
   lines: readonly PromptLine[];
@@ -153,7 +173,7 @@ export interface PromptTimingReport {
  * log; it is not by itself evidence about a device, a room or a recognizer.
  */
 export function evaluatePromptTiming(log: PromptSessionLog): PromptTimingReport {
-  const numbers = new Map(log.lines.map((line, index) => [line.id, index + 1]));
+  const numbers = new Map(log.lines.map((line) => [line.id, line.number]));
   const statuses = new Map(log.lines.map((line) => [line.id, line.status]));
   const budget = log.budgetMs ?? PROMPT_BUDGET_MS;
   const mode = (log.engineState ?? 'ready') === 'ready' ? 'live' : 'batched';
@@ -177,6 +197,10 @@ export function evaluatePromptTiming(log: PromptSessionLog): PromptTimingReport 
     }
     if (!verdict) {
       missed.push({ lineId: lineEnd.lineId, lineNumber, reason: 'no-verdict' });
+      continue;
+    }
+    if (verdict.arrivedAt < lineEnd.endedAt) {
+      missed.push({ lineId: lineEnd.lineId, lineNumber, reason: 'before-line-end' });
       continue;
     }
     if (verdict.arrivedAt - lineEnd.endedAt > budget) {
@@ -284,6 +308,8 @@ export function stripWindow(count: number, currentIndex: number, capacity: numbe
 }
 
 function promptArrivedInTime(lineEnd: LineEnd, verdict: LineVerdict, budget: number): boolean {
+  // A verdict cannot honestly describe a line that has not finished yet.
+  if (verdict.arrivedAt < lineEnd.endedAt) return false;
   if (verdict.arrivedAt - lineEnd.endedAt > budget) return false;
   return lineEnd.nextStartsAt === undefined || verdict.arrivedAt < lineEnd.nextStartsAt;
 }

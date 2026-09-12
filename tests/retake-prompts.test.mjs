@@ -17,7 +17,7 @@ import {
 import { createPrompterSession, prompterSessionIds } from '../src/development/prompter/prompter-sessions.ts';
 
 function lines(...statuses) {
-  return statuses.map((status, index) => ({ id: `line-${index + 1}`, status }));
+  return statuses.map((status, index) => ({ id: `line-${index + 1}`, number: index + 1, status }));
 }
 
 test('a needed verdict inside the pause budget asks for the line again', () => {
@@ -36,6 +36,7 @@ test('a verdict that misses the 1200 ms budget batches the line for after the ta
     lineEnds: [{ lineId: 'line-2', endedAt: 8000, nextStartsAt: 12000 }],
     verdicts: [{ lineId: 'line-2', status: 'needed', arrivedAt: 8000 + PROMPT_BUDGET_MS + 1 }],
     now: 9500,
+    takeEnded: true,
   });
   assert.deepEqual(decision, {
     kind: 'batched',
@@ -51,6 +52,7 @@ test('a verdict that lands after the next line started never interrupts mid-line
     lineEnds: [{ lineId: 'line-1', endedAt: 4000, nextStartsAt: 4400 }],
     verdicts: [{ lineId: 'line-1', status: 'needed', arrivedAt: 4600 }],
     now: 4700,
+    takeEnded: true,
   });
   assert.equal(decision.kind, 'batched');
   assert.equal(decision.text, 'We will check line 1 after this take');
@@ -63,7 +65,7 @@ test('an in-budget verdict is still held back while the creator is speaking', ()
     verdicts: [{ lineId: 'line-2', status: 'needed', arrivedAt: 8500 }],
     now: 8600,
   };
-  assert.equal(decideRetakePrompt({ ...input, midLine: true }).kind, 'batched');
+  assert.equal(decideRetakePrompt({ ...input, midLine: true }).kind, 'deferred');
   assert.equal(decideRetakePrompt({ ...input, midLine: false }).kind, 'again');
 });
 
@@ -74,6 +76,7 @@ test('a delayed engine forces batched mode even when the timing would fit', () =
     verdicts: [{ lineId: 'line-2', status: 'needed', arrivedAt: 8400 }],
     now: 8500,
     engineState: 'delayed',
+    takeEnded: true,
   });
   assert.deepEqual(decision, {
     kind: 'batched',
@@ -100,7 +103,7 @@ test('an again prompt stops showing once its hold window has passed', () => {
     holdMs: 3000,
   };
   assert.equal(decideRetakePrompt({ ...input, now: 11000 }).kind, 'again');
-  assert.equal(decideRetakePrompt({ ...input, now: 11500 }).kind, 'batched');
+  assert.equal(decideRetakePrompt({ ...input, now: 11500 }).kind, 'deferred');
 });
 
 test('the most recent eligible pause wins when two verdicts are live', () => {
@@ -129,6 +132,14 @@ test('every prompter sample session produces its documented decision', () => {
   assert.equal(decisions['long-line'].kind, 'again');
   assert.equal(decisions['long-line'].text, 'Again, line 2');
   assert.deepEqual(decisions['delayed-verdict'], {
+    kind: 'deferred',
+    lineIds: ['line-2'],
+    lineNumbers: [2],
+    count: 1,
+    text: '1 line to check after this take',
+  });
+  const delayed = createPrompterSession('delayed-verdict');
+  assert.deepEqual(decideRetakePrompt({ ...delayed, now: delayed.now, takeEnded: true }), {
     kind: 'batched',
     lineIds: ['line-2'],
     lineNumbers: [2],
@@ -217,6 +228,79 @@ test('the evaluator reports the sample sessions without claiming device evidence
   assert.equal(report.meetsTarget, false);
 });
 
+test('an unconfirmed line waits quietly during the take and is only listed after it', () => {
+  const input = {
+    lines: lines('needed', 'covered', 'needed'),
+    lineEnds: [{ lineId: 'line-1', endedAt: 5000, nextStartsAt: 5400 }],
+    verdicts: [{ lineId: 'line-1', status: 'needed', arrivedAt: 6000 }],
+    now: 60000,
+  };
+  assert.deepEqual(decideRetakePrompt(input), {
+    kind: 'deferred',
+    lineIds: ['line-1', 'line-3'],
+    lineNumbers: [1, 3],
+    count: 2,
+    text: '2 lines to check after this take',
+  });
+  assert.deepEqual(decideRetakePrompt({ ...input, takeEnded: true }), {
+    kind: 'batched',
+    lineIds: ['line-1', 'line-3'],
+    lineNumbers: [1, 3],
+    text: 'We will check lines 1, 3 after this take',
+  });
+});
+
+test('the deferred count never names a line or asks for a retake mid-take', () => {
+  const decision = decideRetakePrompt({
+    lines: lines('covered', 'needed'),
+    lineEnds: [{ lineId: 'line-2', endedAt: 8000 }],
+    verdicts: [{ lineId: 'line-2', status: 'needed', arrivedAt: 20000 }],
+    now: 30000,
+  });
+  assert.equal(decision.kind, 'deferred');
+  assert.equal(decision.text, '1 line to check after this take');
+  assert.ok(!decision.text.includes('line 2'));
+  assert.ok(!decision.text.toLowerCase().includes('again'));
+});
+
+test('prompt numbers are the line numbers the strip shows, not array positions', () => {
+  const scriptLines = [
+    { id: 'l4', number: 4, status: 'covered' },
+    { id: 'l5', number: 5, status: 'needed' },
+    { id: 'l6', number: 6, status: 'needed' },
+  ];
+  const again = decideRetakePrompt({
+    lines: scriptLines,
+    lineEnds: [{ lineId: 'l5', endedAt: 8000, nextStartsAt: 11000 }],
+    verdicts: [{ lineId: 'l5', status: 'needed', arrivedAt: 8500 }],
+    now: 8600,
+  });
+  assert.deepEqual(again, { kind: 'again', lineId: 'l5', lineNumber: 5, text: 'Again, line 5' });
+
+  const batched = decideRetakePrompt({ lines: scriptLines, now: 20000, takeEnded: true });
+  assert.equal(batched.text, 'We will check lines 5, 6 after this take');
+
+  const report = evaluatePromptTiming({
+    lines: scriptLines,
+    lineEnds: [{ lineId: 'l6', endedAt: 12000, nextStartsAt: 13000 }],
+    verdicts: [],
+  });
+  assert.deepEqual(report.missed, [{ lineId: 'l6', lineNumber: 6, reason: 'no-verdict' }]);
+});
+
+test('a verdict that predates its own line end is never promptable', () => {
+  const input = {
+    lines: lines('covered', 'needed'),
+    lineEnds: [{ lineId: 'line-2', endedAt: 8000, nextStartsAt: 11000 }],
+    verdicts: [{ lineId: 'line-2', status: 'needed', arrivedAt: 7600 }],
+    now: 8100,
+  };
+  assert.equal(decideRetakePrompt(input).kind, 'deferred');
+  const report = evaluatePromptTiming({ lines: input.lines, lineEnds: input.lineEnds, verdicts: input.verdicts });
+  assert.deepEqual(report.missed, [{ lineId: 'line-2', lineNumber: 2, reason: 'before-line-end' }]);
+  assert.equal(report.promptedBeforeNextLine, 0);
+});
+
 test('coverage cells carry a label and a shape, never colour alone', () => {
   assert.equal(coverageCellLabel({ number: 2, status: 'needed', position: 'current' }),
     'Line 2, needs another read, current line');
@@ -276,7 +360,7 @@ function promptLog(count, promptedCount) {
   for (let index = 0; index < count; index += 1) {
     const lineId = `line-${index + 1}`;
     const endedAt = index * 5000;
-    lineList.push({ id: lineId, status: 'needed' });
+    lineList.push({ id: lineId, number: index + 1, status: 'needed' });
     lineEnds.push({ lineId, endedAt, nextStartsAt: endedAt + 2500 });
     verdicts.push({ lineId, status: 'needed', arrivedAt: endedAt + (index < promptedCount ? 800 : 2000) });
   }
