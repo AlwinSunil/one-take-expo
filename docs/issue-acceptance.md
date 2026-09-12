@@ -15,7 +15,7 @@ The implementation branch is [`feat/offline-speech-workflow`](https://github.com
 ## Evidence snapshot
 
 - `npm run typecheck` passes.
-- `npm test` passes 68 behavior-focused JavaScript tests, including the 28 coverage ledger and coverage scenario replay tests added for #16.
+- `npm test` passes 72 behavior-focused JavaScript tests, including the 32 coverage ledger and coverage scenario replay tests added for #16.
 - `npm run samples` passes the deterministic caption replay.
 - `npm run coverage:report` replays the clean and flub scenarios and scores 16 synthetic fixture rows, while reporting zero consented human held-out rows.
 - `python3 tests/speech-evaluation.test.py` passes 12 evaluator tests.
@@ -113,7 +113,9 @@ A bad reread neither erases an earlier clean take nor lands on another line, an 
 
 `src/lib/coverage-updates.ts` consumes the script editor's `{ editedLineIds, deletedLineIds, addedLineIds, reorderedFrom }` change intent: an edited line returns to `needed` with its history, a deleted line is retired with its takes, and a reorder preserves every line id and verdict.
 
-When the capture layer reports that a take's media is gone, the line falls back to the next eligible take or returns to `needed` with reason `media-missing`, and the take stays in history.
+Takes recorded before an edit are kept as stale history and can never cover the line again.
+
+When the capture layer reports that a take's media is gone, only a line that a derived clean take covered can fall back to another take; an explicit creator choice is never silently replaced, a pending line is never promoted, and the take stays in history.
 
 `npm run coverage:report` prints precision and recall per coverage verdict from the synthetic fixture rows and is labeled `synthetic fixtures, not human held-out data`.
 

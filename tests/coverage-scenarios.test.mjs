@@ -37,6 +37,9 @@ test('every selected cut plays in script order, never in recording order', () =>
   assert.deepEqual(result.cuts.map(({ t0 }) => t0), [5, 7, 1]);
 });
 
+// No production function accepts a clock, so this invariant is structural.
+// The test records it so that adding a time argument to the coverage path
+// would have to justify itself here.
 test('a pending line stays pending however far the clock advances past the analysis timeout', () => {
   const scenario = createScenario('pending-timer');
   const immediate = runScenario(scenario, { nowSeconds: 0 });

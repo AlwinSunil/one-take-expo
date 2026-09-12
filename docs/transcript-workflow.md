@@ -166,11 +166,17 @@ Those properties require the native and device checks described in the other wor
 
 `coverageLedger(review)` snapshots the derived state as one `CoverageEntry` per line, each with a `reason` code and the full take history for that line.
 
-History records keep the take id, quality, framing, playability, times and whether the take is still eligible, so losing coverage never loses evidence.
+History records keep the take id, quality, framing, playability, times, whether the take is still eligible, and whether it is `stale`, so losing coverage never loses evidence.
+
+`CoverageEntry.explicitTakeId` records the take the creator chose through `selectTake`, whether or not that take is currently usable.
 
 `applyScriptChangeIntent(ledger, intent)` consumes the script editor's published `{ editedLineIds, deletedLineIds, addedLineIds, reorderedFrom }` object.
 
 Editing a line returns it to `needed` with reason `script-edited`, because the recorded words no longer match the script, while its takes stay in history.
+
+Those takes are marked `stale: true` and `eligible: false`, since they were recorded against the earlier wording, so no later recomputation can promote one of them back into coverage.
+
+An edit also clears `explicitTakeId`, because a choice made for the earlier wording is not a choice for the new wording.
 
 Deleting a line moves its entry to `ledger.retired` with reason `line-deleted`, so its takes remain available for review and never gate a wrap.
 
@@ -182,13 +188,23 @@ A `reorderedFrom` list that is not exactly the current set of line ids, or an ed
 
 `applyMediaAvailability(ledger, takeIds)` recomputes coverage after the capture layer reports that media is gone.
 
-The affected history records become unplayable and ineligible, the line falls back to its next eligible take when one exists, and otherwise returns to `needed` with reason `media-missing`.
+The affected history records become unplayable and ineligible.
+
+Losing a file can only ever take coverage away, so a replacement is chosen in exactly one case: the line was covered by a take this module picked itself, and that take is the one that disappeared.
+
+A line with an `explicitTakeId` is never silently reassigned; if the creator's take is the one that vanished the line returns to `needed` with reason `media-missing`, and the creator chooses again.
+
+A line that was not covered is never promoted by a media loss; it keeps its own reason while it still has playable evidence, and otherwise returns to `needed` with reason `media-missing`.
 
 That is deliberately different from the `media-unavailable` pending state: a file that never became playable may still arrive, while a file the capture layer reports as gone will not.
 
 `selectedCutOrder(ledger)` returns the selected takes in script order, never in recording order.
 
 Consecutive lines covered by one take stay one unbroken cut, and a take covering non-adjacent lines is still played once, at its first script position.
+
+That last case has a deliberate limit: if one take covers lines 1 and 3 while another covers line 2, the cut list is `[take(1, 3), take(2)]`, so line 3 is heard before line 2.
+
+Coverage will not repeat source audio or invent a split inside a continuous take, so resolving that ordering is an editor decision with a real media boundary, not a coverage decision.
 
 `coverageSafeToWrap(ledger, unresolvedRequiredActionCueIds)` requires at least one line, every current line covered, and no unresolved required cue.
 
@@ -205,6 +221,8 @@ Framing values in a scenario are declared fixture observations and are never a v
 `ScenarioOptions.nowSeconds` is a simulated clock that coverage never reads.
 
 The replay reports `timedOutTakeIds` for pending takes whose analysis window has elapsed, which lets a test advance the clock past any timeout and show that the pending line is still pending.
+
+No production function accepts a clock at all, so that invariant is structural rather than guarded: the test documents it, and it would only regress if someone added a time argument to the coverage path.
 
 ## Local verification
 
