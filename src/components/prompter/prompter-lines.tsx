@@ -16,10 +16,12 @@ import {
  * ever completed by pressing its Done control: advancing a line does nothing
  * to it.  Props-only; the caller owns every piece of state.
  */
-export function PrompterLines({ current, next, onCueDone }: {
+export function PrompterLines({ current, next, onCueDone, showStatus = true }: {
   current: PrompterLine | null;
   next?: PrompterLine | null;
   onCueDone: (cueId: string) => void;
+  /** Pass `false` before a coverage engine is connected, so no status is implied. */
+  showStatus?: boolean;
 }) {
   const window = useWindowDimensions();
   const fontScale = window.fontScale || PixelRatio.getFontScale();
@@ -42,9 +44,9 @@ export function PrompterLines({ current, next, onCueDone }: {
   return <View className="rounded-xl bg-black/80 px-4 py-3">
     <View className="flex-row items-center justify-between">
       <Text className="text-neutral-300 text-xs">Line {current.number}</Text>
-      <Text className="text-neutral-300 text-xs">
+      {showStatus && <Text className="text-neutral-300 text-xs">
         {COVERAGE_MARKS[current.status].symbol} {COVERAGE_MARKS[current.status].short}
-      </Text>
+      </Text>}
     </View>
     <Text accessibilityLabel={`Line ${current.number}. ${current.spokenText}`} onTextLayout={onTextLayout}
       numberOfLines={clamp || undefined} className="text-white mt-1"
