@@ -13,8 +13,10 @@ import { partitionCaptionTimeline, activeCaptionAt } from '@/lib/caption-timelin
 import { LOCAL_VIDEO_BUFFER } from '@/lib/video-buffer';
 import { ExportControls } from '@/components/review/export-controls';
 import { TranscriptReview } from '@/components/review/transcript-review';
+import { T1WrapReport } from '@/components/review/t1-wrap-report';
 import { T1CaptionEditor } from '@/components/review/t1-caption-editor';
 import { Tier1TakeReview } from '@/components/review/t1-take-review';
+import { projectScriptLines } from '@/lib/project-workflow';
 import { tier1Enabled } from '@/lib/t1-gates';
 
 const time = (seconds: number) => `${Math.floor(seconds / 60)}:${Math.floor(seconds % 60).toString().padStart(2, '0')}`;
@@ -47,10 +49,13 @@ function TrimHandle({ value, duration, width, onChange }: {
 
 function VideoEditor({ project: initialProject, uri }: { project: Project | null; uri: string }) {
   const [project, setProject] = useState(initialProject);
+  const latestProject = useRef(project);
+  latestProject.current = project;
   const persistence = useRef(Promise.resolve());
   const [pendingWrites, setPendingWrites] = useState(0);
   const [persistenceError, setPersistenceError] = useState('');
   async function changeProject(next: Project, preserveMedia = false) {
+    latestProject.current = next;
     setProject(next);
     setPendingWrites(count => count + 1);
     const pending = persistence.current.catch(() => {}).then(async () => {
@@ -84,6 +89,7 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
   const previewFullSource = previewOriginal || project?.cuts?.length === 0;
   const limit = end || duration;
   const valid = Number.isFinite(duration) && duration > 0;
+  const reviewProject = project ? { ...project, duration: valid ? duration : project.duration, mediaMissing: project.mediaMissing !== false || status !== 'readyToPlay' } : null;
   const captionCues = useMemo(() => {
     try { return partitionCaptionTimeline((project?.transcript ?? []).map(s => ({ ...s, text: s.manualCorrection ?? s.correctedText ?? s.text }))); }
     catch { return []; }
@@ -208,8 +214,15 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
       <Text className="text-neutral-500 text-xs text-center mt-3">Drag the ends to trim. Slide across the filmstrip to preview.</Text>
       {!!message && <Text accessibilityRole="alert" className="text-neutral-200 text-sm mt-3 text-center">{message}</Text>}
       {__DEV__ && <Pressable accessibilityRole="button" className="py-3" onPress={() => setTier1Test(v => !v)}><Text className="text-amber-200">{tier1Test ? 'Disable Tier 1 development test' : 'Enable Tier 1 development test'}</Text></Pressable>}
-      {project && <T1CaptionEditor project={project} onChange={changeProject} enabled={tier1Enabled('takeReview', __DEV__, tier1Test)} disabled={pendingWrites > 0} />}
-      {project && tier1Enabled('takeReview', __DEV__, tier1Test) && <Tier1TakeReview project={project} onChange={changeProject} onPreview={range => {
+      {project && reviewProject && <T1WrapReport project={reviewProject} onChange={next => changeProject({ ...next, mediaMissing: project.mediaMissing })} enabled={tier1Enabled('wrapReport', __DEV__, tier1Test)} onConfirmAction={(id, confirmed) => {
+        const current = latestProject.current;
+        if (!current) return;
+        void changeProject({ ...current, scriptLines: projectScriptLines(current).map(line => ({ ...line, actionCues: line.actionCues.map(cue => cue.id === id ? { ...cue, resolved: confirmed } : cue) })) }).catch(() => setMessage('Action confirmation could not be saved.'));
+      }} onReviewFootage={range => {
+        player.pause(); setTakePreview(range); cutIndex.current = 0; player.currentTime = range.t0; setPreviewOriginal(false); player.play();
+      }} />}
+      {project && reviewProject && <T1CaptionEditor project={reviewProject} onChange={next => changeProject({ ...next, mediaMissing: project.mediaMissing })} enabled={tier1Enabled('takeReview', __DEV__, tier1Test)} disabled={pendingWrites > 0} />}
+      {project && reviewProject && tier1Enabled('takeReview', __DEV__, tier1Test) && <Tier1TakeReview project={reviewProject} onChange={next => changeProject({ ...next, mediaMissing: project.mediaMissing })} onPreview={range => {
         player.pause(); setTakePreview(range); cutIndex.current = 0; player.currentTime = range.t0; setPreviewOriginal(false); player.play();
       }} />}
       {project && <TranscriptReview project={project} duration={valid ? duration : undefined} onChange={changeProject} onSeek={value => {
@@ -219,6 +232,28 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
       {project && valid && !persistenceError && pendingWrites === 0 && <ExportControls project={project} start={start} end={limit} onMessage={setMessage} />}
     </ScrollView>
   </SafeAreaView>;
+}
+
+function MissingMediaReview({ project, onChange }: { project: Project; onChange: (next: Project) => Promise<void> }) {
+  const [enabled, setEnabled] = useState(false);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const lock = useRef(false);
+  async function change(next: Project) {
+    if (lock.current) throw new Error('Wait for the current edit to save.');
+    lock.current = true; setBusy(true);
+    try { await onChange(next); setError(''); }
+    catch (e) { setError(String(e)); throw e; }
+    finally { lock.current = false; setBusy(false); }
+  }
+  return <ScrollView>
+    {__DEV__ && <Pressable accessibilityRole="button" className="py-3" onPress={() => setEnabled(v => !v)}><Text className="text-amber-200">{enabled ? 'Disable Tier 1 development test' : 'Enable Tier 1 development test'}</Text></Pressable>}
+    <T1CaptionEditor project={project} onChange={change} enabled={tier1Enabled('takeReview', __DEV__, enabled)} disabled={busy} />
+    <T1WrapReport project={project} onChange={change} enabled={tier1Enabled('wrapReport', __DEV__, enabled)} />
+    {tier1Enabled('takeReview', __DEV__, enabled) && <Tier1TakeReview project={project} onChange={change} onPreview={() => {}} />}
+    <TranscriptReview project={project} onChange={change} onSeek={() => {}} />
+    {!!error && <Text accessibilityRole="alert" className="text-amber-200">{error}</Text>}
+  </ScrollView>;
 }
 
 export default function Editor() {
@@ -241,7 +276,7 @@ export default function Editor() {
   if (!loading && project && (!project.videoUri || project.mediaMissing)) return <SafeAreaView className="flex-1 bg-black px-6">
     <Pressable onPress={() => router.back()} className="py-4"><Text className="text-white">Back</Text></Pressable>
     <Text className="text-amber-200">{project.recoveryMessage ?? 'The original recording is unavailable. Your saved transcript is still here.'}</Text>
-    <TranscriptReview project={project} onChange={async next => { setProject(next); await saveProjectMetadata(next); }} onSeek={() => {}} />
+    <MissingMediaReview project={{ ...project, mediaMissing: true }} onChange={async next => { await saveProjectMetadata(next); setProject(next); }} />
   </SafeAreaView>;
   const uri = project?.videoUri ?? videoUri;
   if (loading || error || !uri) return <SafeAreaView className="flex-1 bg-black items-center justify-center px-6">

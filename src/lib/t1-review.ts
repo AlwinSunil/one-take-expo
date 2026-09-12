@@ -5,7 +5,7 @@ import { selectTake } from './transcript-workflow.ts';
 
 /** Narrow primary-source adapter until the multi-recording store in #49 merges. */
 export function canReviewFootage(project: Project, footage: FootageReference): boolean {
-  return !!footage && footage.recordingId === project.id && typeof project.videoUri === 'string' && !!project.videoUri.trim() && !project.mediaMissing
+  return !!footage && footage.recordingId === project.id && typeof project.videoUri === 'string' && !!project.videoUri.trim() && project.mediaMissing === false
     && Number.isFinite(footage.t0) && Number.isFinite(footage.t1)
     && footage.t0 >= 0 && footage.t1 > footage.t0
     && typeof project.duration === 'number' && footage.t1 <= project.duration;

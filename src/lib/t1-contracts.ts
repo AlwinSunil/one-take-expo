@@ -33,6 +33,16 @@ export interface CleanupDecision {
   /** Must be explicit creator review, never inferred from ASR timestamps. */
   boundariesReviewed: boolean;
 }
+
+/**
+ * Producer identity for the exact spoken script used to derive this snapshot.
+ * Action-only cues are not included because they are confirmed separately.
+ */
+export interface Tier1ScriptLineSnapshot {
+  lineId: string;
+  spokenText: string;
+}
+
 export interface Tier1Evidence {
   version: 1;
   projectId: string;
@@ -40,6 +50,8 @@ export interface Tier1Evidence {
   revision: string;
   provider: 'fixture' | 'integrated';
   status: EvidenceStatus;
+  /** Required for a current producer verdict; absent legacy snapshots fail closed. */
+  scriptSnapshot?: Tier1ScriptLineSnapshot[];
   reasons: TakeReason[];
   mustSay: MustSayResult[];
   scratchHistory: ScratchEvent[];
@@ -50,6 +62,8 @@ export interface Tier1Evidence {
 }
 export interface WrapAcknowledgement {
   evidenceRevision: string;
+  /** Canonical project/source/script/action context used for this acknowledgement. */
+  contextKey?: string;
   acknowledgedAt: number;
   remainingFlags: string[];
 }

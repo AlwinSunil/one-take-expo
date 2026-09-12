@@ -180,6 +180,7 @@ export function T1CaptionEditor({
           accessibilityState={{ selected }}
           disabled={disabled}
           onPress={() => openWord(segmentIndex, word.index)}
+          style={{ minHeight: 44, justifyContent: 'center' }}
           className="rounded px-1 py-1 disabled:opacity-40"
         >
           <Text className={selected ? 'text-cyan-200 bg-cyan-950' : 'text-neutral-100'}>{word.text}</Text>

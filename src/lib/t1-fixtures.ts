@@ -6,6 +6,7 @@ export function createTier1ReviewFixture(): Project {
   const id = 't1-review-fixture';
   const evidence: Tier1Evidence = {
     version: 1, projectId: id, revision: 'fixture-v1', provider: 'fixture', status: 'pending',
+    scriptSnapshot: [{ lineId: 'line-1', spokenText: 'Our bottle stays cold.' }],
     reasons: [{ id: 'reason-1', takeId: 'take:segment-1', message: 'Fixture: possible reread; listen before choosing.', status: 'uncertain', footage: { recordingId: id, t0: 0, t1: 3 } }],
     mustSay: [{ lineId: 'line-1', required: true, status: 'pending', evidence: [] }],
     scratchHistory: [], cleanup: [], firstTakeStartedAt: 1000, wrapRequestedAt: 46000,
