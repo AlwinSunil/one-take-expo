@@ -1,0 +1,17 @@
+{
+  "serial": "10BFAT1U1Q000XP",
+  "passed": [
+    "clean open and Android back",
+    "reread open and Android back",
+    "Pending analysis replay",
+    "pending open and Android back",
+    "missing-media open and Android back",
+    "Required action confirmation and undo",
+    "action-cue open and Android back",
+    "off-frame open and Android back",
+    "Export failure recovery replay and reset",
+    "failure open and Android back",
+    "19/19 behavior checks executed in device runtime",
+    "Android back closes runner to Home"
+  ]
+}

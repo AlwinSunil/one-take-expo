@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="460" viewBox="0 0 960 460">
+  <title>Original synthetic crop examples; not camera-quality validation</title>
+  <desc>Three geometric frames: a circle cut off at the edge, a centered circle fully within frame, and a hands-free product rectangle without a face. CC0-1.0.</desc>
+  <rect width="960" height="460" fill="#151719"/>
+  <g font-family="sans-serif" fill="#f5f5f5">
+    <text x="30" y="40" font-size="22">Synthetic geometry — not real camera validation</text>
+    <text x="30" y="76" font-size="15">Same abstract subject, different crop. Centered and product-only shots are valid.</text>
+  </g>
+  <defs><clipPath id="frame"><rect x="30" y="100" width="280" height="270" rx="12"/></clipPath></defs>
+  <g fill="#30373d" stroke="#8d969d" stroke-width="2">
+    <rect x="30" y="100" width="280" height="270" rx="12"/>
+    <rect x="340" y="100" width="280" height="270" rx="12"/>
+    <rect x="650" y="100" width="280" height="270" rx="12"/>
+  </g>
+  <circle cx="48" cy="220" r="65" fill="#f8c57d" clip-path="url(#frame)"/>
+  <circle cx="480" cy="220" r="65" fill="#f8c57d"/>
+  <rect x="742" y="159" width="96" height="148" rx="8" fill="#8cd8c5"/>
+  <g font-family="sans-serif" fill="#f5f5f5" font-size="17">
+    <text x="30" y="406">Candidate: clipped subject</text>
+    <text x="340" y="406">Valid: centered composition</text>
+    <text x="650" y="406">Valid: product-only composition</text>
+    <text x="30" y="442" font-size="13">Original geometric fixture · CC0-1.0 · No model, camera, skin-tone or device claim</text>
+  </g>
+</svg>

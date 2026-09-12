@@ -47,6 +47,10 @@ android/local.properties
 /android/app/build/
 /android/.gradle/
 
+# Local Expo module build outputs
+/modules/*/android/build/
+/modules/*/android/.cxx/
+/java_pid*.hprof
 # Verified native caption artifacts are staged locally by tools/prepare_moonshine.py.
 /tools/.cache/
 /modules/one-take-captions/android/build/

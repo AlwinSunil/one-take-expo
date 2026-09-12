@@ -1,0 +1,61 @@
+[
+  {
+    "name": "storage",
+    "passed": 7,
+    "visibleResults": [
+      "Back to samples",
+      "Sample sessions",
+      "DEVELOPMENT ONLY",
+      "7 / 7 checks passed",
+      "Shared-data behavior checks executed by the app\u2019s JavaScript runtime. These do not verify camera, audio sync, NPU or rendered media.",
+      "Pass \u00b7 Legacy-shaped project saves a separate durable original",
+      "Pass \u00b7 Saved trim and script survive a fresh database read",
+      "Pass \u00b7 Two projects retain separate original files",
+      "Pass \u00b7 Missing file does not erase persisted script or trim",
+      "Pass \u00b7 Missing-source save fails without adding a project",
+      "Pass \u00b7 Failed save preserves both existing fixture originals",
+      "Pass \u00b7 Existing draft and source fixture stay unchanged",
+      "Run again",
+      "Run again"
+    ]
+  },
+  {
+    "name": "coaching",
+    "passed": 14,
+    "visibleResults": [
+      "Back to samples",
+      "Sample sessions",
+      "DEVELOPMENT ONLY",
+      "14 / 14 checks passed",
+      "Shared-data behavior checks executed by the app\u2019s JavaScript runtime. These do not verify camera, audio sync, NPU or rendered media.",
+      "Pass \u00b7 Highest-priority actionable cue wins",
+      "Pass \u00b7 Intentional crop and blur suppress automatic advice",
+      "Pass \u00b7 Groups need subject selection before advice",
+      "Pass \u00b7 Product-only shots never ask for a face",
+      "Pass \u00b7 No face in product shot is normal",
+      "Pass \u00b7 Pending and unavailable detector mean silence",
+      "Pass \u00b7 Stale and invalid frame timestamps suppress advice",
+      "Pass \u00b7 Transient issue does not prompt"
+    ]
+  },
+  {
+    "name": "handoff",
+    "passed": 19,
+    "visibleResults": [
+      "Back to samples",
+      "Sample sessions",
+      "DEVELOPMENT ONLY",
+      "19 / 19 checks passed",
+      "Shared-data behavior checks executed by the app\u2019s JavaScript runtime. These do not verify camera, audio sync, NPU or rendered media.",
+      "Pass \u00b7 clean: valid handoff",
+      "Pass \u00b7 reread: valid handoff",
+      "Pass \u00b7 pending: valid handoff",
+      "Pass \u00b7 missing-media: valid handoff",
+      "Pass \u00b7 action-cue: valid handoff",
+      "Pass \u00b7 off-frame: valid handoff",
+      "Pass \u00b7 failure: valid handoff",
+      "Pass \u00b7 Two lines in one breath retain one audio segment",
+      "Pass \u00b7 Re-read excludes flagged audio and preserves its reason"
+    ]
+  }
+]

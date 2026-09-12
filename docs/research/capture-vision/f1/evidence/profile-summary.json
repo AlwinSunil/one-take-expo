@@ -1,0 +1,16 @@
+{
+  "pose_detector": {
+    "profile_sha256": "5064d6dc44aa8324ddf83004b6697f7d7be705adcc6678096bb3b9e0ed533d47",
+    "providers": {
+      "QNNExecutionProvider": 600
+    },
+    "events": 600
+  },
+  "pose_landmark_detector": {
+    "profile_sha256": "0e9dca371e05c918773950e455f57a0b578c2a9a0264d7afa5d8f36cf06a9e07",
+    "providers": {
+      "QNNExecutionProvider": 35
+    },
+    "events": 35
+  }
+}

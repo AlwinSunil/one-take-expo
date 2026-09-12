@@ -1,0 +1,429 @@
+{
+  "projectId": "media-research-1789245787969",
+  "source": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+  "firstFrame": null,
+  "log": [
+    "2026-09-12T20:53:22.135Z Export ab501605-427f-42e6-b75b-a3256ea3359a: completed 100%",
+    "2026-09-12T20:53:26.774Z Container inspection: {\"uri\":\"file:///data/user/0/com.anonymous.onetake/files/one-take-exports/ab501605-427f-42e6-b75b-a3256ea3359a.mp4\",\"sizeBytes\":1260543,\"probe\":\"Android MediaExtractor + MediaMetadataRetriever; compressed samples, not decoded audio\",\"durationMs\":8054,\"width\":1280,\"height\":720,\"rotationDegrees\":90,\"bitrate\":1252029,\"hasAudio\":true,\"hasVideo\":true,\"tracks\":[{\"index\":0,\"mime\":\"audio/mp4a-latm\",\"durationUs\":8054400,\"sampleRate\":22050,\"channelCount\":1,\"sampleCount\":175,\"firstPresentationTimeUs\":-72562,\"lastPresentationTimeUs\":8007981},{\"index\":1,\"mime\":\"video/avc\",\"durationUs\":8000000,\"width\":1280,\"height\":720,\"sampleCount\":238,\"firstPresentationTimeUs\":0,\"lastPresentationTimeUs\":7966666}]}",
+    "2026-09-12T20:53:31.260Z Missing source rejected: Error: Call to function 'OneTakeMedia.startExport' has been rejected.\n→ Caused by: java.lang.IllegalArgumentException: A source recording is missing. Restore it and try again.",
+    "2026-09-12T20:53:36.327Z Start export: 120s supplied cut",
+    "2026-09-12T20:53:36.382Z Export queued: 94c03736-e2b6-4762-8abd-98666748919d",
+    "2026-09-12T20:53:36.507Z Export 94c03736-e2b6-4762-8abd-98666748919d: running 0%",
+    "2026-09-12T20:53:36.635Z Cancel requested: 94c03736-e2b6-4762-8abd-98666748919d",
+    "2026-09-12T20:53:36.689Z Export 94c03736-e2b6-4762-8abd-98666748919d: cancelled 0%",
+    "2026-09-12T20:53:42.215Z Start export: 120s supplied cut",
+    "2026-09-12T20:53:42.258Z App state: background",
+    "2026-09-12T20:53:42.279Z Export queued: 2e977fa4-691a-4be5-86be-23ee800d019c",
+    "2026-09-12T20:53:42.313Z Export 2e977fa4-691a-4be5-86be-23ee800d019c: running 0%",
+    "2026-09-12T20:53:54.297Z App state: active",
+    "2026-09-12T20:53:55.342Z Export 2e977fa4-691a-4be5-86be-23ee800d019c: completed 100%"
+  ],
+  "jobs": [
+    {
+      "id": "ab501605-427f-42e6-b75b-a3256ea3359a",
+      "projectId": "media-research-1789245787969",
+      "segments": [
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "start": 0,
+          "end": 4,
+          "caption": "This is the first clean take."
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "start": 8,
+          "end": 12,
+          "caption": "This is the final clean take."
+        }
+      ],
+      "state": "completed",
+      "progress": 100,
+      "processId": "2ae582f2-19d1-4f1a-b0c2-b0c5cf42e332",
+      "uri": "file:///data/user/0/com.anonymous.onetake/files/one-take-exports/ab501605-427f-42e6-b75b-a3256ea3359a.mp4",
+      "durationMs": 8007,
+      "size": 1260543
+    },
+    {
+      "id": "94c03736-e2b6-4762-8abd-98666748919d",
+      "projectId": "media-research-1789245787969",
+      "segments": [
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "start": 0,
+          "end": 4,
+          "caption": "This is the first clean take."
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "start": 8,
+          "end": 12,
+          "caption": "This is the final clean take."
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "start": 0,
+          "end": 4,
+          "caption": "This is the first clean take."
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "start": 8,
+          "end": 12,
+          "caption": "This is the final clean take."
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "start": 0,
+          "end": 4,
+          "caption": "This is the first clean take."
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "start": 8,
+          "end": 12,
+          "caption": "This is the final clean take."
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "start": 0,
+          "end": 4,
+          "caption": "This is the first clean take."
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "start": 8,
+          "end": 12,
+          "caption": "This is the final clean take."
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "start": 0,
+          "end": 4,
+          "caption": "This is the first clean take."
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "start": 8,
+          "end": 12,
+          "caption": "This is the final clean take."
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "start": 0,
+          "end": 4,
+          "caption": "This is the first clean take."
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "start": 8,
+          "end": 12,
+          "caption": "This is the final clean take."
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "start": 0,
+          "end": 4,
+          "caption": "This is the first clean take."
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "start": 8,
+          "end": 12,
+          "caption": "This is the final clean take."
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "start": 0,
+          "end": 4,
+          "caption": "This is the first clean take."
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "start": 8,
+          "end": 12,
+          "caption": "This is the final clean take."
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "start": 0,
+          "end": 4,
+          "caption": "This is the first clean take."
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "start": 8,
+          "end": 12,
+          "caption": "This is the final clean take."
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "start": 0,
+          "end": 4,
+          "caption": "This is the first clean take."
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "start": 8,
+          "end": 12,
+          "caption": "This is the final clean take."
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "start": 0,
+          "end": 4,
+          "caption": "This is the first clean take."
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "start": 8,
+          "end": 12,
+          "caption": "This is the final clean take."
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "start": 0,
+          "end": 4,
+          "caption": "This is the first clean take."
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "start": 8,
+          "end": 12,
+          "caption": "This is the final clean take."
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "start": 0,
+          "end": 4,
+          "caption": "This is the first clean take."
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "start": 8,
+          "end": 12,
+          "caption": "This is the final clean take."
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "start": 0,
+          "end": 4,
+          "caption": "This is the first clean take."
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "start": 8,
+          "end": 12,
+          "caption": "This is the final clean take."
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "start": 0,
+          "end": 4,
+          "caption": "This is the first clean take."
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "start": 8,
+          "end": 12,
+          "caption": "This is the final clean take."
+        }
+      ],
+      "state": "cancelled",
+      "progress": 0,
+      "processId": "565e36ae-bb51-4ea7-8d40-a1a19ddcd953",
+      "uri": "file:///data/user/0/com.anonymous.onetake/files/one-take-exports/94c03736-e2b6-4762-8abd-98666748919d.mp4"
+    },
+    {
+      "id": "2e977fa4-691a-4be5-86be-23ee800d019c",
+      "projectId": "media-research-1789245787969",
+      "segments": [
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "start": 0,
+          "end": 4,
+          "caption": "This is the first clean take."
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "start": 8,
+          "end": 12,
+          "caption": "This is the final clean take."
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "start": 0,
+          "end": 4,
+          "caption": "This is the first clean take."
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "start": 8,
+          "end": 12,
+          "caption": "This is the final clean take."
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "start": 0,
+          "end": 4,
+          "caption": "This is the first clean take."
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "start": 8,
+          "end": 12,
+          "caption": "This is the final clean take."
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "start": 0,
+          "end": 4,
+          "caption": "This is the first clean take."
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "start": 8,
+          "end": 12,
+          "caption": "This is the final clean take."
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "start": 0,
+          "end": 4,
+          "caption": "This is the first clean take."
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "start": 8,
+          "end": 12,
+          "caption": "This is the final clean take."
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "start": 0,
+          "end": 4,
+          "caption": "This is the first clean take."
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "start": 8,
+          "end": 12,
+          "caption": "This is the final clean take."
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "start": 0,
+          "end": 4,
+          "caption": "This is the first clean take."
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "start": 8,
+          "end": 12,
+          "caption": "This is the final clean take."
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "start": 0,
+          "end": 4,
+          "caption": "This is the first clean take."
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "start": 8,
+          "end": 12,
+          "caption": "This is the final clean take."
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "start": 0,
+          "end": 4,
+          "caption": "This is the first clean take."
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "start": 8,
+          "end": 12,
+          "caption": "This is the final clean take."
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "start": 0,
+          "end": 4,
+          "caption": "This is the first clean take."
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "start": 8,
+          "end": 12,
+          "caption": "This is the final clean take."
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "start": 0,
+          "end": 4,
+          "caption": "This is the first clean take."
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "start": 8,
+          "end": 12,
+          "caption": "This is the final clean take."
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "start": 0,
+          "end": 4,
+          "caption": "This is the first clean take."
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "start": 8,
+          "end": 12,
+          "caption": "This is the final clean take."
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "start": 0,
+          "end": 4,
+          "caption": "This is the first clean take."
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "start": 8,
+          "end": 12,
+          "caption": "This is the final clean take."
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "start": 0,
+          "end": 4,
+          "caption": "This is the first clean take."
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "start": 8,
+          "end": 12,
+          "caption": "This is the final clean take."
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "start": 0,
+          "end": 4,
+          "caption": "This is the first clean take."
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "start": 8,
+          "end": 12,
+          "caption": "This is the final clean take."
+        }
+      ],
+      "state": "completed",
+      "progress": 100,
+      "processId": "565e36ae-bb51-4ea7-8d40-a1a19ddcd953",
+      "uri": "file:///data/user/0/com.anonymous.onetake/files/one-take-exports/2e977fa4-691a-4be5-86be-23ee800d019c.mp4",
+      "durationMs": 120021,
+      "size": 14926218
+    }
+  ]
+}

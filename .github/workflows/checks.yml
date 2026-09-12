@@ -19,3 +19,6 @@ jobs:
       - run: npm run samples
       - run: python3 tests/speech-evaluation.test.py
       - run: python3 tools/speech-fixtures/run_synthetic.py
+      - run: npm run test:samples
+      - name: Bundle Android production JavaScript
+        run: npx expo export --platform android --output-dir dist

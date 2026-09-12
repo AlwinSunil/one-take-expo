@@ -1,0 +1,70 @@
+{
+  "original": {
+    "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+    "sizeBytes": 124603,
+    "probe": "Android MediaExtractor + MediaMetadataRetriever; compressed samples, not decoded audio",
+    "durationMs": 12000,
+    "width": 360,
+    "height": 640,
+    "rotationDegrees": 0,
+    "bitrate": 83068,
+    "hasAudio": true,
+    "hasVideo": true,
+    "tracks": [
+      {
+        "index": 0,
+        "mime": "video/avc",
+        "durationUs": 12000000,
+        "width": 360,
+        "height": 640,
+        "sampleCount": 360,
+        "firstPresentationTimeUs": 0,
+        "lastPresentationTimeUs": 11966666
+      },
+      {
+        "index": 1,
+        "mime": "audio/mp4a-latm",
+        "durationUs": 12000000,
+        "sampleRate": 22050,
+        "channelCount": 1,
+        "sampleCount": 260,
+        "firstPresentationTimeUs": -46439,
+        "lastPresentationTimeUs": 11981496
+      }
+    ]
+  },
+  "output": {
+    "uri": "file:///data/user/0/com.anonymous.onetake/files/one-take-exports/ab501605-427f-42e6-b75b-a3256ea3359a.mp4",
+    "sizeBytes": 1260543,
+    "probe": "Android MediaExtractor + MediaMetadataRetriever; compressed samples, not decoded audio",
+    "durationMs": 8054,
+    "width": 1280,
+    "height": 720,
+    "rotationDegrees": 90,
+    "bitrate": 1252029,
+    "hasAudio": true,
+    "hasVideo": true,
+    "tracks": [
+      {
+        "index": 0,
+        "mime": "audio/mp4a-latm",
+        "durationUs": 8054400,
+        "sampleRate": 22050,
+        "channelCount": 1,
+        "sampleCount": 175,
+        "firstPresentationTimeUs": -72562,
+        "lastPresentationTimeUs": 8007981
+      },
+      {
+        "index": 1,
+        "mime": "video/avc",
+        "durationUs": 8000000,
+        "width": 1280,
+        "height": 720,
+        "sampleCount": 238,
+        "firstPresentationTimeUs": 0,
+        "lastPresentationTimeUs": 7966666
+      }
+    ]
+  }
+}

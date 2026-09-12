@@ -52,7 +52,8 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "test:samples": "node --experimental-strip-types scripts/check-samples.mjs"
   },
   "private": true
 }

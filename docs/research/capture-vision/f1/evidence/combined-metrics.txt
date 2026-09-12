@@ -1,0 +1,711 @@
+recording_start_elapsed_ns=189851486205131
+pose_detector load_ms=96.254739
+pose_detector iteration=0 ms=23.165833
+resources elapsed_ns=189851721035339 pss_kb=108711 thermal_status=0
+pose_detector iteration=1 ms=16.396354
+pose_detector iteration=2 ms=16.094271
+pose_detector iteration=3 ms=16.631667
+pose_detector iteration=4 ms=16.458698
+pose_detector iteration=5 ms=16.325209
+pose_detector iteration=6 ms=16.727917
+pose_detector iteration=7 ms=16.234218
+pose_detector iteration=8 ms=23.831042
+pose_detector iteration=9 ms=21.945782
+pose_detector iteration=10 ms=17.771354
+pose_detector iteration=11 ms=17.536666
+pose_detector iteration=12 ms=20.982761
+pose_detector iteration=13 ms=17.087552
+pose_detector iteration=14 ms=17.256927
+pose_detector iteration=15 ms=17.172343
+pose_detector iteration=16 ms=21.281093
+pose_detector iteration=17 ms=18.538125
+pose_detector iteration=18 ms=21.488645
+pose_detector iteration=19 ms=17.111198
+pose_detector iteration=20 ms=16.9775
+pose_detector iteration=21 ms=16.920364
+pose_detector iteration=22 ms=18.000312
+pose_detector iteration=23 ms=16.941771
+pose_detector iteration=24 ms=16.649948
+audio samples=80000 nonzero=78661 rms=4172.005186732754 timestamp_status=0 position=80318 ns=50445664463150
+camera frames=150 timestamp_ns=189856619503537 elapsed_ns=189856703613202
+pose_detector iteration=25 ms=18.809688
+resources elapsed_ns=189856729478827 pss_kb=178893 thermal_status=0
+pose_detector iteration=26 ms=16.379375
+pose_detector iteration=27 ms=17.046615
+pose_detector iteration=28 ms=18.54125
+pose_detector iteration=29 ms=20.963282
+pose_detector iteration=30 ms=16.36573
+pose_detector iteration=31 ms=21.311302
+pose_detector iteration=32 ms=21.652187
+pose_detector iteration=33 ms=16.389844
+pose_detector iteration=34 ms=21.244479
+pose_detector iteration=35 ms=20.835885
+pose_detector iteration=36 ms=21.26125
+pose_detector iteration=37 ms=20.955156
+pose_detector iteration=38 ms=20.828385
+pose_detector iteration=39 ms=17.075573
+pose_detector iteration=40 ms=20.852239
+pose_detector iteration=41 ms=16.709479
+pose_detector iteration=42 ms=21.436198
+pose_detector iteration=43 ms=20.638021
+pose_detector iteration=44 ms=16.849843
+pose_detector iteration=45 ms=21.374271
+pose_detector iteration=46 ms=22.017292
+pose_detector iteration=47 ms=22.998333
+pose_detector iteration=48 ms=20.684948
+pose_detector iteration=49 ms=20.954218
+audio samples=160000 nonzero=158649 rms=3927.210023111191 timestamp_status=0 position=160318 ns=50450664471169
+camera frames=300 timestamp_ns=189861618566089 elapsed_ns=189861704221221
+pose_detector iteration=50 ms=20.691458
+resources elapsed_ns=189861731430335 pss_kb=133335 thermal_status=0
+pose_detector iteration=51 ms=17.172343
+pose_detector iteration=52 ms=21.684583
+pose_detector iteration=53 ms=23.61599
+pose_detector iteration=54 ms=21.676198
+pose_detector iteration=55 ms=17.496771
+pose_detector iteration=56 ms=23.887813
+pose_detector iteration=57 ms=23.702344
+pose_detector iteration=58 ms=21.193854
+pose_detector iteration=59 ms=18.019479
+pose_detector iteration=60 ms=17.173854
+pose_detector iteration=61 ms=22.812552
+pose_detector iteration=62 ms=23.218334
+pose_detector iteration=63 ms=18.008021
+pose_detector iteration=64 ms=16.656771
+pose_detector iteration=65 ms=17.743906
+pose_detector iteration=66 ms=22.942864
+pose_detector iteration=67 ms=18.764896
+pose_detector iteration=68 ms=22.185989
+pose_detector iteration=69 ms=23.15724
+pose_detector iteration=70 ms=23.303698
+pose_detector iteration=71 ms=18.779583
+pose_detector iteration=72 ms=17.437448
+pose_detector iteration=73 ms=18.307552
+pose_detector iteration=74 ms=20.945834
+audio samples=240000 nonzero=238641 rms=4660.680341296751 timestamp_status=0 position=240318 ns=50455664579240
+pose_detector iteration=75 ms=21.279011
+resources elapsed_ns=189866735485542 pss_kb=124435 thermal_status=0
+pose_detector iteration=76 ms=23.408177
+camera frames=450 timestamp_ns=189866817591089 elapsed_ns=189866965691375
+pose_detector iteration=77 ms=24.453177
+pose_detector iteration=78 ms=19.859531
+pose_detector iteration=79 ms=22.222083
+pose_detector iteration=80 ms=23.199115
+pose_detector iteration=81 ms=17.882917
+pose_detector iteration=82 ms=18.213438
+pose_detector iteration=83 ms=22.314323
+pose_detector iteration=84 ms=19.285313
+pose_detector iteration=85 ms=22.386562
+pose_detector iteration=86 ms=19.573177
+pose_detector iteration=87 ms=21.058854
+pose_detector iteration=88 ms=18.464166
+pose_detector iteration=89 ms=17.773907
+pose_detector iteration=90 ms=16.910937
+pose_detector iteration=91 ms=17.902292
+pose_detector iteration=92 ms=23.246615
+pose_detector iteration=93 ms=23.43901
+pose_detector iteration=94 ms=21.780625
+pose_detector iteration=95 ms=23.236041
+pose_detector iteration=96 ms=20.176718
+pose_detector iteration=97 ms=23.022291
+pose_detector iteration=98 ms=23.506615
+pose_detector iteration=99 ms=17.508282
+audio samples=320000 nonzero=318636 rms=6507.015690535485 timestamp_status=0 position=320318 ns=50460664545071
+pose_detector iteration=100 ms=18.15
+resources elapsed_ns=189871727893873 pss_kb=126044 thermal_status=0
+pose_detector iteration=101 ms=21.678333
+pose_detector iteration=102 ms=19.501511
+pose_detector iteration=103 ms=20.653437
+pose_detector iteration=104 ms=19.357968
+camera frames=600 timestamp_ns=189872516522339 elapsed_ns=189872650500644
+pose_detector iteration=105 ms=19.807865
+pose_detector iteration=106 ms=21.241511
+pose_detector iteration=107 ms=22.204219
+pose_detector iteration=108 ms=19.08349
+pose_detector iteration=109 ms=17.157396
+pose_detector iteration=110 ms=17.926042
+pose_detector iteration=111 ms=17.893437
+pose_detector iteration=112 ms=19.391823
+pose_detector iteration=113 ms=21.519844
+pose_detector iteration=114 ms=19.481146
+pose_detector iteration=115 ms=20.445989
+pose_detector iteration=116 ms=20.544531
+pose_detector iteration=117 ms=18.695729
+pose_detector iteration=118 ms=18.809011
+pose_detector iteration=119 ms=22.59625
+pose_detector iteration=120 ms=19.84125
+pose_detector iteration=121 ms=21.904167
+pose_detector iteration=122 ms=19.216146
+pose_detector iteration=123 ms=17.44401
+pose_detector iteration=124 ms=17.117032
+audio samples=400000 nonzero=398633 rms=4579.906271557312 timestamp_status=0 position=400318 ns=50465664495903
+pose_detector iteration=125 ms=19.671927
+resources elapsed_ns=189876735669080 pss_kb=126964 thermal_status=0
+pose_detector iteration=126 ms=18.403958
+pose_detector iteration=127 ms=18.211875
+pose_detector iteration=128 ms=17.073958
+pose_detector iteration=129 ms=18.502761
+pose_detector iteration=130 ms=18.425938
+pose_detector iteration=131 ms=16.990938
+camera frames=750 timestamp_ns=189877815528537 elapsed_ns=189877939131058
+pose_detector iteration=132 ms=19.159167
+pose_detector iteration=133 ms=20.641302
+pose_detector iteration=134 ms=19.830156
+pose_detector iteration=135 ms=19.814479
+pose_detector iteration=136 ms=19.271823
+pose_detector iteration=137 ms=20.418646
+pose_detector iteration=138 ms=21.675157
+pose_detector iteration=139 ms=18.167604
+pose_detector iteration=140 ms=19.242812
+pose_detector iteration=141 ms=19.575
+pose_detector iteration=142 ms=18.877343
+pose_detector iteration=143 ms=19.980365
+pose_detector iteration=144 ms=19.604895
+pose_detector iteration=145 ms=18.589844
+pose_detector iteration=146 ms=21.737969
+pose_detector iteration=147 ms=21.425885
+pose_detector iteration=148 ms=23.437604
+pose_detector iteration=149 ms=19.752343
+audio samples=480000 nonzero=478624 rms=6655.215241166134 timestamp_status=0 position=480318 ns=50470664620797
+pose_detector iteration=150 ms=18.128385
+resources elapsed_ns=189881728171109 pss_kb=134816 thermal_status=0
+pose_detector iteration=151 ms=19.313803
+pose_detector iteration=152 ms=18.303854
+pose_detector iteration=153 ms=18.518907
+pose_detector iteration=154 ms=18.395833
+pose_detector iteration=155 ms=19.693177
+pose_detector iteration=156 ms=19.238803
+pose_detector iteration=157 ms=18.965209
+camera frames=900 timestamp_ns=189883081207755 elapsed_ns=189883204503921
+pose_detector iteration=158 ms=18.948229
+pose_detector iteration=159 ms=19.119322
+pose_detector iteration=160 ms=19.259115
+pose_detector iteration=161 ms=18.990989
+pose_detector iteration=162 ms=19.659167
+pose_detector iteration=163 ms=18.761771
+pose_detector iteration=164 ms=19.127916
+pose_detector iteration=165 ms=19.669584
+pose_detector iteration=166 ms=20.742396
+pose_detector iteration=167 ms=19.187448
+pose_detector iteration=168 ms=18.452448
+pose_detector iteration=169 ms=18.57625
+pose_detector iteration=170 ms=19.20125
+pose_detector iteration=171 ms=19.238177
+pose_detector iteration=172 ms=18.981823
+pose_detector iteration=173 ms=19.041042
+pose_detector iteration=174 ms=23.415781
+audio samples=560000 nonzero=558618 rms=4137.856967607146 timestamp_status=0 position=560318 ns=50475664801159
+pose_detector iteration=175 ms=21.332656
+resources elapsed_ns=189886747186055 pss_kb=138245 thermal_status=0
+pose_detector iteration=176 ms=21.086875
+pose_detector iteration=177 ms=21.65474
+pose_detector iteration=178 ms=17.031198
+pose_detector iteration=179 ms=19.584479
+pose_detector iteration=180 ms=16.709063
+pose_detector iteration=181 ms=17.129948
+pose_detector iteration=182 ms=19.584896
+pose_detector iteration=183 ms=19.39625
+camera frames=1050 timestamp_ns=189888246905672 elapsed_ns=189888380847044
+pose_detector iteration=184 ms=19.677188
+pose_detector iteration=185 ms=18.291146
+pose_detector iteration=186 ms=19.108698
+pose_detector iteration=187 ms=19.504687
+pose_detector iteration=188 ms=19.395261
+pose_detector iteration=189 ms=18.727031
+pose_detector iteration=190 ms=19.561823
+pose_detector iteration=191 ms=18.454011
+pose_detector iteration=192 ms=18.933229
+pose_detector iteration=193 ms=19.4
+pose_detector iteration=194 ms=19.615521
+pose_detector iteration=195 ms=19.095938
+pose_detector iteration=196 ms=18.761667
+pose_detector iteration=197 ms=19.410052
+pose_detector iteration=198 ms=19.598334
+pose_detector iteration=199 ms=18.896406
+audio samples=640000 nonzero=638605 rms=5919.298626368245 timestamp_status=0 position=640318 ns=50480664514439
+pose_detector iteration=200 ms=19.965989
+resources elapsed_ns=189891753644543 pss_kb=131705 thermal_status=0
+pose_detector iteration=201 ms=20.174948
+pose_detector iteration=202 ms=19.482812
+pose_detector iteration=203 ms=18.545156
+pose_detector iteration=204 ms=18.580209
+pose_detector iteration=205 ms=18.290313
+pose_detector iteration=206 ms=18.522083
+pose_detector iteration=207 ms=22.747709
+pose_detector iteration=208 ms=22.728177
+camera frames=1200 timestamp_ns=189893379276505 elapsed_ns=189893506421782
+pose_detector iteration=209 ms=23.295677
+pose_detector iteration=210 ms=22.059531
+pose_detector iteration=211 ms=21.283073
+pose_detector iteration=212 ms=16.761302
+pose_detector iteration=213 ms=17.398542
+pose_detector iteration=214 ms=18.213334
+pose_detector iteration=215 ms=17.258437
+pose_detector iteration=216 ms=19.337865
+pose_detector iteration=217 ms=21.356927
+pose_detector iteration=218 ms=18.187135
+pose_detector iteration=219 ms=17.084271
+pose_detector iteration=220 ms=18.264584
+pose_detector iteration=221 ms=18.799115
+pose_detector iteration=222 ms=18.968489
+pose_detector iteration=223 ms=18.396355
+pose_detector iteration=224 ms=18.967917
+audio samples=720000 nonzero=718590 rms=4223.069370286262 timestamp_status=0 position=720318 ns=50485664453187
+pose_detector iteration=225 ms=19.366198
+resources elapsed_ns=189896748021676 pss_kb=137933 thermal_status=0
+pose_detector iteration=226 ms=21.025573
+pose_detector iteration=227 ms=19.541042
+pose_detector iteration=228 ms=18.982031
+pose_detector iteration=229 ms=18.389635
+pose_detector iteration=230 ms=17.960677
+pose_detector iteration=231 ms=23.623282
+pose_detector iteration=232 ms=23.091302
+pose_detector iteration=233 ms=22.385209
+pose_detector iteration=234 ms=17.48849
+pose_detector iteration=235 ms=19.043021
+camera frames=1350 timestamp_ns=189898611628537 elapsed_ns=189898754219488
+pose_detector iteration=236 ms=18.549323
+pose_detector iteration=237 ms=18.388438
+pose_detector iteration=238 ms=19.333593
+pose_detector iteration=239 ms=18.36073
+pose_detector iteration=240 ms=18.740573
+pose_detector iteration=241 ms=18.59
+pose_detector iteration=242 ms=19.463073
+pose_detector iteration=243 ms=18.466302
+pose_detector iteration=244 ms=18.506563
+pose_detector iteration=245 ms=19.219739
+pose_detector iteration=246 ms=18.705729
+pose_detector iteration=247 ms=20.194792
+pose_detector iteration=248 ms=20.51625
+pose_detector iteration=249 ms=18.960208
+audio samples=800000 nonzero=798581 rms=5355.556347150126 timestamp_status=0 position=800318 ns=50490664518654
+pose_detector iteration=250 ms=19.087031
+resources elapsed_ns=189901746527403 pss_kb=141279 thermal_status=0
+pose_detector iteration=251 ms=17.952969
+pose_detector iteration=252 ms=18.551614
+pose_detector iteration=253 ms=19.538646
+pose_detector iteration=254 ms=18.586928
+pose_detector iteration=255 ms=19.302552
+pose_detector iteration=256 ms=17.882083
+pose_detector iteration=257 ms=19.24276
+pose_detector iteration=258 ms=18.26974
+pose_detector iteration=259 ms=18.86474
+pose_detector iteration=260 ms=19.245885
+camera frames=1500 timestamp_ns=189903710672287 elapsed_ns=189903827820528
+pose_detector iteration=261 ms=18.358333
+pose_detector iteration=262 ms=19.149895
+pose_detector iteration=263 ms=19.046823
+pose_detector iteration=264 ms=18.259427
+pose_detector iteration=265 ms=18.602917
+pose_detector iteration=266 ms=18.568907
+pose_detector iteration=267 ms=17.473959
+pose_detector iteration=268 ms=18.29052
+pose_detector iteration=269 ms=19.312657
+pose_detector iteration=270 ms=18.157605
+pose_detector iteration=271 ms=18.759739
+pose_detector iteration=272 ms=18.20448
+pose_detector iteration=273 ms=20.350208
+pose_detector iteration=274 ms=19.109375
+audio samples=880000 nonzero=878570 rms=6238.422518954611 timestamp_status=0 position=880318 ns=50495664467714
+pose_detector iteration=275 ms=18.463281
+resources elapsed_ns=189906750884224 pss_kb=134415 thermal_status=0
+pose_detector iteration=276 ms=18.107604
+pose_detector iteration=277 ms=18.807553
+pose_detector iteration=278 ms=19.158385
+pose_detector iteration=279 ms=18.792552
+pose_detector iteration=280 ms=19.345885
+pose_detector iteration=281 ms=19.543907
+pose_detector iteration=282 ms=18.466563
+pose_detector iteration=283 ms=18.701771
+pose_detector iteration=284 ms=18.205312
+pose_detector iteration=285 ms=19.209218
+pose_detector iteration=286 ms=17.829479
+camera frames=1650 timestamp_ns=189908909697287 elapsed_ns=189909028006672
+pose_detector iteration=287 ms=19.205677
+pose_detector iteration=288 ms=19.088854
+pose_detector iteration=289 ms=18.764167
+pose_detector iteration=290 ms=18.649688
+pose_detector iteration=291 ms=18.534115
+pose_detector iteration=292 ms=19.342865
+pose_detector iteration=293 ms=18.52823
+pose_detector iteration=294 ms=17.867448
+pose_detector iteration=295 ms=18.566563
+pose_detector iteration=296 ms=18.892604
+pose_detector iteration=297 ms=19.952239
+pose_detector iteration=298 ms=17.863281
+pose_detector iteration=299 ms=18.491302
+audio samples=960000 nonzero=958559 rms=1493.4948736102176 timestamp_status=0 position=960318 ns=50500664725733
+pose_detector iteration=300 ms=16.975729
+resources elapsed_ns=189911732520941 pss_kb=140635 thermal_status=0
+pose_detector iteration=301 ms=17.009011
+pose_detector iteration=302 ms=18.177552
+pose_detector iteration=303 ms=17.78
+pose_detector iteration=304 ms=17.235729
+pose_detector iteration=305 ms=17.341927
+pose_detector iteration=306 ms=17.544114
+pose_detector iteration=307 ms=16.812187
+pose_detector iteration=308 ms=16.722187
+pose_detector iteration=309 ms=17.047239
+pose_detector iteration=310 ms=19.02026
+pose_detector iteration=311 ms=18.378333
+pose_detector iteration=312 ms=18.834375
+camera frames=1800 timestamp_ns=189914042068172 elapsed_ns=189914163080263
+pose_detector iteration=313 ms=19.171302
+pose_detector iteration=314 ms=17.398021
+pose_detector iteration=315 ms=18.948125
+pose_detector iteration=316 ms=18.777291
+pose_detector iteration=317 ms=18.733489
+pose_detector iteration=318 ms=19.242448
+pose_detector iteration=319 ms=19.147761
+pose_detector iteration=320 ms=18.191145
+pose_detector iteration=321 ms=19.035521
+pose_detector iteration=322 ms=19.488229
+pose_detector iteration=323 ms=19.171979
+pose_detector iteration=324 ms=19.219531
+audio samples=1040000 nonzero=1038550 rms=2145.539313028312 timestamp_status=0 position=1040318 ns=50505664507190
+pose_detector iteration=325 ms=18.818854
+resources elapsed_ns=189916747366981 pss_kb=135533 thermal_status=0
+pose_detector iteration=326 ms=18.343021
+pose_detector iteration=327 ms=18.490521
+pose_detector iteration=328 ms=19.536875
+pose_detector iteration=329 ms=18.734739
+pose_detector iteration=330 ms=19.333333
+pose_detector iteration=331 ms=18.721093
+pose_detector iteration=332 ms=17.795885
+pose_detector iteration=333 ms=18.291302
+pose_detector iteration=334 ms=19.570729
+pose_detector iteration=335 ms=19.390469
+pose_detector iteration=336 ms=17.900677
+pose_detector iteration=337 ms=16.824271
+camera frames=1950 timestamp_ns=189919174438953 elapsed_ns=189919299602241
+pose_detector iteration=338 ms=18.396562
+pose_detector iteration=339 ms=17.468437
+pose_detector iteration=340 ms=17.421145
+pose_detector iteration=341 ms=16.88448
+pose_detector iteration=342 ms=18.781407
+pose_detector iteration=343 ms=19.119584
+pose_detector iteration=344 ms=19.391927
+pose_detector iteration=345 ms=18.749635
+pose_detector iteration=346 ms=18.652708
+pose_detector iteration=347 ms=19.035312
+pose_detector iteration=348 ms=17.742396
+pose_detector iteration=349 ms=19.045729
+audio samples=1120000 nonzero=1118532 rms=4727.500580711228 timestamp_status=0 position=1120318 ns=50510664598802
+pose_detector iteration=350 ms=19.077604
+resources elapsed_ns=189921753077760 pss_kb=139293 thermal_status=0
+pose_detector iteration=351 ms=18.420156
+pose_detector iteration=352 ms=19.65552
+pose_detector iteration=353 ms=18.968125
+pose_detector iteration=354 ms=17.9475
+pose_detector iteration=355 ms=18.865157
+pose_detector iteration=356 ms=19.355052
+pose_detector iteration=357 ms=19.372968
+pose_detector iteration=358 ms=18.902656
+pose_detector iteration=359 ms=18.40026
+pose_detector iteration=360 ms=18.457136
+pose_detector iteration=361 ms=17.481094
+pose_detector iteration=362 ms=18.238281
+pose_detector iteration=363 ms=18.396146
+camera frames=2100 timestamp_ns=189924373464005 elapsed_ns=189924500109374
+pose_detector iteration=364 ms=18.031875
+pose_detector iteration=365 ms=18.308594
+pose_detector iteration=366 ms=18.129427
+pose_detector iteration=367 ms=17.044947
+pose_detector iteration=368 ms=16.933177
+pose_detector iteration=369 ms=16.746146
+pose_detector iteration=370 ms=18.976875
+pose_detector iteration=371 ms=19.116041
+pose_detector iteration=372 ms=19.351771
+pose_detector iteration=373 ms=19.379115
+pose_detector iteration=374 ms=18.226823
+audio samples=1200000 nonzero=1198518 rms=1216.975544125682 timestamp_status=0 position=1200318 ns=50515664504373
+pose_detector iteration=375 ms=18.734375
+resources elapsed_ns=189926746703123 pss_kb=145269 thermal_status=0
+pose_detector iteration=376 ms=19.762448
+pose_detector iteration=377 ms=19.334635
+pose_detector iteration=378 ms=18.736094
+pose_detector iteration=379 ms=19.132344
+pose_detector iteration=380 ms=18.639583
+pose_detector iteration=381 ms=19.366302
+pose_detector iteration=382 ms=18.679427
+pose_detector iteration=383 ms=19.100729
+pose_detector iteration=384 ms=18.759532
+pose_detector iteration=385 ms=19.0975
+pose_detector iteration=386 ms=19.463646
+pose_detector iteration=387 ms=18.349688
+pose_detector iteration=388 ms=18.841667
+pose_detector iteration=389 ms=19.519063
+camera frames=2250 timestamp_ns=189929539161870 elapsed_ns=189929668600101
+pose_detector iteration=390 ms=18.114479
+pose_detector iteration=391 ms=19.446562
+pose_detector iteration=392 ms=19.452656
+pose_detector iteration=393 ms=20.38802
+pose_detector iteration=394 ms=16.893073
+pose_detector iteration=395 ms=16.784948
+pose_detector iteration=396 ms=16.943854
+pose_detector iteration=397 ms=18.112969
+pose_detector iteration=398 ms=16.707813
+pose_detector iteration=399 ms=16.577292
+audio samples=1280000 nonzero=1278511 rms=2468.8690547242477 timestamp_status=0 position=1280318 ns=50520664753799
+pose_detector iteration=400 ms=19.79198
+resources elapsed_ns=189931743725830 pss_kb=138735 thermal_status=0
+pose_detector iteration=401 ms=19.299479
+pose_detector iteration=402 ms=18.871667
+pose_detector iteration=403 ms=18.700625
+pose_detector iteration=404 ms=19.260937
+pose_detector iteration=405 ms=19.261823
+pose_detector iteration=406 ms=19.547031
+pose_detector iteration=407 ms=19.35948
+pose_detector iteration=408 ms=18.3025
+pose_detector iteration=409 ms=18.411615
+pose_detector iteration=410 ms=19.47625
+pose_detector iteration=411 ms=18.787709
+pose_detector iteration=412 ms=19.919166
+pose_detector iteration=413 ms=19.201145
+pose_detector iteration=414 ms=18.2275
+pose_detector iteration=415 ms=19.066458
+camera frames=2400 timestamp_ns=189934771513953 elapsed_ns=189934895928016
+pose_detector iteration=416 ms=17.452396
+pose_detector iteration=417 ms=18.770468
+pose_detector iteration=418 ms=17.819167
+pose_detector iteration=419 ms=17.355156
+pose_detector iteration=420 ms=18.074947
+pose_detector iteration=421 ms=17.47401
+pose_detector iteration=422 ms=17.327708
+pose_detector iteration=423 ms=16.78
+pose_detector iteration=424 ms=17.44125
+audio samples=1360000 nonzero=1358492 rms=2739.9391410896337 timestamp_status=0 position=1360318 ns=50525664569161
+pose_detector iteration=425 ms=17.142292
+resources elapsed_ns=189936731017390 pss_kb=142367 thermal_status=0
+pose_detector iteration=426 ms=17.108437
+pose_detector iteration=427 ms=16.833802
+pose_detector iteration=428 ms=16.676667
+pose_detector iteration=429 ms=16.561042
+pose_detector iteration=430 ms=17.141615
+pose_detector iteration=431 ms=16.659844
+pose_detector iteration=432 ms=19.324844
+pose_detector iteration=433 ms=18.814687
+pose_detector iteration=434 ms=20.612031
+pose_detector iteration=435 ms=18.851667
+pose_detector iteration=436 ms=18.713073
+pose_detector iteration=437 ms=18.702292
+pose_detector iteration=438 ms=21.283125
+pose_detector iteration=439 ms=18.820209
+pose_detector iteration=440 ms=19.368073
+pose_detector iteration=441 ms=19.950208
+camera frames=2550 timestamp_ns=189939837230672 elapsed_ns=189939967437128
+pose_detector iteration=442 ms=19.204532
+pose_detector iteration=443 ms=19.13
+pose_detector iteration=444 ms=18.788646
+pose_detector iteration=445 ms=19.617187
+pose_detector iteration=446 ms=18.734218
+pose_detector iteration=447 ms=20.43625
+pose_detector iteration=448 ms=20.522916
+pose_detector iteration=449 ms=19.873021
+audio samples=1440000 nonzero=1438473 rms=2792.8876392767756 timestamp_status=0 position=1440318 ns=50530664585409
+pose_detector iteration=450 ms=19.162135
+resources elapsed_ns=189941749082232 pss_kb=137474 thermal_status=0
+pose_detector iteration=451 ms=18.684323
+pose_detector iteration=452 ms=19.578282
+pose_detector iteration=453 ms=20.196823
+pose_detector iteration=454 ms=18.749063
+pose_detector iteration=455 ms=19.778073
+pose_detector iteration=456 ms=19.511198
+pose_detector iteration=457 ms=19.985677
+pose_detector iteration=458 ms=19.249323
+pose_detector iteration=459 ms=18.827396
+pose_detector iteration=460 ms=18.575782
+pose_detector iteration=461 ms=19.76349
+pose_detector iteration=462 ms=19.69151
+pose_detector iteration=463 ms=19.272031
+pose_detector iteration=464 ms=17.160208
+pose_detector iteration=465 ms=20.042136
+pose_detector iteration=466 ms=19.871823
+camera frames=2700 timestamp_ns=189944902947287 elapsed_ns=189945035585199
+pose_detector iteration=467 ms=19.207552
+pose_detector iteration=468 ms=19.43302
+pose_detector iteration=469 ms=18.774062
+pose_detector iteration=470 ms=18.307709
+pose_detector iteration=471 ms=19.623959
+pose_detector iteration=472 ms=20.299271
+pose_detector iteration=473 ms=19.19625
+pose_detector iteration=474 ms=19.061459
+audio samples=1520000 nonzero=1518456 rms=6054.862520373605 timestamp_status=0 position=1520318 ns=50535664572074
+pose_detector iteration=475 ms=17.773177
+resources elapsed_ns=189946743080095 pss_kb=146128 thermal_status=0
+pose_detector iteration=476 ms=18.249739
+pose_detector iteration=477 ms=17.695781
+pose_detector iteration=478 ms=19.0675
+pose_detector iteration=479 ms=16.508386
+pose_detector iteration=480 ms=16.837865
+pose_detector iteration=481 ms=17.724219
+pose_detector iteration=482 ms=20.827344
+pose_detector iteration=483 ms=21.029688
+pose_detector iteration=484 ms=20.157657
+pose_detector iteration=485 ms=19.038906
+pose_detector iteration=486 ms=19.170208
+pose_detector iteration=487 ms=20.201979
+pose_detector iteration=488 ms=19.274791
+pose_detector iteration=489 ms=21.396093
+pose_detector iteration=490 ms=19.305521
+pose_detector iteration=491 ms=19.382709
+pose_detector iteration=492 ms=18.958021
+camera frames=2850 timestamp_ns=189950035318172 elapsed_ns=189950163319520
+pose_detector iteration=493 ms=20.20224
+pose_detector iteration=494 ms=18.552864
+pose_detector iteration=495 ms=20.849531
+pose_detector iteration=496 ms=19.674167
+pose_detector iteration=497 ms=19.943646
+pose_detector iteration=498 ms=19.792708
+pose_detector iteration=499 ms=19.010313
+audio samples=1600000 nonzero=1598452 rms=5464.260119174415 timestamp_status=0 position=1600318 ns=50540664585353
+pose_detector iteration=500 ms=19.531614
+resources elapsed_ns=189951748063999 pss_kb=148964 thermal_status=0
+pose_detector iteration=501 ms=19.467708
+pose_detector iteration=502 ms=19.400573
+pose_detector iteration=503 ms=17.974896
+pose_detector iteration=504 ms=18.321875
+pose_detector iteration=505 ms=16.744896
+pose_detector iteration=506 ms=19.59474
+pose_detector iteration=507 ms=19.340625
+pose_detector iteration=508 ms=18.80401
+pose_detector iteration=509 ms=18.682396
+pose_detector iteration=510 ms=18.908125
+pose_detector iteration=511 ms=19.900104
+pose_detector iteration=512 ms=18.970364
+pose_detector iteration=513 ms=16.761615
+pose_detector iteration=514 ms=16.940625
+pose_detector iteration=515 ms=16.920937
+pose_detector iteration=516 ms=17.65776
+pose_detector iteration=517 ms=19.900938
+pose_detector iteration=518 ms=20.239219
+pose_detector iteration=519 ms=19.03526
+camera frames=3000 timestamp_ns=189955467632755 elapsed_ns=189955600762435
+pose_detector iteration=520 ms=18.698281
+pose_detector iteration=521 ms=19.407083
+pose_detector iteration=522 ms=19.724167
+pose_detector iteration=523 ms=17.694583
+pose_detector iteration=524 ms=17.497917
+audio samples=1680000 nonzero=1678440 rms=1723.3055046914926 timestamp_status=0 position=1680318 ns=50545664591966
+pose_detector iteration=525 ms=18.639063
+resources elapsed_ns=189956735855976 pss_kb=137980 thermal_status=0
+pose_detector iteration=526 ms=19.56776
+pose_detector iteration=527 ms=19.636145
+pose_detector iteration=528 ms=19.421042
+pose_detector iteration=529 ms=19.388281
+pose_detector iteration=530 ms=20.767709
+pose_detector iteration=531 ms=19.815
+pose_detector iteration=532 ms=18.988542
+pose_detector iteration=533 ms=19.275781
+pose_detector iteration=534 ms=19.990521
+pose_detector iteration=535 ms=19.249219
+pose_detector iteration=536 ms=20.783125
+pose_detector iteration=537 ms=19.190625
+pose_detector iteration=538 ms=18.693906
+pose_detector iteration=539 ms=19.555261
+pose_detector iteration=540 ms=20.595521
+pose_detector iteration=541 ms=18.911458
+pose_detector iteration=542 ms=18.958906
+pose_detector iteration=543 ms=19.344375
+pose_detector iteration=544 ms=19.758281
+pose_detector iteration=545 ms=19.30125
+camera frames=3150 timestamp_ns=189960733311870 elapsed_ns=189960873484673
+pose_detector iteration=546 ms=16.841823
+pose_detector iteration=547 ms=17.326771
+pose_detector iteration=548 ms=16.918177
+pose_detector iteration=549 ms=17.028802
+audio samples=1760000 nonzero=1758430 rms=2432.3736368771556 timestamp_status=0 position=1760318 ns=50550664673631
+pose_detector iteration=550 ms=17.432604
+resources elapsed_ns=189961731317745 pss_kb=149386 thermal_status=0
+pose_detector iteration=551 ms=16.615573
+pose_detector iteration=552 ms=17.366459
+pose_detector iteration=553 ms=16.678125
+pose_detector iteration=554 ms=18.605833
+pose_detector iteration=555 ms=16.821615
+pose_detector iteration=556 ms=16.845052
+pose_detector iteration=557 ms=16.701042
+pose_detector iteration=558 ms=19.642917
+pose_detector iteration=559 ms=18.892552
+pose_detector iteration=560 ms=18.809479
+pose_detector iteration=561 ms=18.875573
+pose_detector iteration=562 ms=19.882239
+pose_detector iteration=563 ms=19.981041
+pose_detector iteration=564 ms=20.044427
+pose_detector iteration=565 ms=18.523958
+pose_detector iteration=566 ms=19.277343
+pose_detector iteration=567 ms=19.866094
+pose_detector iteration=568 ms=19.076041
+pose_detector iteration=569 ms=19.725886
+pose_detector iteration=570 ms=19.284635
+pose_detector iteration=571 ms=19.329427
+camera frames=3300 timestamp_ns=189965899009787 elapsed_ns=189966018063369
+pose_detector iteration=572 ms=20.449635
+pose_detector iteration=573 ms=19.412552
+pose_detector iteration=574 ms=20.740157
+audio samples=1840000 nonzero=1838418 rms=3170.376036450566 timestamp_status=0 position=1840318 ns=50555664604202
+pose_detector iteration=575 ms=20.084948
+resources elapsed_ns=189966744459931 pss_kb=144342 thermal_status=0
+pose_detector iteration=576 ms=19.500782
+pose_detector iteration=577 ms=17.932708
+pose_detector iteration=578 ms=19.006041
+pose_detector iteration=579 ms=18.311198
+pose_detector iteration=580 ms=17.728386
+pose_detector iteration=581 ms=17.65474
+pose_detector iteration=582 ms=18.560677
+pose_detector iteration=583 ms=16.912395
+pose_detector iteration=584 ms=18.336511
+pose_detector iteration=585 ms=19.953073
+pose_detector iteration=586 ms=20.464218
+pose_detector iteration=587 ms=19.906198
+pose_detector iteration=588 ms=19.807604
+pose_detector iteration=589 ms=19.998854
+pose_detector iteration=590 ms=19.227656
+pose_detector iteration=591 ms=18.319531
+pose_detector iteration=592 ms=18.920261
+pose_detector iteration=593 ms=18.822916
+pose_detector iteration=594 ms=20.567031
+pose_detector iteration=595 ms=20.099323
+pose_detector iteration=596 ms=20.768229
+pose_detector iteration=597 ms=20.324218
+camera frames=3450 timestamp_ns=189971131361922 elapsed_ns=189971251085137
+pose_detector iteration=598 ms=19.132396
+pose_detector iteration=599 ms=20.760208
+audio samples=1920000 nonzero=1918411 rms=6286.5993604452 timestamp_status=0 position=1920318 ns=50560664637117
+pose_landmark_detector load_ms=114.142187
+pose_landmark_detector iteration=0 ms=40.112917
+pose_landmark_detector iteration=1 ms=30.696094
+pose_landmark_detector iteration=2 ms=32.108334
+pose_landmark_detector iteration=3 ms=28.200989
+pose_landmark_detector iteration=4 ms=32.749375
+pose_landmark_detector iteration=5 ms=29.221458
+pose_landmark_detector iteration=6 ms=28.665313
+pose_landmark_detector iteration=7 ms=32.294479
+pose_landmark_detector iteration=8 ms=29.216875
+pose_landmark_detector iteration=9 ms=33.150625
+pose_landmark_detector iteration=10 ms=29.246979
+pose_landmark_detector iteration=11 ms=31.265834
+pose_landmark_detector iteration=12 ms=29.045208
+pose_landmark_detector iteration=13 ms=29.517864
+pose_landmark_detector iteration=14 ms=28.762292
+pose_landmark_detector iteration=15 ms=28.400729
+pose_landmark_detector iteration=16 ms=31.113698
+pose_landmark_detector iteration=17 ms=30.85599
+pose_landmark_detector iteration=18 ms=28.502032
+pose_landmark_detector iteration=19 ms=31.309218
+pose_landmark_detector iteration=20 ms=31.732656
+pose_landmark_detector iteration=21 ms=28.660209
+pose_landmark_detector iteration=22 ms=29.575885
+pose_landmark_detector iteration=23 ms=31.732813
+pose_landmark_detector iteration=24 ms=31.2275
+pose_landmark_detector iteration=25 ms=27.422448
+pose_landmark_detector iteration=26 ms=31.9275
+pose_landmark_detector iteration=27 ms=31.663906
+pose_landmark_detector iteration=28 ms=27.773385
+pose_landmark_detector iteration=29 ms=30.434167
+pose_landmark_detector iteration=30 ms=36.218594
+pose_landmark_detector iteration=31 ms=30.337864
+pose_landmark_detector iteration=32 ms=26.500156
+pose_landmark_detector iteration=33 ms=30.125365
+pose_landmark_detector iteration=34 ms=31.589375
+COMPLETE; HTP graph execution with CPU fallback disabled; preprocessing remains CPU
+recording_end_elapsed_ns=189974008633470 frames=3531 pcm_samples=1956478 nonzero_samples=1954885
