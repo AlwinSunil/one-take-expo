@@ -236,8 +236,9 @@ test('serialization round trips metadata and malformed present data fails closed
   );
   const restored = deserializeMustSayMetadata(serializeMustSayMetadata(metadata));
   assert.deepEqual(restored, metadata);
+  assert.throws(() => deserializeMustSayMetadata(JSON.stringify({ ...metadata, requirements: [{ ...metadata.requirements[0], revision: Number.MAX_SAFE_INTEGER + 1 }] })), /unreadable/);
   assert.equal(deserializeMustSayMetadata(null), null);
-  assert.equal(deserializeMustSayMetadata(''), null);
+  assert.throws(() => deserializeMustSayMetadata(''), /unreadable/);
   assert.throws(() => deserializeMustSayMetadata('{"version":1}'), /must-say metadata/i);
   assert.throws(() => deserializeMustSayMetadata('{"version":99,"requirements":[],"archived":[]}'), /must-say metadata/i);
 });
@@ -275,4 +276,16 @@ test('merged script document ids carry must-say intent through edits, reorder an
   const restored = reconcileMustSayMetadata(deserializeMustSayMetadata(serializeMustSayMetadata(metadata)), reopened.lines);
   assert.deepEqual(restored, metadata);
   assert.equal(restored.requirements.find(item => item.lineId === disclosure.id).requiredText, 'This video is sponsored.');
+});
+
+
+test('current provisional speech stays pending beside an old matching final read', () => {
+  const requirement = { lineId: 'line-1', enabled: true, requiredText: 'Required words.', revision: 2 };
+  const result = evaluateMustSay(requirement, { segments: [
+    segment('old', 'Required words.', { requirementRevisions: { 'line-1': 0 } }),
+    segment('current', 'Required words.', { isFinal: false, requirementRevisions: { 'line-1': 2 } }),
+  ], recognitionStatus: 'listening' });
+  assert.equal(result.status, 'pending');
+  assert.deepEqual(result.evidence.segmentIds, ['current']);
+  assert.equal(result.evidence.requirementRevision, 2);
 });

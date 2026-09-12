@@ -224,6 +224,9 @@ export function reconcileMustSayMetadata(
     const previous = activeById.get(line.id) ?? archivedById.get(line.id);
     const changed = previous !== undefined
       && normalizeMustSayText(previous.requiredText) !== normalizeMustSayText(currentText);
+    if (changed && previous?.revision === Number.MAX_SAFE_INTEGER) {
+      throw new RangeError('Must-say revision limit reached; preserve the saved requirement for recovery.');
+    }
     const next = previous
       ? {
           ...previous,
@@ -283,7 +286,7 @@ export function serializeMustSayMetadata(metadata: MustSayMetadata): string {
  * throws so callers cannot silently turn a required line off after a read error.
  */
 export function deserializeMustSayMetadata(serialized: string | null | undefined): MustSayMetadata | null {
-  if (serialized == null || serialized === '') return null;
+  if (serialized == null) return null;
   if (typeof serialized !== 'string') throw new TypeError('must-say metadata must be serialized text');
   let parsed: unknown;
   try {
@@ -361,6 +364,23 @@ export function evaluateMustSay(
     };
   }
 
+  const status = input.recognitionStatus?.toLocaleLowerCase() ?? '';
+  const unavailable = status === 'unavailable' || status === 'error' || status === 'failed' || status === 'interrupted';
+  const processing = status === 'preparing' || status === 'listening' || status === 'processing'
+    || status === 'delayed' || status === 'stopping';
+  const terminal = status === '' || status === 'idle' || status === 'ready' || status === 'stopped'
+    || status === 'complete' || status === 'no-speech';
+  const hasPendingEvidence = provisional.length > 0 || processing;
+
+  if (provisionalMatch || hasPendingEvidence) {
+    return {
+      ...base,
+      status: 'pending',
+      missingTokens: missingTokens(target, provisionalMatch ? normalizeMustSayText(provisionalMatch.text).split(' ') : []),
+      evidence: provisionalMatch ? buildEvidence('provisional-raw', valid, [provisionalMatch]) : null,
+      reason: 'Recognition is still provisional; a final raw read is required before wrap.',
+    };
+  }
   if (finalMatches.length > 0) {
     const finalMatch = currentFinalMatches[0];
     if (!finalMatch) {
@@ -391,23 +411,6 @@ export function evaluateMustSay(
     };
   }
 
-  const status = input.recognitionStatus?.toLocaleLowerCase() ?? '';
-  const unavailable = status === 'unavailable' || status === 'error' || status === 'failed' || status === 'interrupted';
-  const processing = status === 'preparing' || status === 'listening' || status === 'processing'
-    || status === 'delayed' || status === 'stopping';
-  const terminal = status === '' || status === 'idle' || status === 'ready' || status === 'stopped'
-    || status === 'complete' || status === 'no-speech';
-  const hasPendingEvidence = provisional.length > 0 || processing;
-
-  if (provisionalMatch || hasPendingEvidence) {
-    return {
-      ...base,
-      status: 'pending',
-      missingTokens: missingTokens(target, provisionalMatch ? normalizeMustSayText(provisionalMatch.text).split(' ') : []),
-      evidence: provisionalMatch ? buildEvidence('provisional-raw', valid, [provisionalMatch]) : null,
-      reason: 'Recognition is still provisional; a final raw read is required before wrap.',
-    };
-  }
   if (unavailable || !terminal) {
     return {
       ...base,
@@ -461,7 +464,7 @@ function validateRequirement(value: unknown, label: string): MustSayRequirement 
   if (typeof candidate.lineId !== 'string' || !candidate.lineId.trim()
     || typeof candidate.enabled !== 'boolean'
     || typeof candidate.requiredText !== 'string'
-    || !Number.isInteger(candidate.revision) || (candidate.revision as number) < 0) {
+    || !Number.isSafeInteger(candidate.revision) || (candidate.revision as number) < 0) {
     throw new Error(`${label} is unreadable.`);
   }
   return {
