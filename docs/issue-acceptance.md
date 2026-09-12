@@ -1,6 +1,6 @@
 # Related issue acceptance map
 
-This map records the implementation and evidence for #6, #8, #11, #12, #13, #14, #16, #21, #24, #25, #29, #30 and #33.
+This map records the implementation and evidence for #6, #8, #11, #12, #13, #14, #16, #19, #21, #24, #25, #29, #30 and #33.
 
 The audit snapshot is 2026-09-13.
 
@@ -15,7 +15,7 @@ The implementation branch is [`feat/offline-speech-workflow`](https://github.com
 ## Evidence snapshot
 
 - `npm run typecheck` passes.
-- `npm test` passes 40 behavior-focused JavaScript tests.
+- `npm test` passes 69 behavior-focused JavaScript tests, including 29 for the #19 prompter.
 - `npm run samples` passes the deterministic caption replay.
 - `python3 tests/speech-evaluation.test.py` passes 12 evaluator tests.
 - `python3 tools/speech-fixtures/run_synthetic.py` passes 16 synthetic rows, while reporting zero eligible human held-out clean rows and zero eligible human held-out flub rows.
@@ -55,6 +55,7 @@ No recipient was selected and no external message was sent during share testing.
 | #13 | Partial | Offline Moonshine bridge, honest live/provisional/delayed/unavailable states and device live-caption run | Quiet/noisy/empty behavior, replay identity, model failure and interruption on device |
 | #14 | Partial | Durable projects, normalization, recovery metadata, missing-media states and coverage counts | Force-close, migration, failed-save and low-storage reopen scenarios |
 | #16 | Partial | Conservative coverage, take ranking, script normalization, multi-line utterances and retake history | End-to-end multi-take capture and held-out precision evidence |
+| #19 | Partial | Pure pause-timed retake scheduler, props-only coverage strip and prompter, camera-free harness and the camera.tsx handoff | Recorded quiet/noisy 18/20 prompt timing, a large-system-text device pass and the capture-lane integration |
 | #21 | Partial | Media3 cuts, partitioned captions, progress, cancellation, retry, background service, gallery and share | Low-storage/permission/process-restart checks and formal A/V sync review |
 | #24 | Partial | Timed refinement, quiet/repeat review suggestions, filler flags and reversible decisions | Listening to quiet/noisy/stutter/filler outputs and accepting safe boundaries |
 | #25 | Research only | CPU baseline, explicit fallback and NNAPI/QNN candidate matrix | Integrated NPU delegation, five warm sessions, power, heat and memory evidence |
@@ -116,6 +117,17 @@ Review state supports selecting takes, preparing cuts, undoing decisions and edi
 The editor currently edits a segment's text field rather than offering a separate tap-on-individual-word editor.
 Manual corrections remain separate from raw recognition evidence and therefore do not change a spoken-script verdict.
 
+### #19
+
+The prompt scheduler in `src/lib/retake-prompts.ts` offers an in-pause `Again, line N` prompt only when the verdict arrives within 1200 ms of the line end, before the next line starts and while the creator is not speaking.
+Anything else waits: during the take an unconfirmed line shows only a quiet count that names no line, and the honest `We will check lines N, M after this take` list appears once the take has ended.
+A delayed engine takes the same waiting path rather than guessing.
+The prompter components are props-only, show status by glyph and word before colour, label every coverage cell, keep the current line at 16 sp or more and truncate with a More control instead of clipping.
+A required action cue is never resolved by advancing a line; only an explicit Done press resolves it.
+`evaluatePromptTiming` replays a recorded log and reports how many line ends got a prompt before the next line, and it refuses to report a met target below 20 promptable line ends.
+The five fixtures and the `PrompterHarness` run without a camera, a recognizer or a recording, so they establish no device latency, no speech accuracy and no 18/20 measurement.
+The capture-route integration is written out in [handoffs/issue-19.md](development/handoffs/issue-19.md) and has not been applied to `camera.tsx`.
+
 ### #21, #24 and #33
 
 The Media3 module receives one validated export plan, maps captions to the concatenated cut timeline, renders bounded lower-third overlays, persists job state and supports cancellation and recovery.
@@ -144,6 +156,7 @@ The remaining release evidence is:
 - run permission denial, interruption, route-change, low-storage, force-close and process-restart scenarios on the physical phone;
 - repeat export/refinement with formal cancellation, recovery, audio/video sync and output inspection reports;
 - measure CPU and any future NNAPI or QNN path across five warm camera sessions, including memory, heat and battery;
+- record quiet and noisy reads and report how many of 20 line ends per condition showed a prompt before the next line;
 - obtain the named non-author peer reproductions and UX review.
 
 Pure tests, synthetic fixtures, emulator runs and hash checks do not satisfy those device, accuracy, NPU or peer-review gates.
