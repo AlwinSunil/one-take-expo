@@ -34,6 +34,7 @@ A run qualifies only when all submitted reads are clean, at least twenty consecu
 A pending/unavailable/missing verdict fails the clean-read run; it is not silently dropped.
 A failed run cannot be salvaged by selecting a passing suffix.
 Record any later run separately and report the failures too.
+The aggregate gate requires every submitted run to pass; individual run results remain visible.
 The tool cannot detect reads omitted before submission, so the named reviewer must check the capture manifest against the submitted sequence.
 
 ## Issues 24 and 29

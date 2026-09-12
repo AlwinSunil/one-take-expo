@@ -65,6 +65,28 @@ class TierOneEvaluation(unittest.TestCase):
         self.assertEqual(result['false_trigger_rate'], 1)
         self.assertEqual(result['missed_commands'], 1)
 
+    def test_duplicate_hash_whitespace_and_case(self):
+        rows = dataset()
+        rows[1]['audio_sha256'] = 'ABCD'
+        rows[2]['audio_sha256'] = ' abcd '
+        self.assertFalse(evaluate(rows)['must_say_passes'])
+
+    def test_later_run_does_not_hide_failed_run(self):
+        rows = dataset()
+        rows[1]['detected_flub'] = True
+        later = dataset()[1:]
+        for r in later:
+            r.update(id='later-' + r['id'], recording_id='later-' + r['recording_id'],
+                     audio_sha256='later-' + r['audio_sha256'], evaluation_run='later')
+        self.assertFalse(evaluate(rows + later)['must_say_passes'])
+
+    def test_incomplete_command_rows_are_reported(self):
+        rows = dataset()
+        rows[1]['expected_command'] = False
+        result = evaluate(rows)
+        self.assertEqual(result['commands']['incomplete_rows'], 1)
+        self.assertIn('command rows missing expected or detected command', result['limitations'])
+
     def test_missing_provenance_and_string_booleans(self):
         rows = dataset()
         del rows[1]['processor']

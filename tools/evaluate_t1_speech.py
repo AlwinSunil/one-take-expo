@@ -22,7 +22,7 @@ def evaluate(rows):
         problems.append('synthetic or unconsented data cannot qualify')
     human = [r for r in rows if r.get('split') == 'heldout' and r.get('source') == 'consented' and r.get('consented') is True]
     # Audio fingerprints identify individual read clips, not a reused full-session file.
-    hashes = [r.get('audio_sha256') for r in human]
+    hashes = [str(r.get('audio_sha256', '')).strip().lower() for r in human]
     if len(set(hashes)) != len(hashes):
         problems.append('duplicate held-out read audio')
     for row in rows:
@@ -37,7 +37,11 @@ def evaluate(rows):
     matched = sum(r['reason_matches'] for r in judged)
     reason_rate = matched / len(flags) if flags else None
     reasons_pass = not problems and len(flags) >= 10 and len(judged) == len(flags) and reason_rate >= .8
-    command_rows = [r for r in human if 'expected_command' in r and 'detected_command' in r]
+    command_candidates = [r for r in human if 'expected_command' in r or 'detected_command' in r or r.get('label') == 'command']
+    command_rows = [r for r in command_candidates if 'expected_command' in r and 'detected_command' in r]
+    missing_commands = len(command_candidates) - len(command_rows)
+    if missing_commands:
+        problems.append('command rows missing expected or detected command')
     negatives = [r for r in command_rows if not r['expected_command']]
     positives = [r for r in command_rows if r['expected_command']]
     false_triggers = sum(r['detected_command'] for r in negatives)
@@ -64,11 +68,11 @@ def evaluate(rows):
             'limitations': sorted(set(problems)),
             'reasons': {'correctly_detected_flags': len(flags), 'reviewed': len(judged), 'matching': matched,
                         'agreement': reason_rate, 'passes': reasons_pass and not problems},
-            'commands': {'negative_reads': len(negatives), 'false_triggers': false_triggers,
+            'commands': {'incomplete_rows': missing_commands, 'negative_reads': len(negatives), 'false_triggers': false_triggers,
                          'false_trigger_rate': false_triggers / len(negatives) if negatives else None,
                          'positive_reads': len(positives), 'missed_commands': sum(not r['detected_command'] for r in positives)},
             'must_say_runs': run_reports,
-            'must_say_passes': any(r['passes'] for r in run_reports) and not problems,
+            'must_say_passes': bool(run_reports) and all(r['passes'] for r in run_reports) and not problems,
             'release_accepted': False}
 
 
