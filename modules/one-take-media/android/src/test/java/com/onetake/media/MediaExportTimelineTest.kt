@@ -62,4 +62,13 @@ class MediaExportTimelineTest {
       )
     }
   }
+  @Test
+  fun independentSourcesCanReuseTimestampsWithoutCaptionCollision() {
+    val mapped = mapSegmentCaptions(listOf(
+      MediaSourceSegment("file:///first.mp4", SourceCut(2.0, 4.0), listOf(SourceCaption(2.5, 4.5, "First"))),
+      MediaSourceSegment("file:///pickup.mp4", SourceCut(0.0, 2.0), listOf(SourceCaption(0.0, 1.0, "Pickup"))),
+      MediaSourceSegment("file:///first.mp4", SourceCut(2.0, 3.0), listOf(SourceCaption(2.0, 3.0, "Replay"))),
+    ))
+    assertEquals(listOf(MappedCaption(500_000, 2_000_000, "First"), MappedCaption(2_000_000, 3_000_000, "Pickup"), MappedCaption(4_000_000, 5_000_000, "Replay")), mapped)
+  }
 }

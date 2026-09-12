@@ -3,7 +3,7 @@ import { ActivityIndicator, Alert, Pressable, Text, View } from 'react-native';
 
 import media, { type MediaExport } from '../../../modules/one-take-media';
 import type { Project } from '@/lib/session';
-import { getSetting, saveSetting } from '@/lib/store';
+import { getSetting, saveSetting, registerProjectWork, assertProjectExists } from '@/lib/store';
 import { buildExportPlan, ExportPlanError, type ExportPlan } from '@/lib/export-plan';
 
 const ACTIVE_STATUSES = new Set<MediaExport['status']>(['queued', 'running']);
@@ -107,15 +107,15 @@ export function ExportControls({ project, start, end, onMessage }: {
   }, [announce, clearPoll, currentKey, refresh]);
 
   const selection = useMemo(() => {
-    const cuts = project.cuts?.length === 0 ? [{ t0: 0, t1: project.duration ?? end }] : project.cuts ?? [{ t0: start, t1: end }];
+    const cuts = project.reviewSegments ?? (project.cuts?.length === 0 ? [{ t0: 0, t1: project.duration ?? end }] : project.cuts ?? [{ t0: start, t1: end }]);
     const duration = Array.isArray(cuts)
       ? cuts.reduce((total, cut) => total + (Number.isFinite(cut?.t0) && Number.isFinite(cut?.t1) ? Math.max(0, cut.t1 - cut.t0) : 0), 0)
       : 0;
-    const label = project.cuts?.length === 0 ? 'complete source' : project.cuts !== undefined ? 'saved cuts' : `${formatSeconds(start)}–${formatSeconds(end)}`;
+    const label = project.reviewSegments ? 'reviewed sequence' : project.cuts?.length === 0 ? 'complete source' : project.cuts !== undefined ? 'saved cuts' : `${formatSeconds(start)}–${formatSeconds(end)}`;
     return { duration, label };
-  }, [end, project.cuts, project.duration, start]);
-  const cutsNeedReview = Array.isArray(project.cuts)
-    && project.cuts.length > 0
+  }, [end, project.cuts, project.reviewSegments, project.duration, start]);
+  const cutsNeedReview = (Array.isArray(project.reviewSegments) || (Array.isArray(project.cuts)
+    && project.cuts.length > 0))
     && !(project as Project & { cutsReviewed?: boolean }).cutsReviewed;
 
   function planForExport(): ExportPlan | null {
@@ -189,12 +189,30 @@ export function ExportControls({ project, start, end, onMessage }: {
     const initial: MediaExport = { id, status: 'queued', progress: 0 };
     latestJob.current = initial;
     setJob(initial);
+    const projectId = latestProject.current.id;
+    const exportKey = `export:${projectId}`;
+    let deleted = false;
+    let finishStart!: () => void;
+    const started = new Promise<void>(resolve => { finishStart = resolve; });
+    let unregister = () => {};
     try {
+      unregister = registerProjectWork(projectId, async () => {
+        deleted = true;
+        await started;
+        await media!.cancelExport(id);
+      });
+      await assertProjectExists(projectId);
       // Persist before starting the service so a process death after the
       // request is accepted still leaves a job id for recovery.
-      await saveSetting(currentKeyRef.current, id);
-      await media.startExport({ id, sourceUri: plan.sourceUri, cuts: plan.cuts, captions: plan.captions });
-      announce('Export queued. The original video remains unchanged.');
+      await saveSetting(exportKey, id);
+      const historyKey = `exports:${projectId}`;
+      const history = JSON.parse(await getSetting(historyKey) || '[]') as string[];
+      await saveSetting(historyKey, JSON.stringify([...new Set([...history, id])]));
+      if (deleted) throw new Error('This project is being deleted.');
+      await media.startExport({ id, sourceUri: plan.sourceUri, cuts: plan.cuts, captions: plan.captions, segments: plan.segments });
+      finishStart();
+      if (deleted || !mounted.current || jobId.current !== id) return;
+      announce('Export queued. You can leave this screen while it runs.');
       busyRef.current = false;
       setBusy(false);
       await refresh(id);
@@ -204,11 +222,14 @@ export function ExportControls({ project, start, end, onMessage }: {
         jobId.current = null;
         latestJob.current = null;
         setJob(null);
-        await saveSetting(currentKeyRef.current, '').catch(() => {});
+        await saveSetting(exportKey, '').catch(() => {});
       }
       busyRef.current = false;
       setBusy(false);
       announce(`Export could not start: ${errorMessage(error)}`);
+    } finally {
+      finishStart();
+      unregister();
     }
   }
 
@@ -219,10 +240,10 @@ export function ExportControls({ project, start, end, onMessage }: {
     setBusy(true);
     try {
       await media.cancelExport(id);
-      const cancelled: MediaExport = { ...(latestJob.current ?? { id, progress: 0 }), id, status: 'cancelled' };
+      const cancelled = await media.getExport(id);
       latestJob.current = cancelled;
       setJob(cancelled);
-      announce('Export cancelled. The original video remains available.');
+      announce(cancelled.status === 'completed' ? 'Export finished before cancellation. Your output is ready.' : 'Export cancelled. The original video remains available.');
     } catch (error) {
       announce(`Export could not be cancelled: ${errorMessage(error)}`);
       await refresh(id);
@@ -245,15 +266,16 @@ export function ExportControls({ project, start, end, onMessage }: {
     }
   }
 
-  async function share() {
+  async function share(open = false) {
     const id = jobId.current;
     if (!media || !id || latestJob.current?.status !== 'completed') return;
     setBusy(true);
     try {
-      await media.shareExport(id);
-      announce('Share sheet opened.');
+      if (open) await media.openExport(id);
+      else await media.shareExport(id);
+      announce(open ? 'Video player opened.' : 'Share sheet opened.');
     } catch (error) {
-      announce(`Could not share the export: ${errorMessage(error)}`);
+      announce(`Could not ${open ? 'open' : 'share'} the export: ${errorMessage(error)}`);
     } finally {
       setBusy(false);
     }
@@ -282,12 +304,13 @@ export function ExportControls({ project, start, end, onMessage }: {
     <Text className="text-neutral-500 text-xs mt-2">
       {selection.label} · {formatSeconds(selection.duration)} output · original video is preserved
     </Text>
+    <Text className="text-neutral-500 text-xs mt-2">Android · 720 × 1280 SDR MP4; source fits inside the frame. White captions on a dark background.</Text>
     {project.refinement?.status === 'running' && !active && <Text className="text-amber-200 text-xs mt-2">Saved-audio caption recheck is running. Export can wait or use current captions.</Text>}
     <View className="flex-row flex-wrap gap-2 mt-3">
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={canRetry ? 'Retry video export' : 'Export video'}
-        disabled={loading || busy || active || !project.videoUri || cutsNeedReview}
+        disabled={loading || busy || active || (!project.videoUri && !project.reviewSegments?.length) || cutsNeedReview}
         onPress={requestExport}
         className="bg-white rounded-lg px-4 py-3 disabled:opacity-40"
       >
@@ -297,6 +320,9 @@ export function ExportControls({ project, start, end, onMessage }: {
         <Text className="text-white text-xs">Cancel</Text>
       </Pressable>}
       {status === 'completed' && <>
+        <Pressable accessibilityRole="button" accessibilityLabel="Open exported video" disabled={busy} onPress={() => { void share(true); }} className="bg-neutral-800 rounded-lg px-4 py-3 disabled:opacity-40">
+          <Text className="text-white text-xs">Open video</Text>
+        </Pressable>
         <Pressable accessibilityRole="button" accessibilityLabel="Save exported video to gallery" disabled={busy} onPress={() => { void saveToGallery(); }} className="bg-neutral-800 rounded-lg px-4 py-3 disabled:opacity-40">
           <Text className="text-white text-xs">Save to gallery</Text>
         </Pressable>

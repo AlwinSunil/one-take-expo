@@ -134,3 +134,42 @@ test('empty explicit cuts mean the complete source, as defined by the native exp
   const result = buildExportPlan(project({ cuts: [] }), 2, 3);
   assert.deepEqual(result.cuts, []);
 });
+
+test('action directions and standalone scratch commands never become captions', () => {
+  const result = buildExportPlan(project({ transcript: [
+    { t0: 0, t1: 1, text: '[show product]' },
+    { t0: 1, t1: 2, text: 'Scratch that!' },
+    { t0: 2, t1: 3, text: 'Hello [wave] there', timingSource: 'saved-audio' },
+    { t0: 3, t1: 4, text: 'Do not scratch that surface.', timingSource: 'saved-audio' },
+  ] }), 0, 4);
+  assert.deepEqual(result.captions, [
+    { t0: 2, t1: 3, text: 'Hello there' },
+    { t0: 3, t1: 4, text: 'Do not scratch that surface.' },
+  ]);
+  assert.equal(result.hasEstimatedCaptions, false);
+});
+
+test('reviewed multi-source segments preserve source-local captions and selection order', () => {
+  const result = buildExportPlan(project({ videoUri: null, cutsReviewed: true, reviewSegments: [
+    { uri: 'file:///pickup.mp4', t0: 0, t1: 2, captions: [{ t0: 0, t1: 1, text: 'Pickup [wave]' }], takeId: 'pickup' },
+    { uri: 'file:///original.mp4', t0: 0, t1: 2, captions: [{ t0: 0, t1: 1, text: 'Original' }] },
+  ] }), 0, 0);
+  assert.deepEqual(result.segments.map(s => [s.uri, s.captions[0].text]), [['file:///pickup.mp4', 'Pickup'], ['file:///original.mp4', 'Original']]);
+  assert.equal(result.sourceUri, 'file:///pickup.mp4');
+  assert.deepEqual(result.captions, []);
+  assert.throws(() => buildExportPlan(project({ cutsReviewed: true, reviewSegments: [] }), 0, 1), /at least one/);
+});
+
+test('legacy export excludes overlapping pickup captions using recording and take ownership', () => {
+  const result = buildExportPlan(project({
+    recordings: [{ id: 'original', mediaUri: 'file:///private/original.mp4' }, { id: 'pickup', mediaUri: 'file:///pickup.mp4' }],
+    takes: [{ id: 'pickup-take', mediaUri: 'file:///pickup.mp4', transcriptSegmentIds: ['pickup-linked'] }],
+    transcript: [
+      { id: 'primary', recordingId: 'original', t0: 0, t1: 1, text: 'Original' },
+      { id: 'pickup', recordingId: 'pickup', t0: 0, t1: 1, text: 'Wrong source' },
+      { id: 'pickup-linked', t0: 1, t1: 2, text: 'Also wrong source' },
+      { id: 'legacy', t0: 1, t1: 2, text: 'Legacy original' },
+    ],
+  }), 0, 2);
+  assert.deepEqual(result.captions.map(caption => caption.text), ['Original', 'Legacy original']);
+});

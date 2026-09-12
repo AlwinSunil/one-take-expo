@@ -84,8 +84,9 @@ internal class MediaExportRunner(
     }
 
     try {
+      val composition = withContext(Dispatchers.IO) { MediaComposition.build(context, job.request) }
       withContext(Dispatchers.Main.immediate) {
-        exportOnMain(job, temporary, onProgress)
+        exportOnMain(job, temporary, composition, onProgress)
       }
       ensureNotCancelled(job.request.id)
       if (!temporary.renameTo(output)) {
@@ -107,6 +108,7 @@ internal class MediaExportRunner(
   private suspend fun exportOnMain(
     job: MediaExportJob,
     temporary: File,
+    composition: Composition,
     onProgress: suspend (Int) -> Unit,
   ) {
     check(Looper.myLooper() == Looper.getMainLooper()) {
@@ -114,43 +116,6 @@ internal class MediaExportRunner(
     }
     ensureNotCancelledOnMain(job.request.id)
 
-    val mappedCaptions = MediaExportTimeline.mapCaptions(
-      job.request.captions,
-      job.request.cuts,
-    )
-    val effects = if (mappedCaptions.isEmpty()) {
-      Effects(emptyList(), emptyList())
-    } else {
-      val overlay: BitmapOverlay = TimedCaptionOverlay(mappedCaptions)
-      Effects(emptyList(), listOf(OverlayEffect(listOf(overlay))))
-    }
-
-    val items = if (job.request.cuts.isEmpty()) {
-      listOf(
-        EditedMediaItem.Builder(MediaItem.fromUri(Uri.parse(job.request.sourceUri)))
-          .build(),
-      )
-    } else {
-      job.request.cuts.map { cut ->
-        val source = MediaItem.Builder()
-          .setUri(Uri.parse(job.request.sourceUri))
-          .setClippingConfiguration(
-            MediaItem.ClippingConfiguration.Builder()
-              .setStartPositionMs(MediaExportTimeline.toMillis(cut.t0))
-              .setEndPositionMs(MediaExportTimeline.toMillis(cut.t1))
-              .build(),
-          )
-          .build()
-        EditedMediaItem.Builder(source).build()
-      }
-    }
-
-    // A single sequence concatenates the selected source ranges while keeping
-    // both tracks. Composition effects see the final concatenated timestamps,
-    // which is why the overlay receives mapped caption intervals above.
-    val composition = Composition.Builder(EditedMediaItemSequence.withAudioAndVideoFrom(items))
-      .setEffects(effects)
-      .build()
     val transformer = Transformer.Builder(context.applicationContext).build()
     val mainHandler = Handler(Looper.getMainLooper())
     val registered = AtomicBoolean(false)
@@ -242,7 +207,7 @@ internal class MediaExportRunner(
   }
 
   @androidx.annotation.OptIn(markerClass = [UnstableApi::class])
-  private class TimedCaptionOverlay(
+  internal class TimedCaptionOverlay(
     private val captions: List<MappedCaption>,
   ) : BitmapOverlay() {
     private val activeSettings = StaticOverlaySettings.Builder()
@@ -335,13 +300,8 @@ internal class MediaExportRunner(
           high = candidateScale
         }
       }
-      // A tiny minimum scale keeps all text present even for an unusually
-      // long caption. The normal path chooses a larger scale that fits the
-      // bounded lower-third area.
-      if (bestLayout.height > innerMaxHeight()) {
-        bestText = wrapText(text, maxTextWidth.toFloat(), low)
-        bestLayout = createLayout(bestText, low)
-      }
+      // Reject unreadable captions instead of shrinking text beyond a legible size.
+      require(bestLayout.height <= innerMaxHeight()) { "A caption is too long to display clearly. Split or shorten it before exporting." }
       val bitmapWidth = maxTextWidth.coerceAtLeast(1)
       val bitmapHeight = (bestLayout.height + (2 * textPadding)).coerceAtLeast(1)
       return Bitmap.createBitmap(bitmapWidth, bitmapHeight, Bitmap.Config.ARGB_8888).also { bitmap ->
@@ -444,7 +404,7 @@ internal class MediaExportRunner(
       private const val TEXT_PADDING_FRACTION = 0.018f
       private const val MIN_TEXT_PADDING = 4
       private const val MAX_TEXT_PADDING = 32
-      private const val MIN_TEXT_SIZE_SCALE = 0.000001f
+      private const val MIN_TEXT_SIZE_SCALE = 0.24f
       private const val MAX_TEXT_SIZE_SCALE = 0.85f
       private const val SCALE_SEARCH_STEPS = 8
       private const val DEFAULT_MAX_TEXT_WIDTH = 900f

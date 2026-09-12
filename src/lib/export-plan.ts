@@ -1,10 +1,12 @@
 import { validateExportCaptions, validateExportCuts } from '../../modules/one-take-media/timeline.ts';
 
+import { transcriptForSource } from './review-source.ts';
 import { partitionCaptionTimeline } from './caption-timeline.ts';
 import type { Project, TranscriptSeg } from './session';
 
 export type ExportCut = { t0: number; t1: number };
 export type ExportCaption = ExportCut & { text: string };
+export type ExportSegment = ExportCut & { uri: string; captions?: ExportCaption[]; takeId?: string };
 export type CaptionTiming = 'none' | 'saved-audio' | 'live-estimate' | 'mixed';
 
 export type ExportPlanErrorCode =
@@ -26,6 +28,7 @@ export class ExportPlanError extends Error {
 }
 
 export interface ExportPlan {
+  segments?: ExportSegment[];
   sourceUri: string;
   /** Source-relative cuts in the exact output order used by the editor. */
   cuts: ExportCut[];
@@ -41,6 +44,19 @@ export interface ExportPlan {
  * editor's selected trim becomes one source-relative cut.
  */
 export function buildExportPlan(project: Project, start: number, end: number): ExportPlan {
+  if (project.reviewSegments !== undefined) {
+    if (!project.cutsReviewed) throw new ExportPlanError('unreviewed-cuts', 'Review and accept each cut before exporting.');
+    if (!Array.isArray(project.reviewSegments) || project.reviewSegments.length === 0) throw new ExportPlanError('invalid-cuts', 'Choose at least one segment.');
+    const segments = project.reviewSegments.map(segment => {
+      const plan = buildExportPlan({ ...project, reviewSegments: undefined, videoUri: segment.uri, cuts: undefined,
+        transcript: segment.captions ?? [] }, segment.t0, segment.t1);
+      return { uri: segment.uri, t0: segment.t0, t1: segment.t1, captions: plan.captions, takeId: segment.takeId };
+    });
+    if (segments.length > 100) throw new ExportPlanError('invalid-cuts', 'Too many export segments.');
+    return { sourceUri: segments[0].uri, cuts: [], captions: [], segments,
+      captionTiming: segments.some(segment => segment.captions.length) ? 'live-estimate' : 'none',
+      hasEstimatedCaptions: segments.some(segment => segment.captions.length > 0) };
+  }
   const sourceUri = project.videoUri;
   if (typeof sourceUri !== 'string' || !sourceUri.trim()) {
     throw new ExportPlanError('missing-source', 'The original recording is unavailable.');
@@ -65,7 +81,7 @@ export function buildExportPlan(project: Project, start: number, end: number): E
     throw new ExportPlanError('invalid-cuts', error instanceof Error ? error.message : 'The selected cuts are invalid.');
   }
 
-  const captionBuild = buildCaptions(project.transcript);
+  const captionBuild = buildCaptions(transcriptForSource(project, sourceUri));
   let captions: ExportCaption[];
   try {
     captions = validateExportCaptions(partitionCaptionTimeline(captionBuild.captions));
@@ -113,7 +129,9 @@ function buildCaptions(segments: readonly TranscriptSeg[]): CaptionBuild {
     if (typeof text !== 'string' || !text.trim()) {
       throw new ExportPlanError('invalid-caption', `Caption ${index + 1} has no readable text.`);
     }
-    captions.push({ t0: segment.t0, t1: segment.t1, text: text.trim() });
+    const spoken = sanitizeExportCaption(text);
+    if (!spoken) return;
+    captions.push({ t0: segment.t0, t1: segment.t1, text: spoken });
     if (segment.timingSource === 'saved-audio') hasSavedAudio = true;
     else hasEstimated = true;
   });
@@ -145,4 +163,9 @@ function cloneCuts(value: unknown, label: string): ExportCut[] {
     }
     return { t0: candidate.t0, t1: candidate.t1 };
   });
+}
+
+export function sanitizeExportCaption(text: string): string {
+  const spoken = text.replace(/\[[^\]]*\]/g, '').replace(/\s+/g, ' ').trim();
+  return /^scratch that[.!?,]*$/i.test(spoken) ? '' : spoken;
 }

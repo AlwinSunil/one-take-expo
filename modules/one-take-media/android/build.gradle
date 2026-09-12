@@ -23,11 +23,12 @@ android {
 }
 
 dependencies {
-  // Media3 1.11.0 is the current stable release documented by Android.
+  // Match Expo Video and the existing research player to avoid binary API conflicts.
   // Keep every Media3 artifact on exactly the same version.
-  implementation 'androidx.media3:media3-transformer:1.11.0'
-  implementation 'androidx.media3:media3-effect:1.11.0'
-  implementation 'androidx.media3:media3-common:1.11.0'
+  implementation 'androidx.media3:media3-transformer:1.9.0'
+  implementation 'androidx.media3:media3-effect:1.9.0'
+  implementation 'androidx.media3:media3-common:1.9.0'
+  implementation 'androidx.media3:media3-ui:1.9.0'
   implementation 'androidx.core:core-ktx:1.17.0'
   testImplementation 'junit:junit:4.13.2'
 }
