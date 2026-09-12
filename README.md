@@ -5,7 +5,7 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
 ## Get started
 
 Live captions use a local Kotlin module with the verified Moonshine Tiny Streaming runtime.
-See [live caption setup and verification](docs/live-captions.md) before building Android.
+Before opening Android Studio, follow [live caption setup and verification](docs/live-captions.md) to extract the committed native runtime archive and download the models.
 
 ### Android Studio and a physical Android phone
 
