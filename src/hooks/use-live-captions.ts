@@ -48,6 +48,7 @@ export function useLiveCaptions() {
   // times already use that clock; anchoring at `start()` instead would add the
   // whole preparation interval to pause detection.
   const streamStart = useRef<number | null>(null);
+  const warnedMissingStreamStart = useRef(false);
   const mounted = useRef(true);
   const transcript = useRef<CaptionSegment[]>([]);
   const stopRequest = useRef<StopRequest | null>(null);
@@ -62,6 +63,7 @@ export function useLiveCaptions() {
   // native stop result only describes the current session, so these are
   // re-merged rather than being replaced by it.
   const carried = useRef<CaptionSegment[]>([]);
+  const retryOffset = useRef(0);
 
   const report = useMemo(() => captionTimingReport(timing), [timing]);
 
@@ -75,7 +77,13 @@ export function useLiveCaptions() {
    * here estimates a stage that was never observed.
    */
   const recordTiming = useCallback((utteranceId: string, stage: CaptionTimingStage, at: number | null) => {
-    if (at === null) return;
+    if (at === null) {
+      if (!warnedMissingStreamStart.current) {
+        warnedMissingStreamStart.current = true;
+        console.warn(`caption-timing: dropped utterance=${utteranceId} stage=${stage} before audio stream start was known`);
+      }
+      return;
+    }
     let rejection: string | null = null;
     setTiming(previous => {
       try {
@@ -101,8 +109,12 @@ export function useLiveCaptions() {
 
   const retainSegments = useCallback((segments: readonly CaptionSegment[]) => {
     const owned = namespaceCaptionSegments(segments, attempt.current);
-    transcript.current = mergeCaptionSegments(transcript.current, owned);
+    transcript.current = mergeCaptionSegments(
+      transcript.current,
+      namespaceCaptionSegments(segments, attempt.current, retryOffset.current),
+    );
     const elapsed = streamElapsedMs(Date.now(), streamStart.current);
+    // Timing remains on the native session clock, without the transcript offset.
     for (const segment of owned) {
       if (!segment?.isFinal || finalized.current.has(segment.id)) continue;
       finalized.current.add(segment.id);
@@ -233,6 +245,7 @@ export function useLiveCaptions() {
     const id = `${Date.now()}-${++nextSession}`;
     sessionId.current = id;
     streamStart.current = null;
+    warnedMissingStreamStart.current = false;
     setCaption(captionState(id));
     // A fresh session clears any earlier unavailable or interrupted state,
     // which is how an interruption recovers on the next start.
@@ -241,8 +254,10 @@ export function useLiveCaptions() {
     if (resume) {
       attempt.current += 1;
       carried.current = transcript.current;
+      retryOffset.current = carried.current.reduce((end, segment) => Math.max(end, segment.t1), 0);
     } else {
       attempt.current = 0;
+      retryOffset.current = 0;
       carried.current = [];
       setTiming(captionTimingState());
       loggedLines.current.clear();

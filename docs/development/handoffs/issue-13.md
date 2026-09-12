@@ -40,13 +40,16 @@ An interruption needs no action from the capture lane: the next `start()` create
 
 `retry()` is not a fresh take.
 It starts a new native caption session, but the utterances already recognized are kept and the new session's segment ids are namespaced `r<attempt>:<id>`, because the recognizer restarts its own ids from the beginning.
+Retried transcript timestamps are offset by the maximum `t1` retained from earlier attempts, so the new utterances sort after them even though the native clock restarts near zero.
+This preserves transcript order; it does not measure elapsed video time during the interruption.
 So a failure two utterances into a recording, followed by a retry, still saves those two utterances when the capture lane stops and persists the transcript.
 `start()` with no arguments is unchanged and still begins a clean take.
 
 ### Timing clock contract
 
 **Every timestamp passed to `noteCaptionTiming(utteranceId, stage, at)` is milliseconds on the audio-stream clock**, whose origin is the moment the native module reported `listening`.
-That is the clock a segment's `t0`/`t1` already use.
+Native segment `t0`/`t1` use that clock.
+Saved transcript timestamps include the retry offset; timing observations must still use the current native session clock.
 Omit `at` to use now, which the hook converts for you.
 Do not pass a wall-clock instant or a value anchored at `start()`: preparation happens before `listening`, so that would inflate pause detection by the whole preparation interval.
 `streamElapsedMs(nowWallMs, streamStartWallMs)` in `src/lib/caption-timing.ts` is the conversion, and returns `null` before the stream exists.

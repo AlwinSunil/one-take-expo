@@ -45,10 +45,9 @@ export interface CaptionUtteranceTiming {
 
 export interface CaptionTimingLine {
   /**
-   * Stable identity of this exact line.  An utterance produces at most two:
-   * a partial one when recognition finalized it, and a final one when the
-   * coverage verdict arrived.  Keying by identity rather than by position is
-   * what keeps logging correct when utterances complete out of order.
+   * Stable identity of the observed stage set. Each newly observed stage can
+   * produce a new line even when pause detection never arrives. Keying by
+   * identity keeps logging correct when utterances complete out of order.
    */
   key: string;
   utteranceId: string;
@@ -147,12 +146,12 @@ export function captionTimingReport(state: CaptionTimingState): CaptionTimingRep
     delayed: measured.at(-1)?.delayed ?? false,
     // A line is emitted as soon as recognition finalized the utterance, with
     // any stage that was never reported shown as n/a, so the device log is
-    // not empty while pause detection has no native source. The coverage
-    // verdict then produces the one completed line.
+    // not empty while pause detection has no native source. Each subsequent
+    // stage produces a new identity, including a coverage-only update.
     lines: utterances
       .filter(utterance => utterance.recognizedMs !== null || utterance.complete)
       .map(utterance => ({
-        key: `${utterance.utteranceId}:${utterance.complete ? 'complete' : 'partial'}`,
+        key: `${utterance.utteranceId}:${STAGES.filter(stage => state.stages.get(utterance.utteranceId)?.has(stage)).join(',')}`,
         utteranceId: utterance.utteranceId,
         complete: utterance.complete,
         line: formatTimingLine(utterance),

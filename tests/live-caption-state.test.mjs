@@ -203,15 +203,18 @@ test('a retry keeps the utterances recognized before the failure', () => {
     { id: '2', t0: 2.6, t1: 4.2, text: 'And the room is quiet.', isFinal: true },
   ];
   // The retried native session restarts its segment ids from the beginning.
-  const afterRetry = [{ id: '1', t0: 6.1, t1: 7.8, text: 'Reading the third line.', isFinal: true }];
+  const afterRetry = [{ id: '1', t0: 0.5, t1: 1.8, text: 'Reading the third line.', isFinal: true }];
 
-  const resumed = mergeCaptionSegments(beforeFailure, namespaceCaptionSegments(afterRetry, 1));
+  const resumed = mergeCaptionSegments(beforeFailure, namespaceCaptionSegments(afterRetry, 1, Math.max(...beforeFailure.map(segment => segment.t1))));
   assert.deepEqual(resumed.map(segment => segment.text), [
     'The light is low.',
     'And the room is quiet.',
     'Reading the third line.',
   ]);
   assert.deepEqual(resumed.map(segment => segment.id), ['1', '2', 'r1:1']);
+  assert.equal(resumed[2].t0, 4.7);
+  assert.equal(resumed[2].t1, 6);
+  assert.equal(afterRetry[0].t0, 0.5);
 
   // Without the namespace the retried session would silently overwrite the
   // first utterance, which is the regression this guards.
@@ -219,4 +222,23 @@ test('a retry keeps the utterances recognized before the failure', () => {
 
   assert.deepEqual(namespaceCaptionSegments(afterRetry, 0), afterRetry);
   assert.throws(() => namespaceCaptionSegments(afterRetry, -1), RangeError);
+});
+
+test('retry offsets stay fixed across revisions and accumulate across attempts', () => {
+  const original = [{ id: '1', t0: 0, t1: 4, text: 'A', isFinal: true }];
+  const retry = [{ id: '1', t0: 0.5, t1: 1, text: 'B', isFinal: false }];
+  const offset = Math.max(...original.map(segment => segment.t1));
+  let transcript = mergeCaptionSegments(original, namespaceCaptionSegments(retry, 1, offset));
+  transcript = mergeCaptionSegments(transcript, namespaceCaptionSegments(
+    [{ ...retry[0], t1: 2, text: 'B final', isFinal: true }], 1, offset,
+  ));
+  assert.deepEqual(transcript.map(segment => [segment.id, segment.t0, segment.t1]), [
+    ['1', 0, 4], ['r1:1', 4.5, 6],
+  ]);
+  const nextOffset = Math.max(...transcript.map(segment => segment.t1));
+  transcript = mergeCaptionSegments(transcript, namespaceCaptionSegments(retry, 2, nextOffset));
+  assert.deepEqual(transcript.map(segment => segment.t0), [0, 4.5, 6.5]);
+  for (const invalid of [-1, NaN, Infinity]) {
+    assert.throws(() => namespaceCaptionSegments(retry, 1, invalid), RangeError);
+  }
 });

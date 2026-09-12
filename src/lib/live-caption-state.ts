@@ -55,23 +55,33 @@ export function mergeCaptionSegments(
 }
 
 /**
- * Namespace a retried session's segment ids.
+ * Namespace a retried session's segment ids and offset its restarted clock.
  *
  * A retry after a mid-take failure starts a new native session, and the
  * recognizer restarts its segment ids from the beginning. Without a namespace
  * those ids would collide with the utterances recognized before the failure
  * and silently overwrite them. Attempt 0 is the first session and is left
  * untouched, so an ordinary take keeps the ids the native module produced.
+ * The offset is the maximum retained t1, fixed for the entire retry attempt.
  */
 export function namespaceCaptionSegments(
   segments: readonly CaptionSegmentUpdate[],
   attempt: number,
+  offsetSeconds = 0,
 ): CaptionSegmentUpdate[] {
   if (!Number.isInteger(attempt) || attempt < 0) {
     throw new RangeError('Caption retry attempt must be a non-negative integer.');
   }
+  if (!Number.isFinite(offsetSeconds) || offsetSeconds < 0) {
+    throw new RangeError('Caption retry offset must be a non-negative finite number.');
+  }
   if (attempt === 0) return [...segments];
-  return segments.map(segment => ({ ...segment, id: `r${attempt}:${segment.id}` }));
+  return segments.map(segment => ({
+    ...segment,
+    id: `r${attempt}:${segment.id}`,
+    t0: segment.t0 + offsetSeconds,
+    t1: segment.t1 + offsetSeconds,
+  }));
 }
 
 export interface CaptionReplayResult {

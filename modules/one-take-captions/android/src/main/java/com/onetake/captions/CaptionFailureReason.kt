@@ -5,7 +5,7 @@ package com.onetake.captions
  * specific and decide whether another attempt is worth offering.
  *
  * The constants match `CaptionFailureReason` in
- * `src/lib/live-caption-state.ts`. Classification is message based because
+ * `modules/one-take-captions/index.ts`. Classification is message based because
  * the failures originate in several unrelated places - asset staging, the
  * checksum guard, AudioRecord and the Moonshine runtime - and wrapping every
  * one of them in a dedicated exception type would be a much larger change to

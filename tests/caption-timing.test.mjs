@@ -91,7 +91,7 @@ test('each completed utterance produces one caption-timing log line', () => {
     'caption-timing: utterance=u1 pause_detection_ms=320 finalization_ms=780 coverage_processing_ms=100 recognized_ms=1100 state=live',
     'caption-timing: utterance=u2 pause_detection_ms=100 finalization_ms=1900 coverage_processing_ms=100 recognized_ms=2000 state=delayed',
   ]);
-  assert.deepEqual(report.lines.map(entry => entry.key), ['u1:complete', 'u2:complete']);
+  assert.deepEqual(report.lines.map(entry => entry.key), ['u1:speech-end,pause-detected,final-segment,coverage-verdict', 'u2:speech-end,pause-detected,final-segment,coverage-verdict']);
 });
 
 test('a repeated stage keeps the first timestamp and the same state object', () => {
@@ -125,7 +125,7 @@ test('an utterance with no pause source still logs a line with n/a stages', () =
     { utteranceId: 'u1', stage: 'final-segment', at: 2_410 },
   ]);
   assert.deepEqual(report.lines, [{
-    key: 'u1:partial',
+    key: 'u1:speech-end,final-segment',
     utteranceId: 'u1',
     complete: false,
     line: 'caption-timing: utterance=u1 pause_detection_ms=n/a finalization_ms=n/a coverage_processing_ms=n/a recognized_ms=310 state=live',
@@ -156,7 +156,7 @@ test('each caption-timing line is logged exactly once when utterances complete o
     }
   }
 
-  assert.deepEqual(emitted, ['u1:partial', 'u2:partial', 'u2:complete', 'u1:complete']);
+  assert.deepEqual(emitted, ['u1:speech-end,pause-detected,final-segment', 'u2:speech-end,pause-detected,final-segment', 'u2:speech-end,pause-detected,final-segment,coverage-verdict', 'u1:speech-end,pause-detected,final-segment,coverage-verdict']);
   assert.equal(new Set(emitted).size, emitted.length, 'a line was logged more than once');
 });
 
@@ -186,4 +186,23 @@ test('only a listening session is relabelled as delayed by timing', () => {
   for (const status of ['idle', 'preparing', 'stopping', 'stopped', 'unavailable', 'interrupted']) {
     assert.equal(timingAdjustedStatus(status, delayed), status);
   }
+});
+
+test('coverage produces a new timing line without pause detection', () => {
+  let state = captionTimingState();
+  const logged = new Set();
+  const emitted = [];
+  for (const [stage, at] of [['speech-end', 100], ['final-segment', 200], ['coverage-verdict', 800]]) {
+    state = reduceCaptionTiming(state, { utteranceId: 'u1', stage, at });
+    const lines = selectNewTimingLines(captionTimingReport(state), logged);
+    for (const entry of lines) {
+      emitted.push(entry);
+      logged.add(entry.key);
+    }
+  }
+  assert.equal(emitted.length, 2);
+  assert.equal(emitted[1].complete, false);
+  assert.match(emitted[1].line, /coverage_processing_ms=600/);
+  assert.match(emitted[1].line, /state=delayed/);
+  assert.deepEqual(selectNewTimingLines(captionTimingReport(state), logged), []);
 });
