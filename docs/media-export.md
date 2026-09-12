@@ -39,8 +39,10 @@ Captions are mapped to the concatenated output timeline by intersecting each
 caption with each selected source range.
 A caption crossing a removed gap becomes one segment per selected range, so
 the output text follows the retained audio and video.
-Caption intervals are sorted by source time and overlapping caption intervals
-are rejected because their render order would otherwise be ambiguous.
+Before native export, the editor partitions overlapping recognizer intervals at every start and end boundary.
+Each resulting visual cue contains the active text in stable source order, separated by newlines.
+Preview uses the same partitioning, so normal recognizer padding does not block export or silently discard a caption.
+The native module receives sorted, non-overlapping visual cues and still rejects overlapping intervals supplied directly to its API.
 
 Media3 `1.11.0` is used for `media3-transformer`, `media3-effect`, and
 `media3-common`, matching the current Android documentation and release.
