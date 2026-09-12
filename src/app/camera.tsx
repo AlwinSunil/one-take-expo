@@ -41,6 +41,9 @@ import {
 import { setCaptureInputActive, subscribeCaptureInput } from '@/features/capture/input';
 import { loadAcceptedScriptDocument } from '@/lib/script-draft';
 import { parseScript, setCueStatus, type ScriptDocument } from '@/lib/script-lines';
+import { useVision } from '@/features/vision/use-vision';
+import { CaptureSuggestions } from '@/features/coach/capture-suggestions';
+import type { CoachIntent, CoachVisionEvidence } from '@/features/coach/policy';
 import {
   captureFailureMessage,
   classifyCaptureFailure,
@@ -177,6 +180,22 @@ export default function CameraScreen() {
   const [cameraMountFailure, setCameraMountFailure] = useState<CaptureFailureKind | null>(null);
   const [cameraRetry, setCameraRetry] = useState(0);
   const [requestingPermission, setRequestingPermission] = useState(false);
+  const [appInForeground, setAppInForeground] = useState(AppState.currentState === 'active');
+  const [coachEnabled, setCoachEnabled] = useState(true);
+  const [shotIntent, setShotIntent] = useState<CoachIntent>('talking-head');
+  const vision = useVision({
+    enabled: isFocused && appInForeground && previewUri === null
+      && !!cameraPermission?.granted && !!micPermission?.granted,
+    ready,
+    lensFacing: facing,
+    recording: preparing || recording || saving,
+  });
+  // Face presence alone cannot certify lighting, background, or visible crop.
+  const coachEvidence: CoachVisionEvidence = vision.evidence.status === 'pending'
+    ? { status: 'pending', reason: 'model-loading' }
+    : vision.evidence.status === 'ready'
+      ? { status: 'ready', frameCapturedAtMs: vision.evidence.frameCapturedAtMs, observations: {} }
+      : { status: 'unavailable', reason: 'unknown' };
   const permissionRequesting = useRef(false);
   const commandGate = useRef(createCaptureCommandGate());
   const scratchRequested = useRef(false);
@@ -225,6 +244,7 @@ export default function CameraScreen() {
   useEffect(() => {
     activeScreen.current = AppState.currentState === 'active' && isFocused;
     const subscription = AppState.addEventListener('change', state => {
+      setAppInForeground(state === 'active');
       activeScreen.current = state === 'active' && isFocused;
       if (state !== 'active') {
         stopActiveCapture('interruption');
@@ -749,6 +769,16 @@ export default function CameraScreen() {
         </View>
         {(preparing || recording) && <LiveCaptions text={captions.text} isFinal={captions.isFinal} status={captions.status} />}
         {(preparing || recording) && captureMode === 'record-only' && <Text accessibilityRole="alert" className="self-center mt-2 rounded bg-amber-950/90 px-3 py-1.5 text-center text-amber-200 text-xs">RECORD-ONLY · Live analysis unavailable. Video and camera audio will still be saved.</Text>}
+        <View pointerEvents="none" className="absolute bottom-3 self-center mx-3 rounded-lg bg-black/70 px-3 py-2">
+          <Text className="text-neutral-200 text-xs text-center">
+            {vision.status === 'ready' && vision.faceStable
+              ? vision.facePresence === 'present' ? 'Face detected' : 'No face detected'
+              : vision.status === 'pending' ? 'Checking framing' : 'Framing unavailable'}
+            {vision.device?.batteryPercent != null ? ` · Battery ${vision.device.batteryPercent}%` : ''}
+            {vision.device && vision.device.thermalStatus !== 'none' && vision.device.thermalStatus !== 'unknown'
+              ? ` · Phone ${['light', 'moderate'].includes(vision.device.thermalStatus) ? 'warm' : 'hot'}` : ''}
+          </Text>
+        </View>
         {isScript && scriptDocumentLoaded && <View className="absolute top-3 left-3 right-3 gap-2">
           <CoverageStrip
             lines={captureCoverage.spokenLines}
@@ -790,7 +820,7 @@ export default function CameraScreen() {
         <View className="flex-1 items-center border-l border-neutral-800"><IconButton icon="tune" label="Camera settings" disabled={preparing || recording || saving} onPress={() => setSheet('settings')} /></View>
       </View>
       <View className="flex-row items-center py-5">
-        <Pressable accessibilityRole="button" accessibilityLabel="Visual Suggestions" onPress={() => setSheet('suggestions')} className="flex-1 items-center py-2 active:opacity-60">
+        <Pressable accessibilityRole="button" accessibilityLabel="Visual Suggestions" disabled={preparing || recording || saving} accessibilityState={{ disabled: preparing || recording || saving }} onPress={() => setSheet('suggestions')} className="flex-1 items-center py-2 active:opacity-60" style={{ opacity: preparing || recording || saving ? 0.4 : 1 }}>
           <View className="bg-amber-400 rounded-full px-5 py-2"><Sparkles size={20} strokeWidth={1.75} color="black" /></View>
           <Text className="text-neutral-400 text-[10px] mt-2 tracking-widest">SUGGESTIONS</Text>
         </Pressable>
@@ -816,7 +846,16 @@ export default function CameraScreen() {
               <Text className="text-neutral-300 text-sm mt-3">Maximum recording quality</Text>
               <Text className="text-neutral-500 text-xs mt-2 leading-5">Applies to the recorded file, not the live preview. Unsupported qualities fall back to the highest available.</Text>
               <View className="flex-row flex-wrap gap-2 mt-4">{(['2160p', '1080p', '720p', '480p'] as const).map(value => <Pressable key={value} onPress={() => { setVideoQuality(value); setSheet(null); }} className={`rounded-lg px-3 py-2 ${videoQuality === value ? 'bg-white' : 'bg-neutral-900'}`}><Text className={`text-xs ${videoQuality === value ? 'text-black' : 'text-white'}`}>{value}</Text></Pressable>)}</View>
-            </> : <Text className="text-neutral-400 text-sm leading-6 mt-3">Visual analysis is not connected yet. Suggestions will appear here once the on-device vision engine is available.</Text>}
+            </> : <CaptureSuggestions enabled={coachEnabled} onEnabledChange={setCoachEnabled}
+              intent={shotIntent} onIntentChange={setShotIntent} evidence={coachEvidence} nowMs={vision.nowMs} />}
+            {__DEV__ && sheet === 'suggestions' && <View className="mt-4 border-t border-neutral-800 pt-4">
+              <Text className="text-neutral-400 text-xs">Engine diagnostics · Debug only</Text>
+              <Text selectable className="text-neutral-500 text-xs leading-5 mt-2">
+                {vision.diagnostics
+                  ? `Engine: ${vision.diagnostics.engine ?? 'unknown'}\nProcessor: ${vision.diagnostics.processor ?? 'unknown'}\nNPU: ${vision.diagnostics.npuStatus ?? 'unavailable'}\n${vision.diagnostics.npuUnavailableReason ?? ''}\nFrames: ${vision.diagnostics.framesProcessed ?? 0}\nInference p95: ${vision.diagnostics.p95InferenceMs ?? 'unknown'} ms`
+                  : 'Diagnostics unavailable in this build.'}
+              </Text>
+            </View>}
           </ScrollView>
         </SafeAreaView>
       </View>
