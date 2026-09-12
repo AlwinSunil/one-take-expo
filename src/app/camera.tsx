@@ -19,6 +19,7 @@ import {
   saveSetting,
 } from '@/lib/store';
 import type { Project } from '@/lib/session';
+import { recordedMediaDuration } from '@/lib/recorded-media';
 import { projectCaptureDocument, requestedPickupLineIds, recordingTranscript } from '@/features/capture/project-handoff';
 import { projectScriptLines } from '@/lib/project-workflow';
 import { useLiveCaptions } from '@/hooks/use-live-captions';
@@ -553,9 +554,17 @@ export default function CameraScreen() {
       commandGate.current.end();
       activeCaptureTakeId.current = null;
       setCaptureInputActive(false);
-      const duration = (Date.now() - startedAt.current) / 1000;
       capturePhase.current = 'saving';
       setSaving(true);
+      // A returned file must remain retryable even when metadata loading fails.
+      pendingSave.current = async () => {
+        const duration = await recordedMediaDuration(result.uri);
+        return targetProject
+          ? checkpointProjectPickup(targetProject.id, pickupRecordingId, { videoUri: result.uri, duration })
+          : saveProject({ ...project!, videoUri: result.uri, duration, transcript: [],
+            recordingStatus: 'interrupted', recoveryMessage: 'The original was saved after metadata recovery. Recheck its saved audio before reviewing coverage.' });
+      };
+      const duration = await recordedMediaDuration(result.uri);
       if (targetProject) {
         const targetId = targetProject.id;
         pendingSave.current = () => checkpointProjectPickup(targetId, pickupRecordingId, { videoUri: result.uri, duration });
@@ -660,7 +669,7 @@ export default function CameraScreen() {
           ? 'interrupted'
           : classified;
       if (kind === 'camera-busy') setCameraMountFailure(kind);
-      setError(captureFailureMessage(kind));
+      setError(returnedUri && e instanceof Error ? e.message : captureFailureMessage(kind));
     } finally {
       if (pickupStarted && !pickupReturned && targetProject) await cancelProjectPickup(targetProject.id, pickupRecordingId).catch(error => setError(String(error)));
       commandGate.current.end();
