@@ -1,0 +1,22 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'com.onetake.captureinput'
+version = '0.1.0'
+
+android {
+  namespace 'com.onetake.captureinput'
+
+  defaultConfig {
+    versionCode 1
+    versionName '0.1.0'
+    minSdkVersion 24
+  }
+
+  compileOptions {
+    sourceCompatibility JavaVersion.VERSION_11
+    targetCompatibility JavaVersion.VERSION_11
+  }
+}

@@ -47,6 +47,7 @@
     "test": "node --experimental-strip-types --test tests/*.test.mjs",
     "typecheck": "tsc --noEmit",
     "samples": "node --experimental-strip-types tools/replay-captions.mjs",
+    "coverage:report": "node --experimental-strip-types tools/speech-fixtures/precision-report.mjs",
     "start": "expo start",
     "reset-project": "node ./scripts/reset-project.js",
     "android": "expo run:android",
