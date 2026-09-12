@@ -6,6 +6,7 @@ import { useVideoPlayer, VideoView, type VideoThumbnail } from 'expo-video';
 import { Image } from 'expo-image';
 import { ArrowLeft, Images, ChevronLeft, ChevronRight, Grid3X3, SlidersHorizontal, SwitchCamera, X, Sparkles } from 'lucide-react-native';
 import { getSetting, saveProject, saveSetting } from '@/lib/store';
+import { useLiveCaptions } from '@/hooks/use-live-captions';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, AppState, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -82,9 +83,13 @@ export default function CameraScreen() {
   const [cameraPermission, requestCamera] = useCameraPermissions();
   const [micPermission, requestMic] = useMicrophonePermissions();
   const camera = useRef<CameraView>(null);
+  const captions = useLiveCaptions();
+  const activeScreen = useRef(true);
+  const recordingGeneration = useRef(0);
   const busy = useRef(false);
   const startedAt = useRef(0);
   const [recording, setRecording] = useState(false);
+  const [preparing, setPreparing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [ready, setReady] = useState(false);
   const [facing, setFacing] = useState<CameraType>('back');
@@ -101,11 +106,22 @@ export default function CameraScreen() {
   const chunks = (script ?? '').match(/[^.!?\n]+[.!?]?/g)?.map(s => s.trim()).filter(Boolean) ?? [];
 
   useEffect(() => {
+    activeScreen.current = AppState.currentState === 'active';
     const subscription = AppState.addEventListener('change', state => {
-      if (state !== 'active' && busy.current) camera.current?.stopRecording();
+      activeScreen.current = state === 'active';
+      if (state !== 'active') {
+        recordingGeneration.current++;
+        if (busy.current) camera.current?.stopRecording();
+        void captions.stop();
+      }
     });
-    return () => { subscription.remove(); camera.current?.stopRecording(); };
-  }, []);
+    return () => {
+      activeScreen.current = false;
+      recordingGeneration.current++;
+      subscription.remove();
+      camera.current?.stopRecording();
+    };
+  }, [captions.stop]);
 
   const settingsLoaded = useRef(false);
   useEffect(() => {
@@ -162,13 +178,19 @@ export default function CameraScreen() {
     if (busy.current) {
       setSaving(true);
       camera.current?.stopRecording();
+      void captions.stop();
       return;
     }
     if (!ready || !camera.current) return;
     busy.current = true;
-    startedAt.current = Date.now();
-    setSeconds(0); setError(''); setRecording(true);
+    const generation = ++recordingGeneration.current;
+    setSeconds(0); setError(''); setPreparing(true);
     try {
+      await captions.start();
+      if (!activeScreen.current || generation !== recordingGeneration.current || !camera.current) return;
+      setPreparing(false);
+      startedAt.current = Date.now();
+      setRecording(true);
       const result = await camera.current.recordAsync();
       if (!result) throw new Error('No video was returned. Please try again.');
       setPreviewDuration(Math.floor((Date.now() - startedAt.current) / 1000));
@@ -178,7 +200,9 @@ export default function CameraScreen() {
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Recording failed. Please try again.');
     } finally {
-      busy.current = false; setRecording(false); setSaving(false);
+      setSaving(true);
+      await captions.stop();
+      busy.current = false; setRecording(false); setSaving(false); setPreparing(false);
     }
   }
 
@@ -248,11 +272,11 @@ export default function CameraScreen() {
           videoQuality={videoQuality} zoom={zoom}
           onCameraReady={() => setReady(true)} onMountError={event => { setReady(false); setError(event.message); }} />
     <View className="flex-row items-center justify-between px-4 h-16 bg-black/40">
-      <IconButton icon="arrow_back" label="Back" disabled={recording || saving} onPress={() => router.back()} />
+      <IconButton icon="arrow_back" label="Back" disabled={preparing || recording || saving} onPress={() => router.back()} />
       <Text className="text-white text-xs tracking-widest">{isScript ? 'SCRIPT' : 'ASSISTED'}</Text>
-      {lastUri && !recording && !saving
+      {lastUri && !preparing && !recording && !saving
         ? <LatestThumb uri={lastUri} onPress={() => router.push('/projects')} />
-        : <IconButton icon="photo_library" label="Projects" disabled={recording || saving} onPress={() => router.push('/projects')} />}
+        : <IconButton icon="photo_library" label="Projects" disabled={preparing || recording || saving} onPress={() => router.push('/projects')} />}
     </View>
 
     <View className="flex-1">
@@ -263,8 +287,15 @@ export default function CameraScreen() {
           {[1, 2].map(n => <View key={`h${n}`} style={{ position: 'absolute', top: `${n * 100 / 3}%`, left: 0, right: 0, borderTopWidth: StyleSheet.hairlineWidth, borderColor: '#ffffff55' }} />)}
         </View>}
         <View className="self-center mt-4 bg-white rounded px-3 py-1.5">
-          <Text className="text-black text-xs font-bold">{recording ? `${saving ? 'SAVING' : 'REC'}  ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}` : `VIDEO · ${videoQuality}`}</Text>
+          <Text className="text-black text-xs font-bold">{preparing ? 'PREPARING CAPTIONS' : recording ? `${saving ? 'SAVING' : 'REC'}  ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}` : `VIDEO · ${videoQuality}`}</Text>
         </View>
+        {(preparing || recording) && <View pointerEvents="none" className="mx-4 mt-4 rounded-xl bg-black/75 px-4 py-3">
+          <Text className="text-neutral-300 text-[10px] mb-1">LIVE CAPTIONS · ENGLISH</Text>
+          <Text accessibilityLabel="Live caption text" numberOfLines={3} className="text-white text-base leading-6">
+            {captions.text || (captions.status === 'error' ? 'Captions unavailable. Video will still record.' : preparing ? 'Getting ready…' : 'Speak to see captions…')}
+          </Text>
+          {captions.status === 'error' && !!captions.message && <Text className="text-amber-200 text-xs mt-2">{captions.message}</Text>}
+        </View>}
         {isScript && <View className="absolute bottom-3 left-3 right-3 bg-black/70 rounded-xl px-3 py-2">
           <Text numberOfLines={2} className="text-white text-base leading-6">{chunks[chunk] ?? 'No script'}</Text>
           <View className="flex-row justify-between items-center">
@@ -289,7 +320,7 @@ export default function CameraScreen() {
             }
             return ZOOM_STOPS[(best + 1) % ZOOM_STOPS.length] ?? 0;
           })} className="h-12 min-w-12 items-center justify-center"><Text className="text-white text-lg font-medium">{zoom === 0 ? 'WIDE' : `${Math.round(zoom * 100)}%`}</Text></Pressable></View>
-        <View className="flex-1 items-center border-l border-neutral-800"><IconButton icon="tune" label="Camera settings" disabled={recording || saving} onPress={() => setSheet('settings')} /></View>
+        <View className="flex-1 items-center border-l border-neutral-800"><IconButton icon="tune" label="Camera settings" disabled={preparing || recording || saving} onPress={() => setSheet('settings')} /></View>
       </View>
       <View className="flex-row items-center py-5">
         <Pressable accessibilityRole="button" accessibilityLabel="Visual Suggestions" onPress={() => setSheet('suggestions')} className="flex-1 items-center py-2 active:opacity-60">
@@ -297,13 +328,13 @@ export default function CameraScreen() {
           <Text className="text-neutral-400 text-[10px] mt-2 tracking-widest">SUGGESTIONS</Text>
         </Pressable>
         <View className="flex-1 items-center">
-          <Pressable accessibilityRole="button" accessibilityLabel={recording ? 'Stop recording' : 'Start recording'} disabled={!ready || saving} onPress={record}
-            style={{ width: 84, height: 64, borderRadius: 40, borderWidth: 3, borderColor: 'white', padding: 5, opacity: !ready || saving ? 0.4 : 1 }}>
+          <Pressable accessibilityRole="button" accessibilityLabel={preparing ? 'Preparing captions' : recording ? 'Stop recording' : 'Start recording'} disabled={!ready || preparing || saving} onPress={record}
+            style={{ width: 84, height: 64, borderRadius: 40, borderWidth: 3, borderColor: 'white', padding: 5, opacity: !ready || preparing || saving ? 0.4 : 1 }}>
             <View style={{ flex: 1, borderRadius: recording ? 10 : 32, backgroundColor: recording ? '#ef4444' : 'white', margin: recording ? 7 : 0 }} />
           </Pressable>
         </View>
         <View className="flex-1 items-center">
-          <IconButton icon="flip_camera_android" label="Switch front or rear camera" disabled={recording || saving} onPress={() => { setReady(false); setZoom(0); setFacing(v => v === 'back' ? 'front' : 'back'); }} />
+          <IconButton icon="flip_camera_android" label="Switch front or rear camera" disabled={preparing || recording || saving} onPress={() => { setReady(false); setZoom(0); setFacing(v => v === 'back' ? 'front' : 'back'); }} />
           <Text className="text-neutral-400 text-[10px] mt-2 tracking-widest">FLIP</Text>
         </View>
       </View>
