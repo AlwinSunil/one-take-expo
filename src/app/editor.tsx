@@ -13,6 +13,9 @@ import { partitionCaptionTimeline, activeCaptionAt } from '@/lib/caption-timelin
 import { LOCAL_VIDEO_BUFFER } from '@/lib/video-buffer';
 import { ExportControls } from '@/components/review/export-controls';
 import { TranscriptReview } from '@/components/review/transcript-review';
+import { T1CaptionEditor } from '@/components/review/t1-caption-editor';
+import { Tier1TakeReview } from '@/components/review/t1-take-review';
+import { tier1Enabled } from '@/lib/t1-gates';
 
 const time = (seconds: number) => `${Math.floor(seconds / 60)}:${Math.floor(seconds % 60).toString().padStart(2, '0')}`;
 
@@ -74,8 +77,10 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [previewOriginal, setPreviewOriginal] = useState(false);
+  const [tier1Test, setTier1Test] = useState(false);
+  const [takePreview, setTakePreview] = useState<{ t0: number; t1: number } | null>(null);
   const cutIndex = useRef(0);
-  const previewCuts = !previewOriginal ? project?.cuts : undefined;
+  const previewCuts = takePreview ? [takePreview] : !previewOriginal ? project?.cuts : undefined;
   const previewFullSource = previewOriginal || project?.cuts?.length === 0;
   const limit = end || duration;
   const valid = Number.isFinite(duration) && duration > 0;
@@ -169,7 +174,7 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
           <RotateCcw size={20} color="#a3a3a3" />
         </Pressable>
       </View>
-      <Pressable className="py-3" onPress={() => { player.pause(); setPreviewOriginal(v => !v); }}>
+      <Pressable className="py-3" onPress={() => { player.pause(); setTakePreview(null); setPreviewOriginal(v => !v); }}>
         <Text className="text-white text-xs">{previewOriginal ? 'Preview edits' : 'Compare original video'}</Text>
       </Pressable>
       {valid && <View onLayout={e => setWidth(e.nativeEvent.layout.width)} style={{ height: 56, marginHorizontal: 12 }}>
@@ -202,8 +207,13 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
       <View className="items-center mt-6"><Scissors size={20} color="white" /><Text className="text-white text-xs mt-2">Trim</Text></View>
       <Text className="text-neutral-500 text-xs text-center mt-3">Drag the ends to trim. Slide across the filmstrip to preview.</Text>
       {!!message && <Text accessibilityRole="alert" className="text-neutral-200 text-sm mt-3 text-center">{message}</Text>}
+      {__DEV__ && <Pressable accessibilityRole="button" className="py-3" onPress={() => setTier1Test(v => !v)}><Text className="text-amber-200">{tier1Test ? 'Disable Tier 1 development test' : 'Enable Tier 1 development test'}</Text></Pressable>}
+      {project && <T1CaptionEditor project={project} onChange={changeProject} enabled={tier1Enabled('takeReview', __DEV__, tier1Test)} disabled={pendingWrites > 0} />}
+      {project && tier1Enabled('takeReview', __DEV__, tier1Test) && <Tier1TakeReview project={project} onChange={changeProject} onPreview={range => {
+        player.pause(); setTakePreview(range); cutIndex.current = 0; player.currentTime = range.t0; setPreviewOriginal(false); player.play();
+      }} />}
       {project && <TranscriptReview project={project} duration={valid ? duration : undefined} onChange={changeProject} onSeek={value => {
-        setPreviewOriginal(true); player.pause(); player.currentTime = Math.max(0, Math.min(duration, value));
+        setTakePreview(null); setPreviewOriginal(true); player.pause(); player.currentTime = Math.max(0, Math.min(duration, value));
       }} />}
       {!!persistenceError && <Text accessibilityRole="alert" className="text-red-300 py-3">{persistenceError}</Text>}
       {project && valid && !persistenceError && pendingWrites === 0 && <ExportControls project={project} start={start} end={limit} onMessage={setMessage} />}

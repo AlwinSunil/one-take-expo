@@ -42,7 +42,7 @@ export interface ExportPlan {
  */
 export function buildExportPlan(project: Project, start: number, end: number): ExportPlan {
   const sourceUri = project.videoUri;
-  if (typeof sourceUri !== 'string' || !sourceUri.trim()) {
+  if (project.mediaMissing || typeof sourceUri !== 'string' || !sourceUri.trim()) {
     throw new ExportPlanError('missing-source', 'The original recording is unavailable.');
   }
   const scheme = sourceUri.match(/^([a-z][a-z0-9+.-]*):/i)?.[1].toLocaleLowerCase();
