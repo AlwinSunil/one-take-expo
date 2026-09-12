@@ -1,10 +1,11 @@
 import { CameraType, CameraView, useCameraPermissions, useMicrophonePermissions } from 'expo-camera';
 import { useKeepAwake } from 'expo-keep-awake';
 import { router, useLocalSearchParams } from 'expo-router';
+import { useVideoPlayer, VideoView } from 'expo-video';
 import { ArrowLeft, Images, ChevronLeft, ChevronRight, Grid3X3, SlidersHorizontal, SwitchCamera, X, Sparkles } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef, useState } from 'react';
-import { AppState, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { AppState, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const icons = {
@@ -29,6 +30,11 @@ function IconButton({ icon, label, onPress, disabled = false }: {
   </Pressable>;
 }
 
+function PreviewPlayer({ uri }: { uri: string }) {
+  const player = useVideoPlayer(uri, p => { p.loop = true; p.play(); });
+  return <VideoView style={{ flex: 1 }} player={player} nativeControls contentFit="contain" />;
+}
+
 
 export default function CameraScreen() {
   useKeepAwake();
@@ -50,6 +56,8 @@ export default function CameraScreen() {
   const [videoQuality, setVideoQuality] = useState<'2160p' | '1080p' | '720p' | '480p'>('2160p');
   const [error, setError] = useState('');
   const [chunk, setChunk] = useState(0);
+  const [previewUri, setPreviewUri] = useState<string | null>(null);
+  const [previewDuration, setPreviewDuration] = useState(0);
   const chunks = (script ?? '').match(/[^.!?\n]+[.!?]?/g)?.map(s => s.trim()).filter(Boolean) ?? [];
 
   useEffect(() => {
@@ -78,16 +86,25 @@ export default function CameraScreen() {
     try {
       const result = await camera.current.recordAsync();
       if (!result) throw new Error('No video was returned. Please try again.');
-      router.push({ pathname: '/editor', params: {
-        mode: isScript ? 'script' : 'assisted', videoUri: result.uri,
-        duration: String(Math.floor((Date.now() - startedAt.current) / 1000)),
-        quality: videoQuality,
-      } });
+      setPreviewDuration(Math.floor((Date.now() - startedAt.current) / 1000));
+      setPreviewUri(result.uri);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Recording failed. Please try again.');
     } finally {
       busy.current = false; setRecording(false); setSaving(false);
     }
+  }
+
+  function continueToEditor() {
+    if (!previewUri) return;
+    const uri = previewUri;
+    const duration = previewDuration;
+    setPreviewUri(null);
+    router.push({ pathname: '/editor', params: {
+      mode: isScript ? 'script' : 'assisted', videoUri: uri,
+      duration: String(duration),
+      quality: videoQuality,
+    } });
   }
 
   if (!cameraPermission?.granted || !micPermission?.granted) return (
@@ -149,7 +166,6 @@ export default function CameraScreen() {
             style={{ width: 84, height: 64, borderRadius: 40, borderWidth: 3, borderColor: 'white', padding: 5, opacity: !ready || saving ? 0.4 : 1 }}>
             <View style={{ flex: 1, borderRadius: recording ? 10 : 32, backgroundColor: recording ? '#ef4444' : 'white', margin: recording ? 7 : 0 }} />
           </Pressable>
-          <Text className="text-neutral-400 text-[10px] mt-2 tracking-widest">{saving ? 'SAVING' : recording ? 'STOP' : 'RECORD'}</Text>
         </View>
         <View className="flex-1 items-center">
           <IconButton icon="flip_camera_android" label="Switch front or rear camera" disabled={recording || saving} onPress={() => { setReady(false); setZoom(0); setFacing(v => v === 'back' ? 'front' : 'back'); }} />
@@ -160,18 +176,37 @@ export default function CameraScreen() {
     <Modal visible={sheet !== null} transparent animationType="slide" onRequestClose={() => setSheet(null)}>
       <View className="flex-1 justify-end bg-black/60">
         <Pressable className="flex-1" accessibilityLabel="Dismiss panel" onPress={() => setSheet(null)} />
-        <SafeAreaView edges={['bottom']} className="bg-neutral-950 rounded-t-2xl" style={{ maxHeight: '70%' }}>
+        <SafeAreaView edges={['bottom']} className="bg-neutral-950" style={{ maxHeight: '70%' }}>
           <ScrollView contentContainerStyle={{ padding: 24 }}>
             <View className="flex-row items-center justify-between"><Text className="text-white text-lg font-semibold">{sheet === 'settings' ? 'Camera settings' : 'Visual Suggestions'}</Text><IconButton icon="close" label="Close panel" onPress={() => setSheet(null)} /></View>
             {sheet === 'settings' ? <>
               <Text className="text-neutral-300 text-sm mt-3">Maximum recording quality</Text>
               <Text className="text-neutral-500 text-xs mt-2 leading-5">Applies to the recorded file, not the live preview. Unsupported qualities fall back to the highest available.</Text>
               <View className="flex-row flex-wrap gap-2 mt-4">{(['2160p', '1080p', '720p', '480p'] as const).map(value => <Pressable key={value} onPress={() => { setVideoQuality(value); setSheet(null); }} className={`rounded-lg px-3 py-2 ${videoQuality === value ? 'bg-white' : 'bg-neutral-900'}`}><Text className={`text-xs ${videoQuality === value ? 'text-black' : 'text-white'}`}>{value}</Text></Pressable>)}</View>
-              <View className="flex-row items-center justify-between mt-5"><Text className="text-white">Composition grid</Text><Switch value={grid} onValueChange={setGrid} /></View>
             </> : <Text className="text-neutral-400 text-sm leading-6 mt-3">Visual analysis is not connected yet. Suggestions will appear here once the on-device vision engine is available.</Text>}
           </ScrollView>
         </SafeAreaView>
       </View>
+    </Modal>
+    <Modal visible={previewUri !== null} animationType="slide" onRequestClose={() => setPreviewUri(null)}>
+      <SafeAreaView className="flex-1 bg-black">
+        <StatusBar style="light" />
+        <View className="flex-row items-center justify-between px-4 h-16">
+          <Text className="text-white text-xs tracking-widest">PREVIEW · {videoQuality}</Text>
+          <IconButton icon="close" label="Discard recording" onPress={() => setPreviewUri(null)} />
+        </View>
+        <View className="flex-1 px-4">
+          {previewUri && <PreviewPlayer key={previewUri} uri={previewUri} />}
+        </View>
+        <View className="flex-row gap-2 px-4 py-5" style={{ maxWidth: 520, width: '100%', alignSelf: 'center' }}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Retake video" onPress={() => setPreviewUri(null)} className="flex-1 bg-neutral-900 border border-neutral-800 rounded-xl py-3.5 active:opacity-70">
+            <Text className="text-neutral-200 text-xs font-semibold text-center">Retake</Text>
+          </Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel="Continue to editor" onPress={continueToEditor} className="flex-1 bg-white rounded-xl py-3.5 active:opacity-80">
+            <Text className="text-black text-xs font-bold text-center">Continue</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
     </Modal>
   </SafeAreaView>;
 }

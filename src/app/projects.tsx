@@ -25,11 +25,11 @@ export default function Projects() {
             <Text className="text-neutral-600 text-xs mt-6 text-center">No projects yet</Text>
           }
           renderItem={({ item }) => (
-            <View className="bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2.5">
-              <Text className="text-white text-xs font-semibold">
+            <View className="bg-neutral-900 border border-neutral-800 px-4 py-3.5">
+              <Text className="text-white text-sm font-semibold">
                 {item.mode === 'script' ? 'Script' : 'Assisted'} · {item.clips.length} clips
               </Text>
-              <Text className="text-neutral-500 text-[11px]">
+              <Text className="text-neutral-500 text-xs mt-0.5">
                 {new Date(item.createdAt).toLocaleString()}
               </Text>
             </View>

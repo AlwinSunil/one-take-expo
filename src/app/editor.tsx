@@ -40,22 +40,22 @@ export default function Editor() {
             <Pressable
               key={c.id}
               onPress={() => commit(clips.map((x) => (x.id === c.id ? { ...x, keep: !x.keep } : x)))}
-              className={`rounded-xl px-3 py-2.5 border ${c.keep ? 'bg-neutral-900 border-neutral-800' : 'bg-neutral-950 border-neutral-900 opacity-50'}`}>
-              <Text className={`text-xs font-semibold ${c.keep ? 'text-white' : 'text-neutral-500 line-through'}`}>
+              className={`px-4 py-3.5 border ${c.keep ? 'bg-neutral-900 border-neutral-800' : 'bg-neutral-950 border-neutral-900 opacity-50'}`}>
+              <Text className={`text-sm font-semibold ${c.keep ? 'text-white' : 'text-neutral-500 line-through'}`}>
                 {c.label}
               </Text>
             </Pressable>
           ))}
         </ScrollView>
 
-        <View className="flex-row gap-2 mt-3">
+        <View className="flex-row gap-3 mt-3">
           {['Trim', 'Split', 'Delete'].map((a) => (
-            <Pressable key={a} className="flex-1 bg-neutral-900 border border-neutral-800 rounded-xl py-2.5">
-              <Text className="text-neutral-200 text-[11px] font-semibold text-center">{a}</Text>
+            <Pressable key={a} className="flex-1 bg-neutral-900 border border-neutral-800 py-4">
+              <Text className="text-neutral-200 text-sm font-semibold text-center">{a}</Text>
             </Pressable>
           ))}
         </View>
-        <View className="flex-row gap-2 mt-2">
+        <View className="flex-row gap-3 mt-3">
           <Pressable
             disabled={!past.length}
             onPress={() => {
@@ -65,8 +65,8 @@ export default function Editor() {
               setClips(prev);
               setPast(p);
             }}
-            className="flex-1 bg-neutral-900 border border-neutral-800 rounded-xl py-2.5 disabled:opacity-30">
-            <Text className="text-neutral-200 text-[11px] font-semibold text-center">Undo</Text>
+            className="flex-1 bg-neutral-900 border border-neutral-800 py-4 disabled:opacity-30">
+            <Text className="text-neutral-200 text-sm font-semibold text-center">Undo</Text>
           </Pressable>
           <Pressable
             disabled={!future.length}
@@ -76,13 +76,13 @@ export default function Editor() {
               setClips(next);
               setFuture(rest);
             }}
-            className="flex-1 bg-neutral-900 border border-neutral-800 rounded-xl py-2.5 disabled:opacity-30">
-            <Text className="text-neutral-200 text-[11px] font-semibold text-center">Redo</Text>
+            className="flex-1 bg-neutral-900 border border-neutral-800 py-4 disabled:opacity-30">
+            <Text className="text-neutral-200 text-sm font-semibold text-center">Redo</Text>
           </Pressable>
           <Pressable
             onPress={() => router.push('/projects')}
-            className="flex-1 bg-white rounded-xl py-2.5">
-            <Text className="text-black text-[11px] font-bold text-center">Export</Text>
+            className="flex-1 bg-white py-4">
+            <Text className="text-black text-sm font-bold text-center">Export</Text>
           </Pressable>
         </View>
       </View>

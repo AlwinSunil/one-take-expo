@@ -29,12 +29,12 @@ export default function ScriptInput() {
           placeholder="Enter or paste your script…"
           placeholderTextColor="#525252"
           textAlignVertical="top"
-          className="flex-1 bg-neutral-900 border border-neutral-800 rounded-xl text-white text-sm p-3 mt-3 min-h-[180px]"
+          className="flex-1 bg-neutral-900 border border-neutral-800 text-white text-sm p-4 mt-3 min-h-[180px]"
         />
 
-        <View className="flex-row gap-2 mt-3">
-          <Pressable onPress={paste} className="flex-1 bg-neutral-900 border border-neutral-800 rounded-xl py-3 active:opacity-70">
-            <Text className="text-neutral-200 text-xs font-semibold text-center">
+        <View className="flex-row gap-3 mt-3">
+          <Pressable onPress={paste} className="flex-1 bg-neutral-900 border border-neutral-800 py-4 active:opacity-70">
+            <Text className="text-neutral-200 text-sm font-semibold text-center">
               Paste from Clipboard
             </Text>
           </Pressable>
@@ -43,8 +43,8 @@ export default function ScriptInput() {
             onPress={() =>
               router.push({ pathname: '/camera', params: { mode: 'script', script } })
             }
-            className="flex-1 bg-white rounded-xl py-3 active:opacity-80 disabled:opacity-30">
-            <Text className="text-black text-xs font-bold text-center">Continue</Text>
+            className="flex-1 bg-white py-4 active:opacity-80 disabled:opacity-30">
+            <Text className="text-black text-sm font-bold text-center">Continue</Text>
           </Pressable>
         </View>
       </View>
