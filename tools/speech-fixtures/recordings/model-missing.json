@@ -1,0 +1,14 @@
+{
+  "synthetic": true,
+  "name": "model-missing",
+  "sessionId": "model-missing",
+  "description": "Preparation fails because a pinned Moonshine asset was never staged into the build. Recording continues; captions report an unavailable reason that a retry can address.",
+  "capturedDurationMs": 1500,
+  "events": [],
+  "statusEvents": [
+    {"atMs": 0, "sessionId": "model-missing", "status": "preparing"},
+    {"atMs": 380, "sessionId": "model-missing", "status": "error", "reason": "model-missing", "message": "Moonshine model asset 'encoder.ort' is unavailable. Run python3 tools/prepare_moonshine.py before building."},
+    {"atMs": 1500, "sessionId": "model-missing", "status": "stopped"}
+  ],
+  "timingEvents": []
+}

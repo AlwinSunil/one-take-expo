@@ -1,0 +1,15 @@
+{
+  "synthetic": true,
+  "name": "empty-recording",
+  "sessionId": "empty-recording",
+  "description": "A recording stopped after 840 ms with no speech. Recognition prepared and listened but produced no utterance, so nothing is invented for the transcript.",
+  "capturedDurationMs": 840,
+  "events": [],
+  "statusEvents": [
+    {"atMs": 0, "sessionId": "empty-recording", "status": "preparing"},
+    {"atMs": 610, "sessionId": "empty-recording", "status": "listening"},
+    {"atMs": 700, "sessionId": "empty-recording", "status": "stopping"},
+    {"atMs": 840, "sessionId": "empty-recording", "status": "stopped"}
+  ],
+  "timingEvents": []
+}
