@@ -53,7 +53,12 @@ An `unavailable` or `interrupted` state always carries a named reason: `model-mi
 An unrecognized failure stays `initialization-failed` and a failure with no information stays `unknown`; no cause is inferred.
 
 A missing or corrupt model, and an initialization failure, are recoverable through `retry()`, which prepares recognition again as a new caption session without touching the video recording.
-`unsupported-device` is the only reason that reports `retryable: false`.
+A retry resumes the same take: the utterances recognized before the failure are kept, and the retried session's segment ids are namespaced `r<attempt>:<id>` so the recognizer restarting its ids cannot overwrite them.
+`unsupported-device` is the only reason that reports `retryable: false`, and it is matched only against the exact device-support sentences the module emits, so an unsupported PCM encoding or channel count stays a retryable `initialization-failed`.
+The native status owns the interrupted-versus-unavailable split; message matching only refines the reason.
+
+`CaptionFailureReason.kt` also defines `audio-focus-lost` and `audio-route-changed` so the wire contract is complete, but no `AudioManager` focus listener raises them yet.
+Today only a lifecycle stop emits `interrupted` from native. Adding the listener is an open device item.
 An interruption needs no retry: backgrounding, an audio-focus loss or a route change reports `interrupted`, keeps the utterances already recognized, and the next start clears it.
 
 The capture lane reads this through `useCaptionStatusForCapture()` without owning the session; see [the #13 handoff](development/handoffs/issue-13.md).
@@ -68,12 +73,21 @@ The capture lane reads this through `useCaptionStatusForCapture()` without ownin
 | Recognition finalization | pause detected to the final segment | 1500 ms |
 | Coverage processing | final segment to the coverage verdict | 500 ms |
 
-Each completed utterance logs one line prefixed `caption-timing:` with all three values and the resulting state, so a slow stage can be identified from a device log.
+A line prefixed `caption-timing:` is logged as soon as recognition finalizes an utterance, with any stage that was never reported shown as `n/a`, and a second line once the coverage verdict completes it.
+Each distinct line is logged exactly once; selection is by line identity, not by position, because utterances reach their coverage verdict in a different order from the one they were first observed in.
+The line also carries `recognized_ms`, the speech end to final segment span, which is the only interval whose two endpoints both have a native source today.
+
 When the most recently measured utterance is over either threshold, a `listening` session is reported as `delayed`; every other status already describes something more specific and is left alone.
+`delayed` follows the latest measured utterance only, not the whole session, so one slow utterance does not pin the take to `delayed` after a later utterance has been measured as fast again.
+
+**All stage timestamps are milliseconds on the audio-stream clock**, whose origin is the moment the native module reports `listening`.
+A segment's end time is already on that clock.
+Anything supplied by a caller must use the same clock; a wall clock anchored at `start()` would add the whole preparation interval to pause detection.
+`streamElapsedMs(Date.now(), streamStartWallMs)` converts a wall-clock instant and returns `null` before the stream exists, so an observation that cannot be placed is dropped rather than recorded wrongly.
 
 Only the final segment and the speech end have a native source today: the arrival of the revision that finalizes a segment, and that segment's own end time.
-Pause detection and the coverage verdict are reported by this lane through `noteCaptionTiming()`; the module never estimates a stage it was not told about, so those two durations stay `null` until a caller supplies them.
-The native lag hysteresis in `RecognitionLag.kt` remains a separate, independent source of the `delayed` state.
+Pause detection and the coverage verdict are reported by this lane through `noteCaptionTiming()`; the module never estimates a stage it was not told about.
+**`pauseDetectionMs` and `finalizationMs` therefore remain `null` on device until a pause source exists**, and the native lag hysteresis in `RecognitionLag.kt` is what actually drives the `delayed` state on a phone today.
 
 ## Replaying a recorded session
 

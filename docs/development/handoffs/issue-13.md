@@ -30,10 +30,29 @@ When no caption session is mounted it reports `status: 'idle'` and a `retry` tha
 | `timing` | `CaptionTimingReport` | Per-utterance pause detection, recognition finalization and coverage processing in milliseconds, plus `delayed`. |
 
 `status` is the presentation vocabulary, not the wire vocabulary.
-The Kotlin module still sends `error`; `classifyCaptionFailure` in `src/lib/live-caption-state.ts` turns that plus its `reason` into `unavailable` or `interrupted`.
+The Kotlin module sends `error` or `interrupted`; the native status decides which of `unavailable` and `interrupted` is reported, and `classifyCaptionFailure` in `src/lib/live-caption-state.ts` only refines the reason.
+The reason union itself is owned by `modules/one-take-captions/index.ts`, because it is the wire contract with `CaptionFailureReason.kt`; `src/lib/live-caption-state.ts` re-exports it for app consumers.
 
 An interruption needs no action from the capture lane: the next `start()` creates a new session, which clears the reason.
 `retry()` exists for the unavailable cases, where nothing will change without another preparation attempt.
+
+### Retry resumes the take
+
+`retry()` is not a fresh take.
+It starts a new native caption session, but the utterances already recognized are kept and the new session's segment ids are namespaced `r<attempt>:<id>`, because the recognizer restarts its own ids from the beginning.
+So a failure two utterances into a recording, followed by a retry, still saves those two utterances when the capture lane stops and persists the transcript.
+`start()` with no arguments is unchanged and still begins a clean take.
+
+### Timing clock contract
+
+**Every timestamp passed to `noteCaptionTiming(utteranceId, stage, at)` is milliseconds on the audio-stream clock**, whose origin is the moment the native module reported `listening`.
+That is the clock a segment's `t0`/`t1` already use.
+Omit `at` to use now, which the hook converts for you.
+Do not pass a wall-clock instant or a value anchored at `start()`: preparation happens before `listening`, so that would inflate pause detection by the whole preparation interval.
+`streamElapsedMs(nowWallMs, streamStartWallMs)` in `src/lib/caption-timing.ts` is the conversion, and returns `null` before the stream exists.
+
+The coverage lane (#16, #19) owns `pause-detected` and `coverage-verdict`.
+Until it supplies them, `pauseDetectionMs` and `finalizationMs` are `null`, no timing-driven `delayed` can fire, and the `delayed` state on device comes only from the existing native lag hysteresis.
 
 ## Behavior change already merged into this lane's files
 
