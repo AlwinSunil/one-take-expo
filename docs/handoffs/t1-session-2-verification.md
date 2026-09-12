@@ -49,7 +49,7 @@ Do not mark these checks complete from host tests or the prior research harness.
 - `git diff --check`: exit 0.
 
 The replay JSON is the output sample and contains exact host benchmark values.
-At the recorded run, one complete 11-case framing catalog measured approximately 0.019 ms p50 and 0.049 ms p95 after 100 warmups over 500 runs on Apple M5.
+At the recorded run, one complete 11-case framing catalog measured approximately 0.019 ms p50 and 0.053 ms p95 after 100 warmups over 500 runs on Apple M5.
 These numbers measure host policy arithmetic plus validation/allocation only; they are not camera throughput or mobile performance.
 Re-running changes timings but preserves deterministic suggestions and expected outcomes.
 
@@ -57,8 +57,20 @@ Re-running changes timings but preserves deterministic suggestions and expected 
 
 | Issue | Implemented independently | Still open |
 | --- | --- | --- |
-| #28 | Explicit intent adapter, manual subject/background/lighting reason-and-action tips, intentional override, one-tip dismissal/revisit, default-off development preview, stale speech/priority suppression, replay checks | Incoming Tier 0 coach integration and its timing/all-good path, validated automatic cues, actual unseen camera scenes, device UX/failure/processor measurements and named review |
+| #28 | Explicit intent adapter, manual subject/background/lighting reason-and-action tips, intentional override, one-tip dismissal/revisit, default-off development preview, stale speech/priority suppression, replay checks | Recording-time signal integration, validated automatic cues, actual unseen camera scenes, device UX/failure/processor measurements and named review |
 | #35 | Versioned source-relative track/suggestion contract, immutable identities, upright normalized crop semantics, stable temporal union, zoom limit, product/hand/group preservation, conservative fallback, consumer validation, replay fixtures | Native track extraction, selected-take/store integration, Session 3 preview/export application, on-device performance and original/crop visual review |
 
 Neither issue is ready for release acceptance.
 The common Tier 1 gate and final Tier 1 verification report belong to Session 3.
+
+## Verification after Tier 0 merged
+
+Merged `origin/main` at `11f4455` through `cdbd0fa`; retained all incoming capture lifecycle, vision, transcript, coverage, review and export code.
+The Tier 1 development picker now extends the existing `CaptureSuggestions` component.
+`npm test` passes 274/274 tests, including the merged Tier 0 coach timing/all-good/unavailable tests.
+`npm run typecheck`, `npm run samples`, and `npm run test:samples` pass; the latter reports 19/19.
+No native product/hand track extraction or calibrated automatic cue is manufactured from the merged face-presence bridge.
+The setup sheet remains unavailable during preparation/recording/saving, so no fabricated between-lines signal is used.
+`EXPO_NO_DOTENV=1 npx expo export --platform android --output-dir /tmp/one-take-t1-session2-integrated-export` passes after integration.
+The isolated Chrome camera flow was repeated on the integrated tree and still fails at SQLite wasm resolution before rendering.
+See `evidence/t1-session-2/web-integrated-blocker.png`; no successful UI or device flow is claimed.

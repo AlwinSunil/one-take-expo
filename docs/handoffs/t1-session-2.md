@@ -1,5 +1,13 @@
 # Session 2 additive handoff: framing v1
 
+Latest integration: merged `origin/main` at `11f4455` in merge commit `cdbd0fa`.
+Tier 0 PRs #54, #55, #56 and #57 are now merged.
+Session 2 implementation is published at `b0132b0`; subsequent integration commits stay on `feat/t1-coaching-framing`, draft PR #60.
+The camera now passes the development opt-in into the existing `CaptureSuggestions`; the Tier 1 intent/manual controls replace its legacy picker/tips only for that opt-in.
+The existing `CompositionCoach`, vision hook, recording lifecycle and transcript/coverage UI are retained.
+Recording-time optional coaching remains quiet because the setup sheet is unavailable while recording.
+Native product/hand extraction, validated automatic cues, Session 1 recording-time speech/priority publication and Session 3 common gate/persistence/application remain pending.
+
 Branch: `feat/t1-coaching-framing`, based on merged `e050a0d`.
 Contract publication is the first commit on this branch; implementation commits follow on the same branch.
 
@@ -36,7 +44,7 @@ Session 1: supply a props-only transcript/priority seam with take identity, mono
 Unknown or stale speech signals suppress recording coaching; coverage/action signals always outrank optional tips.
 No transcript strings or microphone consumer are required by coaching.
 
-## Pending Tier 0 dependencies
+## Initial Tier 0 dependency snapshot (superseded by integration above)
 
 #28 depends on #10 research, #15 / PR #56 vision readiness, and #18 / PR #55 composition coach.
 The existing policy consumes calibrated observations, not raw face rectangles; separation and lighting remain manual until real-frame validation exists.
@@ -49,7 +57,7 @@ No unmerged Tier 0 changes are copied or cherry-picked here.
 
 Initial contract commit: `2f18288` on `feat/t1-coaching-framing` (pushed).
 Session 3 can inspect it immediately without access to this worktree.
-The current main camera still displays unavailable visual analysis; the incoming Tier 0 coach is not merged.
+At initial publication, main displayed unavailable visual analysis and the Tier 0 coach was not merged.
 Session 2 adds an explicit development-only camera parameter `coachingDevelopment=1` for manual setup control review; it is not a common release gate and cannot enable production coaching.
 Replace this temporary exposure with Session 3's accepted common gate only after release acceptance.
 
