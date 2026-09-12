@@ -263,6 +263,22 @@ test('the deferred count never names a line or asks for a retake mid-take', () =
   assert.ok(!decision.text.toLowerCase().includes('again'));
 });
 
+test('a needed verdict landing as recording stops is listed, never asked for again', () => {
+  const decision = decideRetakePrompt({
+    lines: [{ id: 'line-1', number: 1, status: 'covered' }, { id: 'line-2', number: 2, status: 'needed' }],
+    lineEnds: [{ lineId: 'line-2', endedAt: 8000, nextStartsAt: 20000 }],
+    verdicts: [{ lineId: 'line-2', status: 'needed', arrivedAt: 8300 }],
+    now: 8500,
+    takeEnded: true,
+  });
+  assert.deepEqual(decision, {
+    kind: 'batched',
+    lineIds: ['line-2'],
+    lineNumbers: [2],
+    text: 'We will check line 2 after this take',
+  });
+});
+
 test('prompt numbers are the line numbers the strip shows, not array positions', () => {
   const scriptLines = [
     { id: 'l4', number: 4, status: 'covered' },

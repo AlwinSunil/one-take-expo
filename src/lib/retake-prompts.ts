@@ -85,9 +85,10 @@ export type PromptDecision =
 /**
  * Decide what the prompter may show at `now`.
  *
- * An `again` prompt is only offered when the verdict arrived within the budget
- * after the line ended, before the next line started, while the creator is not
- * speaking, and while the engine is keeping up.  Everything else that still
+ * An `again` prompt is only offered while the take is still running, when the
+ * verdict arrived within the budget after the line ended, before the next line
+ * started, while the creator is not speaking, and while the engine is keeping
+ * up.  Everything else that still
  * needs a read waits: a quiet `deferred` count during the take, and the full
  * `We will check lines N, M after this take` list once `takeEnded` is true.
  */
@@ -105,7 +106,9 @@ export function decideRetakePrompt(input: PromptInput): PromptDecision | null {
     : input.lines.filter((line) => line.status === 'needed' || line.status === 'pending');
   if (unconfirmed.length === 0) return null;
 
-  if (engineReady && !input.midLine) {
+  // An `again` prompt only makes sense while the creator can still act on it.
+  // Once the take has ended, everything unconfirmed belongs in the list.
+  if (engineReady && !input.midLine && !input.takeEnded) {
     const neededIds = new Set(needed.map((line) => line.id));
     const candidates = (input.lineEnds ?? [])
       .filter((lineEnd) => neededIds.has(lineEnd.lineId))

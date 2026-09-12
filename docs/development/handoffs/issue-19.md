@@ -9,7 +9,7 @@ Everything below is an owner-authored proposal; nothing has been applied to the 
 
 | File | Purpose |
 | --- | --- |
-| `src/lib/retake-prompts.ts` | Pure scheduler: decides between an in-pause `Again, line N` prompt, a quiet in-take `deferred` count and the full batched after-the-take list, plus the readability and label rules used by the components. |
+| `src/lib/retake-prompts.ts` | Pure scheduler: decides between an in-pause `Again, line N` prompt (only while the take runs), a quiet in-take `deferred` count and the full batched after-the-take list, plus the readability and label rules used by the components. |
 | `src/components/prompter/coverage-strip.tsx` | One cell per spoken line, status by glyph and word first. |
 | `src/components/prompter/prompter-lines.tsx` | Current line large, next line small, action cues on a separate `Do:` row. |
 | `src/components/prompter/retake-prompt.tsx` | Renders one `PromptDecision` inside a polite live region. |
@@ -136,6 +136,7 @@ Add this state and tick beside the existing recording timer effect:
 `takeEnded` is what keeps the after-the-take list off the screen during the read.
 While it is false, anything unconfirmed renders as a one-line `deferred` count such as `2 lines to check after this take`, which names no line and asks for nothing.
 The full `We will check lines 2, 3 after this take` text appears only once the take has ended, so it belongs in the preview or wrap surface as well as the live overlay.
+An `again` prompt is never returned when `takeEnded` is true, so a verdict that lands inside the budget just as recording stops becomes part of that list instead of asking the creator to read again with the camera off.
 
 Then render the overlay block as:
 
@@ -165,7 +166,7 @@ Then render the overlay block as:
 ## Reviewing without a camera
 
 ```bash
-npm test                 # 68 tests, 28 of them for the prompter
+npm test                 # 69 tests, 29 of them for the prompter
 npm run typecheck
 ```
 

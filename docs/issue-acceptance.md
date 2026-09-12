@@ -15,7 +15,7 @@ The implementation branch is [`feat/offline-speech-workflow`](https://github.com
 ## Evidence snapshot
 
 - `npm run typecheck` passes.
-- `npm test` passes 68 behavior-focused JavaScript tests, including 28 for the #19 prompter.
+- `npm test` passes 69 behavior-focused JavaScript tests, including 29 for the #19 prompter.
 - `npm run samples` passes the deterministic caption replay.
 - `python3 tests/speech-evaluation.test.py` passes 12 evaluator tests.
 - `python3 tools/speech-fixtures/run_synthetic.py` passes 16 synthetic rows, while reporting zero eligible human held-out clean rows and zero eligible human held-out flub rows.
