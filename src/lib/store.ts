@@ -1,25 +1,39 @@
 import * as SQLite from 'expo-sqlite';
+import { Directory, File, Paths } from 'expo-file-system';
 
 import type { Project } from './session';
 
-let db: SQLite.SQLiteDatabase | null = null;
+let db: Promise<SQLite.SQLiteDatabase> | null = null;
 
 async function getDb() {
   if (!db) {
-    db = await SQLite.openDatabaseAsync('onetake.db');
-    await db.execAsync(
-      `CREATE TABLE IF NOT EXISTS projects (id TEXT PRIMARY KEY NOT NULL, data TEXT NOT NULL);`
-    );
-    await db.execAsync(
-      `CREATE TABLE IF NOT EXISTS kv (key TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL);`
-    );
+    db = (async () => {
+      const connection = await SQLite.openDatabaseAsync('onetake.db');
+      await connection.execAsync(`
+        PRAGMA busy_timeout = 5000;
+        CREATE TABLE IF NOT EXISTS projects (id TEXT PRIMARY KEY NOT NULL, data TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS kv (key TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL);
+      `);
+      return connection;
+    })().catch(error => { db = null; throw error; });
   }
   return db;
 }
 
 export async function saveProject(p: Project) {
   const d = await getDb();
-  await d.runAsync('INSERT OR REPLACE INTO projects (id, data) VALUES (?, ?)', p.id, JSON.stringify(p));
+  if (!p.videoUri) throw new Error('No recording is available to save.');
+  const directory = new Directory(Paths.document, 'videos');
+  directory.create({ idempotent: true, intermediates: true });
+  const source = new File(p.videoUri);
+  const destination = new File(directory, `${encodeURIComponent(p.id)}.mp4`);
+  if (!destination.exists) {
+    if (!source.exists) throw new Error('The recording file is missing.');
+    source.copy(destination);
+  }
+  const saved = { ...p, videoUri: destination.uri };
+  await d.runAsync('INSERT OR REPLACE INTO projects (id, data) VALUES (?, ?)', p.id, JSON.stringify(saved));
+  return saved;
 }
 
 export async function listProjects(): Promise<Project[]> {

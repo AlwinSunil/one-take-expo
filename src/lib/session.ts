@@ -28,6 +28,7 @@ export interface Clip {
 }
 
 export interface Project {
+  trim?: { start: number; end: number };
   id: string;
   mode: Mode;
   script?: string;

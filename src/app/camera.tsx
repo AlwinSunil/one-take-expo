@@ -183,12 +183,15 @@ export default function CameraScreen() {
   }
 
   async function continueToEditor() {
-    if (!previewUri) return;
+    if (!previewUri || busy.current) return;
+    busy.current = true;
+    setSaving(true);
+    setError('');
     const uri = previewUri;
     const duration = previewDuration;
     try {
-      await saveProject({
-        id: `${Date.now()}`,
+      const project = await saveProject({
+        id: uri.split('/').pop() ?? `${Date.now()}`,
         mode: isScript ? 'script' : 'assisted',
         script: isScript && typeof script === 'string' ? script : undefined,
         videoUri: uri,
@@ -196,16 +199,21 @@ export default function CameraScreen() {
         transcript: [],
         createdAt: Date.now(),
       });
-    } catch {
-      setError('Could not save project. Please try again.');
-      return;
-    }
+    setLastUri(project.videoUri);
+    saveSetting('last_video_uri', project.videoUri!).catch(() => {});
     setPreviewUri(null);
     router.push({ pathname: '/editor', params: {
-      mode: isScript ? 'script' : 'assisted', videoUri: uri,
+      projectId: project.id,
+      mode: isScript ? 'script' : 'assisted', videoUri: project.videoUri!,
       duration: String(duration),
       quality: videoQuality,
     } });
+    } catch (e) {
+      setError(`Could not save project: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      busy.current = false;
+      setSaving(false);
+    }
   }
 
   const camBlocked = !!cameraPermission && !cameraPermission.granted && !cameraPermission.canAskAgain;
@@ -315,22 +323,23 @@ export default function CameraScreen() {
         </SafeAreaView>
       </View>
     </Modal>
-    <Modal visible={previewUri !== null} animationType="slide" onRequestClose={() => setPreviewUri(null)}>
+    <Modal visible={previewUri !== null} animationType="slide" onRequestClose={() => { if (!saving) setPreviewUri(null); }}>
       <SafeAreaView className="flex-1 bg-black">
         <StatusBar style="light" />
         <View className="flex-row items-center justify-between px-4 h-16">
           <Text className="text-white text-xs tracking-widest">PREVIEW · {videoQuality}</Text>
-          <IconButton icon="close" label="Discard recording" onPress={() => setPreviewUri(null)} />
+          <IconButton icon="close" label="Discard recording" disabled={saving} onPress={() => setPreviewUri(null)} />
         </View>
         <View className="flex-1 px-4">
           {previewUri && <PreviewPlayer key={previewUri} uri={previewUri} />}
         </View>
+        {!!error && <Text accessibilityRole="alert" className="text-red-300 text-sm px-4 pt-3">{error}</Text>}
         <View className="flex-row gap-2 px-4 py-5" style={{ maxWidth: 520, width: '100%', alignSelf: 'center' }}>
-          <Pressable accessibilityRole="button" accessibilityLabel="Retake video" onPress={() => setPreviewUri(null)} className="flex-1 bg-neutral-900 border border-neutral-800 rounded-xl py-3.5 active:opacity-70">
+          <Pressable disabled={saving} accessibilityRole="button" accessibilityLabel="Retake video" onPress={() => setPreviewUri(null)} className="flex-1 bg-neutral-900 border border-neutral-800 rounded-xl py-3.5 active:opacity-70">
             <Text className="text-neutral-200 text-xs font-semibold text-center">Retake</Text>
           </Pressable>
-          <Pressable accessibilityRole="button" accessibilityLabel="Continue to editor" onPress={continueToEditor} className="flex-1 bg-white rounded-xl py-3.5 active:opacity-80">
-            <Text className="text-black text-xs font-bold text-center">Continue</Text>
+          <Pressable disabled={saving} accessibilityRole="button" accessibilityLabel="Continue to editor" onPress={continueToEditor} className="flex-1 bg-white rounded-xl py-3.5 active:opacity-80">
+            <Text className="text-black text-xs font-bold text-center">{saving ? 'Saving…' : 'Continue'}</Text>
           </Pressable>
         </View>
       </SafeAreaView>
