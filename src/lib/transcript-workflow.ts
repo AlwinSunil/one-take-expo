@@ -639,7 +639,8 @@ function isPlayableTake(take: TakeEvidence): boolean {
   return take.playable && typeof take.mediaUri === 'string' && take.mediaUri.trim().length > 0;
 }
 
-function extractBracketedCues(lineId: string, text: string): { spokenText: string; cues: ActionCueInput[] } {
+/** Bracketed direction parsing lives here so script and review share one regex. */
+export function extractBracketedCues(lineId: string, text: string): { spokenText: string; cues: ActionCueInput[] } {
   let index = 0;
   const cues: ActionCueInput[] = [];
   const spokenText = text.replace(/\[([^\]\n]+)\]/g, (_match, cueText: string) => {
