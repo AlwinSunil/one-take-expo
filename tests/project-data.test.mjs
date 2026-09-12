@@ -56,3 +56,25 @@ test('malformed action cues reject project metadata while valid cues remain safe
     assert.throws(() => normalizeProject(project), /Project script lines are unreadable/);
   }
 });
+
+test('persisted take boundaries and action status survive normalization', () => {
+  const take = { id: 'take-1', t0: 1, t1: 8, mediaUri: 'file:///take.mp4', playable: true, quality: 'clean', inFrame: true, transcriptSegmentIds: ['s'], lineIds: ['line'] };
+  const p = normalizeProject({ id: 'p', mode: 'script', transcript: [], takes: [take], pickupRequest: { lineIds: ['line'], requestedAt: 123 } });
+  assert.deepEqual(p.takes, [take]);
+  assert.deepEqual(projectReview(p).takes, [take]);
+  assert.deepEqual(p.pickupRequest.lineIds, ['line']);
+});
+
+test('malformed persisted takes cannot supply coverage', () => {
+  const base = { id: 'p', mode: 'script', transcript: [] };
+  assert.throws(() => normalizeProject({ ...base, takes: [{ id: 'bad', t0: 4, t1: 2 }] }), /takes/);
+  assert.throws(() => normalizeProject({ ...base, pickupRequest: { lineIds: 'line', requestedAt: 0 } }), /pickup/);
+});
+
+test('temporary missing media does not permanently change take playability', () => {
+  const take = { id: 'take', t0: 0, t1: 1, mediaUri: 'file:///original.mp4', playable: true, quality: 'clean', inFrame: true, transcriptSegmentIds: [] };
+  const p = normalizeProject({ id: 'p', mode: 'script', transcript: [], takes: [take], unavailableTakeIds: ['take'] });
+  assert.equal(p.takes[0].playable, true);
+  assert.equal(projectReview(p).takes[0].playable, false);
+  assert.equal(projectReview({ ...p, unavailableTakeIds: [] }).takes[0].playable, true);
+});

@@ -134,3 +134,17 @@ test('empty explicit cuts mean the complete source, as defined by the native exp
   const result = buildExportPlan(project({ cuts: [] }), 2, 3);
   assert.deepEqual(result.cuts, []);
 });
+
+test('action directions and standalone scratch commands never become captions', () => {
+  const result = buildExportPlan(project({ transcript: [
+    { t0: 0, t1: 1, text: '[show product]' },
+    { t0: 1, t1: 2, text: 'Scratch that!' },
+    { t0: 2, t1: 3, text: 'Hello [wave] there', timingSource: 'saved-audio' },
+    { t0: 3, t1: 4, text: 'Do not scratch that surface.', timingSource: 'saved-audio' },
+  ] }), 0, 4);
+  assert.deepEqual(result.captions, [
+    { t0: 2, t1: 3, text: 'Hello there' },
+    { t0: 3, t1: 4, text: 'Do not scratch that surface.' },
+  ]);
+  assert.equal(result.hasEstimatedCaptions, false);
+});

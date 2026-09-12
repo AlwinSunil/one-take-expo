@@ -22,6 +22,8 @@ getExport(id) -> Promise<{
   error?,
 }>
 cancelExport(id) -> Promise<void>
+deleteExport(id) -> Promise<void>
+openExport(id) -> Promise<void>
 saveToGallery(id) -> Promise<string>
 shareExport(id) -> Promise<void>
 ```
@@ -60,7 +62,7 @@ On Android 15 and later it starts with
 two-argument `startForeground` API.
 The service is deliberately `START_NOT_STICKY`.
 If the process dies, the next native module instance changes persisted
-`running` records to `interrupted`, removes no source media, and lets the
+`queued` and `running` records to `interrupted`, removes no source media, and lets the
 editor offer retry with the same request.
 Cancellation is idempotent for queued and running jobs.
 The process-local cancellation bridge calls `Transformer.cancel()` on the
@@ -70,16 +72,20 @@ service observes the cancellation.
 Exports are written to `files/exports/<id>.mp4` and remain app-private.
 `saveToGallery` is an explicit copy through `MediaStore` into `Movies/One Take`.
 `shareExport` is a separate explicit action using a scoped `FileProvider` URI.
+`openExport` opens a player through the same scoped URI. Missing or empty
+completed outputs become failed jobs with retry guidance.
+`deleteExport` cancels active work, waits for it to settle, and removes the
+app-private output and job record. Explicit gallery copies remain.
 The source file is never modified.
 No network source URI is accepted and no caption data leaves the device.
 
 The module manifest provides the service, foreground-service permissions,
 legacy storage permission for Android 8 and earlier, and the scoped
 `FileProvider` path.
-The parent integration still needs to call this module from the editor,
-associate the returned output URI with the project, and add any app-level
-notification permission or manifest merge policy required by the release
-configuration.
+The editor calls this module and persists the latest job under `export:<projectId>`
+and the job history under `exports:<projectId>`. Project deletion cancels and
+removes the associated native jobs. New native methods require an APK rebuild;
+see [Milestone 1 validation and remaining gates](development/milestone-1-melvin-status.md).
 
 Run the pure timeline checks with:
 

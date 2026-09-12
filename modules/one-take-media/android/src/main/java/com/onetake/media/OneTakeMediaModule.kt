@@ -13,6 +13,8 @@ import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 import java.io.File
 import java.io.IOException
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -72,6 +74,24 @@ class OneTakeMediaModule : Module() {
           MediaExportRuntime.cancel(id)
         }
       }
+    }
+
+    AsyncFunction("deleteExport") Coroutine { id: String ->
+      requireExportId(id)
+      withContext(Dispatchers.IO) {
+        val exportStore = requireStore()
+        exportStore.markCancelled(id)
+        MediaExportRuntime.cancel(id)
+        withTimeout(15_000) {
+          while (MediaExportRuntime.isActive(id)) delay(50)
+        }
+        exportStore.delete(id)
+      }
+    }
+
+    AsyncFunction("openExport") Coroutine { id: String ->
+      requireExportId(id)
+      shareExport(requireStore(), id, true)
     }
 
     AsyncFunction("saveToGallery") Coroutine { id: String ->
@@ -141,7 +161,7 @@ class OneTakeMediaModule : Module() {
       }
     }
 
-  private suspend fun shareExport(exportStore: MediaExportStore, id: String) {
+  private suspend fun shareExport(exportStore: MediaExportStore, id: String, open: Boolean = false) {
     val file = withContext(Dispatchers.IO) {
       val job = exportStore.get(id) ?: throw IllegalArgumentException("Unknown export: $id")
       require(job.status == MediaExportStatus.COMPLETED) {
@@ -158,13 +178,15 @@ class OneTakeMediaModule : Module() {
         "${context.packageName}.oneTakeMedia.files",
         file,
       )
-      val send = Intent(Intent.ACTION_SEND).apply {
-        type = "video/mp4"
-        putExtra(Intent.EXTRA_STREAM, uri)
+      val send = Intent(if (open) Intent.ACTION_VIEW else Intent.ACTION_SEND).apply {
+        if (open) setDataAndType(uri, "video/mp4") else {
+          type = "video/mp4"
+          putExtra(Intent.EXTRA_STREAM, uri)
+        }
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
       }
-      context.startActivity(Intent.createChooser(send, "Share One Take export").apply {
+      context.startActivity(Intent.createChooser(send, if (open) "Open One Take export" else "Share One Take export").apply {
         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
       })
     }

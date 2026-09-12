@@ -4,7 +4,7 @@ export function normalizeProject(value: unknown): Project {
   if (!value || typeof value !== 'object') throw new Error('Project data is unreadable.');
   const p = value as Project;
   if (typeof p.id !== 'string' || !p.id || !['script', 'assisted'].includes(p.mode)) throw new Error('Project identity is invalid.');
-  for (const key of ['scriptLines', 'reviewDecisions', 'rawTranscript', 'refinementCandidate', 'cuts', 'quietIntervals'] as const) {
+  for (const key of ['scriptLines', 'reviewDecisions', 'rawTranscript', 'refinementCandidate', 'cuts', 'quietIntervals', 'takes'] as const) {
     if (p[key] !== undefined && !Array.isArray(p[key])) throw new Error(`Project ${key} data is unreadable.`);
   }
   if (p.scriptLines?.some(line =>
@@ -15,6 +15,17 @@ export function normalizeProject(value: unknown): Project {
     || line.actionCues.some(cue => !isValidActionCue(cue))
   )) throw new Error('Project script lines are unreadable.');
   if (p.cuts?.some(cut => !cut || !Number.isFinite(cut.t0) || !Number.isFinite(cut.t1) || cut.t0 < 0 || cut.t1 <= cut.t0)) throw new Error('Project cuts are unreadable.');
+  if (p.takes?.some(take => !take || typeof take.id !== 'string' || !take.id
+    || !Number.isFinite(take.t0) || !Number.isFinite(take.t1) || take.t0 < 0 || take.t1 <= take.t0
+    || (take.mediaUri !== null && typeof take.mediaUri !== 'string')
+    || typeof take.playable !== 'boolean' || typeof take.inFrame !== 'boolean'
+    || !['clean', 'scratched', 'flub'].includes(take.quality)
+    || !Array.isArray(take.transcriptSegmentIds) || take.transcriptSegmentIds.some(id => typeof id !== 'string')
+    || (take.lineIds !== undefined && (!Array.isArray(take.lineIds) || take.lineIds.some(id => typeof id !== 'string')))
+  )) throw new Error('Project takes are unreadable.');
+  if (p.pickupRequest && (!Array.isArray(p.pickupRequest.lineIds)
+    || p.pickupRequest.lineIds.some(id => typeof id !== 'string')
+    || !Number.isFinite(p.pickupRequest.requestedAt))) throw new Error('Project pickup request is unreadable.');
   const transcript = Array.isArray(p.transcript) ? p.transcript.filter((s): s is TranscriptSeg =>
     !!s && typeof s.text === 'string' && Number.isFinite(s.t0) && Number.isFinite(s.t1) && s.t0 >= 0 && s.t1 >= s.t0,
   ) : [];

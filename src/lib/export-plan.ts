@@ -113,7 +113,9 @@ function buildCaptions(segments: readonly TranscriptSeg[]): CaptionBuild {
     if (typeof text !== 'string' || !text.trim()) {
       throw new ExportPlanError('invalid-caption', `Caption ${index + 1} has no readable text.`);
     }
-    captions.push({ t0: segment.t0, t1: segment.t1, text: text.trim() });
+    const spoken = sanitizeExportCaption(text);
+    if (!spoken) return;
+    captions.push({ t0: segment.t0, t1: segment.t1, text: spoken });
     if (segment.timingSource === 'saved-audio') hasSavedAudio = true;
     else hasEstimated = true;
   });
@@ -145,4 +147,9 @@ function cloneCuts(value: unknown, label: string): ExportCut[] {
     }
     return { t0: candidate.t0, t1: candidate.t1 };
   });
+}
+
+export function sanitizeExportCaption(text: string): string {
+  const spoken = text.replace(/\[[^\]]*\]/g, '').replace(/\s+/g, ' ').trim();
+  return /^scratch that[.!?,]*$/i.test(spoken) ? '' : spoken;
 }

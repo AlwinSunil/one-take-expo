@@ -204,7 +204,23 @@ internal class MediaExportStore(context: android.content.Context) {
 
   fun get(id: String): MediaExportJob? = synchronized(lock) {
     loadLocked()
-    jobs[id]
+    val job = jobs[id]
+    if (job?.status == MediaExportStatus.COMPLETED && (!outputFile(id).isFile || outputFile(id).length() == 0L)) {
+      val missing = job.copy(status = MediaExportStatus.FAILED, uri = null, error = "Export output is missing. Retry to create it again.")
+      jobs[id] = missing
+      persistLocked()
+      missing
+    } else job
+  }
+
+  fun delete(id: String) = synchronized(lock) {
+    loadLocked()
+    check(!MediaExportRuntime.isActive(id)) { "Export is still stopping. Retry deletion." }
+    listOf(outputFile(id), File(directory, ".$id.mp4.part")).forEach { file ->
+      check(!file.exists() || file.delete()) { "Could not delete export output" }
+    }
+    jobs.remove(id)
+    persistLocked()
   }
 
   fun markRunning(id: String): Boolean = synchronized(lock) {
@@ -272,7 +288,7 @@ internal class MediaExportStore(context: android.content.Context) {
     loadLocked()
     var changed = false
     jobs.entries.forEach { (id, job) ->
-      if (job.status == MediaExportStatus.RUNNING && !MediaExportRuntime.isActive(id)) {
+      if (job.status in setOf(MediaExportStatus.QUEUED, MediaExportStatus.RUNNING) && !MediaExportRuntime.isActive(id)) {
         jobs[id] = job.copy(
           status = MediaExportStatus.INTERRUPTED,
           error = "Export stopped before it finished. Retry to start it again.",

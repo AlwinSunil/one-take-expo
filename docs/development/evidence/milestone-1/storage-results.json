@@ -1,0 +1,18 @@
+{
+  "serial": "10BFAT1U1Q000XP",
+  "visibleLabels": [
+    "Back to samples",
+    "Sample sessions",
+    "DEVELOPMENT ONLY",
+    "14 / 14 checks passed",
+    "Shared-data behavior checks executed by the app\u2019s JavaScript runtime. These do not verify camera, audio sync, NPU or rendered media.",
+    "Pass \u00b7 Legacy-shaped project saves a separate durable original",
+    "Pass \u00b7 Saved trim and script survive a fresh database read",
+    "Pass \u00b7 Two projects retain separate original files",
+    "Pass \u00b7 Missing file does not erase persisted script or trim",
+    "Pass \u00b7 Missing-source save fails without adding a project",
+    "Pass \u00b7 Failed save preserves both existing fixture originals",
+    "Pass \u00b7 Existing draft and source fixture stay unchanged",
+    "Pass \u00b7 Persisted take retains its original audio boundaries after reopen"
+  ]
+}

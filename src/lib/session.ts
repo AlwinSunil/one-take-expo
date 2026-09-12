@@ -1,4 +1,4 @@
-import type { ReviewDecision, ScriptLine } from './transcript-workflow';
+import type { ReviewDecision, ScriptLine, TakeEvidence } from './transcript-workflow';
 
 export type Mode = 'script' | 'assisted';
 
@@ -46,6 +46,9 @@ export interface Project {
   recoveryMessage?: string;
   captionRevision?: number;
   scriptLines?: ScriptLine[];
+  takes?: TakeEvidence[];
+  unavailableTakeIds?: string[];
+  pickupRequest?: { lineIds: string[]; requestedAt: number };
   reviewDecisions?: ReviewDecision[];
   rawTranscript?: TranscriptSeg[];
   refinementCandidate?: TranscriptSeg[];

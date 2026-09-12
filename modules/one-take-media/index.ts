@@ -39,6 +39,8 @@ export declare class OneTakeMediaModule extends NativeModule {
   startExport(request: MediaExportRequest): Promise<{ id: string }>;
   getExport(id: string): Promise<MediaExport>;
   cancelExport(id: string): Promise<void>;
+  deleteExport(id: string): Promise<void>;
+  openExport(id: string): Promise<void>;
   saveToGallery(id: string): Promise<string>;
   shareExport(id: string): Promise<void>;
 }

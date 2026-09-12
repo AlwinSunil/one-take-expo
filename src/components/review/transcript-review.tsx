@@ -2,14 +2,15 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import captions from '../../../modules/one-take-captions';
 import type { Project } from '@/lib/session';
-import { projectReview, projectScriptLines, replaceWithRefined } from '@/lib/project-workflow';
+import { projectScriptLines, replaceWithRefined } from '@/lib/project-workflow';
+import { cleanReview, selectedReviewCuts, pickupLineIds } from '@/lib/clean-review';
 import { excludeInterval } from '@/lib/review-cuts';
 import { restoreDecision, selectTake } from '@/lib/transcript-workflow';
 
 export function TranscriptReview({ project, onChange, onSeek, duration }: {
   project: Project; onChange: (p: Project) => Promise<void>; onSeek: (t: number) => void; duration?: number;
 }) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(true);
   const [progress, setProgress] = useState<number | null>(null);
   const [message, setMessage] = useState('');
   const [original, setOriginal] = useState(false);
@@ -18,7 +19,7 @@ export function TranscriptReview({ project, onChange, onSeek, duration }: {
   latest.current = project;
   const refinementId = useRef<string | null>(null);
   const quietIntervals = useRef<Project['quietIntervals']>(undefined);
-  const review = useMemo(() => projectReview(project), [project]);
+  const review = useMemo(() => cleanReview(project), [project]);
   const sourceDuration = [duration, project.duration].find(value =>
     typeof value === 'number' && Number.isFinite(value) && value > 0,
   );
@@ -129,6 +130,13 @@ export function TranscriptReview({ project, onChange, onSeek, duration }: {
               transcript: current.transcript.map((s, i) => (segment.id ? s.id === segment.id : i === index) ? { ...s, manualCorrection: text } : s) });
           }} />
       </View>)}
+      {pickupLineIds(review).length > 0 && <View className="mb-3">
+        <Pressable accessibilityRole="button" className="p-3 bg-neutral-800 rounded-lg" onPress={() => change({ ...latest.current,
+          pickupRequest: { lineIds: pickupLineIds(review), requestedAt: Date.now() } })}>
+          <Text className="text-white text-sm">Save pickup list · {pickupLineIds(review).length} lines</Text>
+        </Pressable>
+        <Text className="text-neutral-400 text-xs mt-2">{project.pickupRequest ? 'Pickup list saved to this project. ' : ''}Recording pickups into this cut needs the capture handoff. Existing footage is preserved.</Text>
+      </View>}
       {review.lines.map(line => <View key={line.id} className="border-t border-neutral-800 py-3">
         <Text className="text-white text-sm">{line.spokenText}</Text>
         <Text className="text-neutral-300 text-xs mt-1">{line.status} · {line.candidateTakeIds.length} matching takes</Text>
@@ -141,11 +149,18 @@ export function TranscriptReview({ project, onChange, onSeek, duration }: {
             <Text className="text-white text-xs">{cue.resolved ? 'Confirmed · undo' : 'Confirm action done'}</Text>
           </Pressable>
         </View>)}
+        {line.rejectedTakeIds.map(id => {
+          const take = review.takes.find(t => t.id === id);
+          return <Pressable key={id} disabled={!take?.playable || take.mediaUri !== project.videoUri || project.mediaMissing}
+            accessibilityRole="button" className="py-3" onPress={() => take && onSeek(take.t0)}>
+            <Text className="text-amber-200 text-xs">{take?.quality ?? 'Rejected'} attempt · {take?.t0.toFixed(1)}s · preview history</Text>
+          </Pressable>;
+        })}
         <View className="flex-row flex-wrap">
           {line.candidateTakeIds.map(id => {
             const take = review.takes.find(t => t.id === id);
             const playable = !!take && take.playable && !project.mediaMissing
-              && typeof take.mediaUri === 'string' && take.mediaUri.trim().length > 0;
+              && take.mediaUri === project.videoUri;
             return <Pressable key={id} disabled={!playable} className="p-3 disabled:opacity-40" onPress={async () => {
               if (!take || !playable) return;
               onSeek(take.t0);
@@ -158,8 +173,8 @@ export function TranscriptReview({ project, onChange, onSeek, duration }: {
         </View>
       </View>)}
       {!!review.lines.length && <Pressable className="py-3" onPress={() => {
-        const ids = [...new Set(review.lines.flatMap(line => line.selectedTakeId ? [line.selectedTakeId] : []))];
-        const cuts = ids.map(id => review.takes.find(t => t.id === id)!).map(t => ({ t0: t.t0, t1: t.t1 }));
+        const { cuts, unavailableTakeIds } = selectedReviewCuts(review, project.videoUri, sourceDuration);
+        if (unavailableTakeIds.length) { setMessage("Some selected footage is unavailable in this recording. Keep the original while resolving media."); return; }
         if (!cuts.length) { setMessage('No covered takes are available yet.'); return; }
         Alert.alert('Review cut boundaries', 'Speech timestamps are estimates. Listen to every cut and adjust its boundaries before accepting it for export. Your original video remains available.', [
           { text: 'Cancel', style: 'cancel' }, { text: 'Prepare review cuts', onPress: () => { void change({ ...latest.current, cuts, cutsReviewed: false }); } },
@@ -184,7 +199,7 @@ export function TranscriptReview({ project, onChange, onSeek, duration }: {
       </View>)}
       {!!project.cuts?.length && <View className="flex-row flex-wrap">
         <Pressable className="py-3 pr-3" onPress={() => change({ ...latest.current, cutsReviewed: true })}><Text className="text-white text-xs">{project.cutsReviewed ? 'Cuts accepted' : 'I reviewed every cut · accept'}</Text></Pressable>
-        <Pressable className="py-3" onPress={() => change({ ...latest.current, cuts: undefined, cutsReviewed: false })}><Text className="text-white text-xs">Undo cuts · use original trim</Text></Pressable>
+        <Pressable className="py-3" onPress={() => change({ ...latest.current, cuts: undefined, cutsReviewed: false })}><Text className="text-white text-xs">Clear prepared cuts</Text></Pressable>
       </View>}
       {review.suggestions.map(suggestion => <View key={suggestion.id} className="py-3">
         <Pressable onPress={() => onSeek(Math.max(0, suggestion.t0 - 0.5))} className="py-2">

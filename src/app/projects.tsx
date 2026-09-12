@@ -1,39 +1,54 @@
 import { useCallback, useState } from 'react';
-import { FlatList, Pressable, Text, View } from 'react-native';
+import { Alert, FlatList, Pressable, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { listProjects } from '@/lib/store';
+import { deleteProject, listProjects } from '@/lib/store';
 import type { Project } from '@/lib/session';
-import { projectReview } from '@/lib/project-workflow';
+import { cleanReview } from '@/lib/clean-review';
 
 export default function Projects() {
   const [items, setItems] = useState<Project[]>([]);
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [refresh, setRefresh] = useState(0);
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const confirmDelete = (item: Project) => Alert.alert('Delete this project?', 'Remove this recording, saved text, edits and app-owned exports. Copies saved to your gallery or shared elsewhere remain.', [
+    { text: 'Cancel', style: 'cancel' },
+    { text: 'Delete project', style: 'destructive', onPress: async () => {
+      setDeleting(item.id);
+      try { await deleteProject(item.id); setItems(rows => rows.filter(row => row.id !== item.id)); }
+      catch (e) { setError(e instanceof Error ? e.message : 'Deletion could not finish. Please retry.'); }
+      finally { setDeleting(null); }
+    } },
+  ]);
 
   useFocusEffect(useCallback(() => {
     let active = true;
     setError('');
+    setLoading(true);
     listProjects().then(rows => { if (active) setItems(rows); })
-      .catch(e => { if (active) setError(`Could not load projects: ${e.message}`); });
+      .catch(() => { if (active) setError('Your projects could not be loaded. Retry to open your saved recordings.'); })
+      .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, []));
+  }, [refresh]));
 
   return (
     <SafeAreaView className="flex-1 bg-black">
       <View className="flex-1 px-5 pt-4 pb-5 max-w-[480px] w-full self-center">
         <Text className="text-white text-lg font-bold">Projects</Text>
-        <Text className="text-neutral-500 text-[11px] mt-0.5">Originals always preserved</Text>
+        <Text className="text-neutral-500 text-[11px] mt-0.5">Recordings, coverage and saved edits</Text>
         {!!error && <Text accessibilityRole="alert" className="text-red-300 mt-3">{error}</Text>}
+        {!!error && <Pressable accessibilityRole="button" onPress={() => setRefresh(value => value + 1)}><Text className="text-white py-3">Retry loading</Text></Pressable>}
         <FlatList
           data={items}
           keyExtractor={(i) => i.id}
           contentContainerStyle={{ gap: 8, marginTop: 12 }}
           ListEmptyComponent={
-            <Text className="text-neutral-600 text-xs mt-6 text-center">No projects yet</Text>
+            <Text className="text-neutral-600 text-xs mt-6 text-center">{loading ? 'Loading your projects…' : error ? 'Your saved projects have not been changed.' : 'No projects yet. Record your first take to get started.'}</Text>
           }
           renderItem={({ item }) => {
-            const review = item.mode === 'script' ? projectReview(item) : undefined;
+            const review = item.mode === 'script' ? cleanReview(item) : undefined;
             const counts = review?.lines.reduce((result, line) => {
               result[line.status] += 1;
               return result;
@@ -61,6 +76,9 @@ export default function Projects() {
               {!!item.recoveryMessage && <Text className="text-amber-200 text-xs mt-2">{item.recoveryMessage}</Text>}
               {!!nextAction && <Text className="text-neutral-300 text-xs mt-2">{nextAction}</Text>}
               <Text className="text-neutral-300 text-xs mt-2">{item.mediaMissing ? 'Review saved text' : 'Review recording'}</Text>
+              <Pressable accessibilityRole="button" accessibilityLabel="Delete project" disabled={deleting !== null} onPress={event => { event.stopPropagation(); confirmDelete(item); }}>
+                <Text className="text-red-300 text-xs py-3">{deleting === item.id ? 'Deleting…' : 'Delete project'}</Text>
+              </Pressable>
               <Text className="text-neutral-500 text-xs mt-0.5">
                 {new Date(item.createdAt).toLocaleString()}
               </Text>
