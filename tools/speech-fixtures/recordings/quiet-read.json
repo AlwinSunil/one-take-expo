@@ -1,0 +1,30 @@
+{
+  "synthetic": true,
+  "name": "quiet-read",
+  "sessionId": "quiet-read",
+  "description": "A low-volume read of two short lines in a quiet room. Recognition stays comfortably ahead of capture.",
+  "capturedDurationMs": 6400,
+  "events": [
+    {"atMs": 1180, "sessionId": "quiet-read", "sequence": 1, "text": "the light is", "isFinal": false, "segments": [{"id": "q1", "t0": 0.6, "t1": 1.4, "text": "the light is", "isFinal": false}]},
+    {"atMs": 2410, "sessionId": "quiet-read", "sequence": 2, "text": "The light is low.", "isFinal": true, "segments": [{"id": "q1", "t0": 0.6, "t1": 2.1, "text": "The light is low.", "isFinal": true}]},
+    {"atMs": 2460, "sessionId": "quiet-read", "sequence": 2, "text": "The light is lo", "isFinal": false},
+    {"atMs": 3690, "sessionId": "quiet-read", "sequence": 3, "text": "and the room is", "isFinal": false, "segments": [{"id": "q2", "t0": 3.0, "t1": 3.7, "text": "and the room is", "isFinal": false}]},
+    {"atMs": 4930, "sessionId": "quiet-read", "sequence": 4, "text": "And the room is quiet.", "isFinal": true, "segments": [{"id": "q2", "t0": 3.0, "t1": 4.6, "text": "And the room is quiet.", "isFinal": true}]}
+  ],
+  "statusEvents": [
+    {"atMs": 0, "sessionId": "quiet-read", "status": "preparing"},
+    {"atMs": 620, "sessionId": "quiet-read", "status": "listening"},
+    {"atMs": 6100, "sessionId": "quiet-read", "status": "stopping"},
+    {"atMs": 6400, "sessionId": "quiet-read", "status": "stopped"}
+  ],
+  "timingEvents": [
+    {"utteranceId": "q1", "stage": "speech-end", "at": 2100},
+    {"utteranceId": "q1", "stage": "pause-detected", "at": 2340},
+    {"utteranceId": "q1", "stage": "final-segment", "at": 2410},
+    {"utteranceId": "q1", "stage": "coverage-verdict", "at": 2530},
+    {"utteranceId": "q2", "stage": "speech-end", "at": 4600},
+    {"utteranceId": "q2", "stage": "pause-detected", "at": 4850},
+    {"utteranceId": "q2", "stage": "final-segment", "at": 4930},
+    {"utteranceId": "q2", "stage": "coverage-verdict", "at": 5040}
+  ]
+}

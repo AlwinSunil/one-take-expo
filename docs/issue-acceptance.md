@@ -53,7 +53,7 @@ No recipient was selected and no external message was sent during share testing.
 | #8 | Research and evaluator implemented; accuracy gate open | Moonshine decision, pinned runtime notes, CPU timings and replayable evaluator | Candidate slice comparison, then 60 clean and 30 flub consented held-out rows and a human accuracy report |
 | #11 | Partial | Camera lifecycle recovery, optional captions, memory fix and two-minute saved take | Permission, interruption, route, low-storage and formal A/V sync scenarios |
 | #12 | Partial | Editable spoken lines, stable ids, bracketed action cues, manual required/done/skipped status and a published change intent | Device keyboard layout, draft recovery on a phone, a UX recording and the reviewer reproduction |
-| #13 | Partial | Offline Moonshine bridge, honest live/provisional/delayed/unavailable states and device live-caption run | Quiet/noisy/empty behavior, replay identity, model failure and interruption on device |
+| #13 | Partial | Offline Moonshine bridge, honest live/provisional/delayed/unavailable states, device live-caption run, replay identity, separated stage timing, named failure reasons with retry and a capture-lane status seam | Quiet/noisy/empty, route change, model failure, interruption and NPU on device |
 | #14 | Partial | Durable projects, normalization, recovery metadata, missing-media states and coverage counts | Force-close, migration, failed-save and low-storage reopen scenarios |
 | #16 | Partial | Conservative coverage, take ranking, script normalization, multi-line utterances, retake history, replayable scenarios, script-change and missing-media recomputation | End-to-end multi-take capture, real framing observations and a consented human held-out precision report |
 | #19 | Partial | Pure pause-timed retake scheduler, props-only coverage strip and prompter, camera-free harness and the camera.tsx handoff | Recorded quiet/noisy 18/20 prompt timing, a large-system-text device pass and the capture-lane integration |
@@ -107,6 +107,29 @@ The camera route handles stop, backgrounding, interruption metadata, save recove
 The Kotlin bridge owns bounded microphone reads, Moonshine lifecycle, stale-session suppression and delayed-state reporting.
 The physical two-minute run proves a saved recording with non-silent audio and live caption events.
 It does not prove every permission, audio-route, call, low-storage or long-session condition.
+
+#### #13 source coverage added after the audit snapshot
+
+The following are covered by source tests only.
+None of them is device, accuracy or NPU evidence, and none of them closes an acceptance checkbox on its own.
+
+- Replay identity. `replayCaptionSession` is the same function the caption hook uses, so a recorded event log replays to exactly what the screen showed. `tests/caption-replay.test.mjs` replays every recording in `tools/speech-fixtures/recordings/` twice and compares the serialized merged transcript, and asserts that stale events change nothing when delivered late, redelivered or reordered among themselves.
+- Separate timing. `src/lib/caption-timing.ts` reports pause detection, recognition finalization and coverage processing as three independent durations per utterance, and reports `delayed` above 1500 ms of finalization or 500 ms of coverage. Both threshold edges are tested. A `caption-timing:` line is logged as soon as recognition finalizes an utterance, with unreported stages shown as `n/a`, and once more when the coverage verdict completes it; each distinct line is logged exactly once even when utterances complete out of order. All stage timestamps share the audio-stream clock. **Pause detection and the coverage verdict have no native source, so `pauseDetectionMs` and `finalizationMs` are `null` on device until the coverage lane supplies them through `noteCaptionTiming()`, and the existing native lag hysteresis is what drives the `delayed` state on a phone today.**
+- Named failure reasons. `model-missing`, `model-corrupt`, `initialization-failed`, `unsupported-device`, `permission-denied` and the interruption reasons are distinguished in both `src/lib/live-caption-state.ts` and `CaptionFailureReason.kt`, with a `retry()` that prepares recognition again and an interruption that clears on the next start. `unsupported-device` is matched only against the exact device-support sentences the module emits, so an audio-format failure stays retryable. A retry resumes the same take and keeps the utterances recognized before the failure.
+- Audio focus and route change. `CaptionFailureReason.kt` defines `audio-focus-lost` and `audio-route-changed` so the wire contract is complete, but **no `AudioManager` focus listener raises them**; only a lifecycle stop emits `interrupted` from native today. Adding the listener is an open device item, not something to add unverified.
+- Capture handoff. `useCaptionStatusForCapture()` publishes `{ status, reason, retry, timing }` through a module-level store so the capture route can read recognition state without starting a second session and without this lane editing `camera.tsx`. See [handoffs/issue-13.md](development/handoffs/issue-13.md).
+- Quiet, noisy and empty fixtures. Synthetic recordings exercise a low-volume read, a noisy read with revisions and a delayed state, and a sub-second take that produces no final segment and no text.
+
+Still open for #13, all of them requiring the phone:
+
+- a quiet, a noisy and a sub-second empty recording, confirming the utterances, the loading and delayed states and that nothing is invented for the empty take;
+- a deleted model asset and a corrupted model file, confirming the reported reason and that `retry()` recovers once the asset is restored;
+- an audio-route change and an audio-focus loss during a take, confirming the interrupted state and recovery on the next start;
+- the capture route consuming `useCaptionStatusForCapture()` after the capture lane applies the proposed change;
+- measured pause detection, finalization and coverage timing from device logs rather than from fixtures;
+- any NPU execution claim, which remains unmeasured and unimplemented.
+
+The Kotlin change in this work (a new `CaptionFailureReason.kt`, the `reason` field on status events, and an `interrupted` status on a lifecycle stop) has a matching JVM unit test, but the Gradle unit-test task was not run: `:one-take-captions:packageDebugResources` fails with "Moonshine is not staged", and staging requires downloading the pinned model files and a machine-local rebuilt runtime.
 
 ### #14, #16 and #30
 

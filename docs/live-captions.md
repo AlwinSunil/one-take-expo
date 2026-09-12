@@ -45,6 +45,63 @@ The UI ignores events from old sessions and out-of-order caption revisions.
 Stopping or backgrounding the recording stops the caption microphone and drains the stream.
 Unmounting the screen removes JavaScript listeners and requests native cleanup.
 
+## Recognition states and failure reasons
+
+`src/lib/live-caption-state.ts` turns native status events into one of `idle`, `preparing`, `listening`, `delayed`, `stopping`, `stopped`, `unavailable` and `interrupted`.
+An `unavailable` or `interrupted` state always carries a named reason: `model-missing`, `model-corrupt`, `initialization-failed`, `unsupported-device`, `permission-denied`, `unknown`, `audio-focus-lost`, `audio-route-changed` or `lifecycle-interrupted`.
+`CaptionFailureReason.kt` names the same reasons on the Kotlin side and sends them with the status event; the JavaScript classifier falls back to matching the native message so an older installed build is still classified rather than shown as a generic error.
+An unrecognized failure stays `initialization-failed` and a failure with no information stays `unknown`; no cause is inferred.
+
+A missing or corrupt model, and an initialization failure, are recoverable through `retry()`, which prepares recognition again as a new caption session without touching the video recording.
+A retry resumes the same take: the utterances recognized before the failure are kept, and the retried session's segment ids are namespaced `r<attempt>:<id>` so the recognizer restarting its ids cannot overwrite them.
+`unsupported-device` is the only reason that reports `retryable: false`, and it is matched only against the exact device-support sentences the module emits, so an unsupported PCM encoding or channel count stays a retryable `initialization-failed`.
+The native status owns the interrupted-versus-unavailable split; message matching only refines the reason.
+
+`CaptionFailureReason.kt` also defines `audio-focus-lost` and `audio-route-changed` so the wire contract is complete, but no `AudioManager` focus listener raises them yet.
+Today only a lifecycle stop emits `interrupted` from native. Adding the listener is an open device item.
+An interruption needs no retry: backgrounding, an audio-focus loss or a route change reports `interrupted`, keeps the utterances already recognized, and the next start clears it.
+
+The capture lane reads this through `useCaptionStatusForCapture()` without owning the session; see [the #13 handoff](development/handoffs/issue-13.md).
+
+## Separate stage timing
+
+`src/lib/caption-timing.ts` measures three durations per utterance and never merges them:
+
+| Duration | Interval | Delayed above |
+| --- | --- | --- |
+| Pause detection | speech end to pause detected | not a delay signal on its own |
+| Recognition finalization | pause detected to the final segment | 1500 ms |
+| Coverage processing | final segment to the coverage verdict | 500 ms |
+
+A line prefixed `caption-timing:` is logged as soon as recognition finalizes an utterance, with any stage that was never reported shown as `n/a`, and a second line once the coverage verdict completes it.
+Each distinct line is logged exactly once; selection is by line identity, not by position, because utterances reach their coverage verdict in a different order from the one they were first observed in.
+The line also carries `recognized_ms`, the speech end to final segment span, which is the only interval whose two endpoints both have a native source today.
+
+When the most recently measured utterance is over either threshold, a `listening` session is reported as `delayed`; every other status already describes something more specific and is left alone.
+`delayed` follows the latest measured utterance only, not the whole session, so one slow utterance does not pin the take to `delayed` after a later utterance has been measured as fast again.
+
+**All stage timestamps are milliseconds on the audio-stream clock**, whose origin is the moment the native module reports `listening`.
+A segment's end time is already on that clock.
+Anything supplied by a caller must use the same clock; a wall clock anchored at `start()` would add the whole preparation interval to pause detection.
+`streamElapsedMs(Date.now(), streamStartWallMs)` converts a wall-clock instant and returns `null` before the stream exists, so an observation that cannot be placed is dropped rather than recorded wrongly.
+
+Only the final segment and the speech end have a native source today: the arrival of the revision that finalizes a segment, and that segment's own end time.
+Pause detection and the coverage verdict are reported by this lane through `noteCaptionTiming()`; the module never estimates a stage it was not told about.
+**`pauseDetectionMs` and `finalizationMs` therefore remain `null` on device until a pause source exists**, and the native lag hysteresis in `RecognitionLag.kt` is what actually drives the `delayed` state on a phone today.
+
+## Replaying a recorded session
+
+`tools/speech-fixtures/recordings/*.json` hold synthetic recordings of the events the bridge sends to JavaScript: a quiet read, a noisy read, an empty sub-second take, a missing-model failure and an audio-route interruption.
+The format is documented in [the recordings README](../tools/speech-fixtures/recordings/README.md).
+`replayCaptionSession` is the function the hook itself uses, so replaying a recording offline cannot drift from what the camera screen showed.
+
+```sh
+npm run samples
+node --experimental-strip-types tools/replay-captions.mjs tools/speech-fixtures/recordings/noisy-read.json
+```
+
+`tests/caption-replay.test.mjs` replays every recording twice and asserts byte-identical merged output, and asserts that stale events - a revision that is not newer and an event from another session - change nothing when they are delivered late, redelivered or reordered among themselves.
+
 The packaged native runtime targets arm64 Android API 26 or later.
 Other platforms must remain able to record without this caption feature.
 No microphone samples or recognized text are sent to a server by this module.
@@ -52,7 +109,7 @@ The app still has Internet permission for its existing development and other Exp
 
 ## Verification
 
-Run `node --test tests/live-caption-state.test.mjs` to check stale-session and revision handling.
+Run `node --experimental-strip-types --test tests/live-caption-state.test.mjs tests/caption-replay.test.mjs tests/caption-timing.test.mjs tests/caption-status-store.test.mjs` to check stale-session handling, revision handling, replay identity, failure reasons and the separated stage timing.
 Run `npx tsc --noEmit` for the TypeScript integration.
 After staging artifacts, build and install the Android app, then check the packaged native-library hashes against the manifest.
 
@@ -64,6 +121,8 @@ On the iQOO 15, select Assisted Mode, choose 1080p for a repeatable baseline, an
 Verify caption text changes before Stop, save the recording, and play it back to confirm video and audio are present.
 Repeat recording to exercise cleanup and ensure the previous transcript does not return.
 Also check silence, backgrounding during preparation and recording, and a caption initialization failure.
+The named recognition states still need their own phone checks: a quiet read, a noisy read, a sub-second empty take, a deleted model asset, a corrupted model file, an audio-route change and an audio-focus loss, each confirming the reported reason, the retry and the recovery on the next start.
+The synthetic recordings under `tools/speech-fixtures/recordings/` exercise those code paths only; they are not evidence of the device behavior.
 Compare sustained performance separately before claiming the earlier file-fed benchmark latency also applies to camera capture.
 Human-speech accuracy, long-session thermal behavior, saved-caption alignment, and captioned export still require device validation.
 The user performs recording tests personally.
