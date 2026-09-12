@@ -46,3 +46,11 @@ android/local.properties
 /android/build/
 /android/app/build/
 /android/.gradle/
+
+# Verified native caption artifacts are staged locally by tools/prepare_moonshine.py.
+/tools/.cache/
+/modules/one-take-captions/android/build/
+/modules/one-take-captions/android/libs/
+/modules/one-take-media/android/build/
+__pycache__/
+*.pyc

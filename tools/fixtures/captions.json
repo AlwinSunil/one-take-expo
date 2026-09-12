@@ -1,0 +1,11 @@
+{
+  "synthetic": true,
+  "sessionId": "sample",
+  "events": [
+    {"sessionId":"sample","sequence":1,"text":"The camera can","isFinal":false,"segments":[{"id":"1","t0":0.2,"t1":1.1,"text":"The camera can","isFinal":false}]},
+    {"sessionId":"sample","sequence":2,"text":"The camera records clearly.","isFinal":true,"segments":[{"id":"1","t0":0.2,"t1":2.2,"text":"The camera records clearly.","isFinal":true}]},
+    {"sessionId":"old","sequence":99,"text":"Wrong recording","isFinal":true},
+    {"sessionId":"sample","sequence":1,"text":"Late draft","isFinal":false},
+    {"sessionId":"sample","sequence":3,"text":"This is another sentence.","isFinal":false,"segments":[{"id":"2","t0":3.1,"t1":4.0,"text":"This is another sentence.","isFinal":false}]}
+  ]
+}
