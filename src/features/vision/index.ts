@@ -1,0 +1,21 @@
+export { useVision, type UseVisionOptions, type UseVisionResult } from './use-vision';
+export {
+  beginVisionSession,
+  createVisionState,
+  markVisionStale,
+  reduceVisionEvent,
+  toVisionEvidence,
+  VISION_STALE_FRAME_MS,
+  type FacePresence,
+  type VisionEngine,
+  type VisionEvent,
+  type VisionEvidence,
+  type VisionFace,
+  type VisionFrameEvent,
+  type VisionLensFacing,
+  type VisionProcessor,
+  type VisionState,
+  type VisionStatus,
+  type VisionStatusEvent,
+  type VisionUnavailableReason,
+} from './state';
