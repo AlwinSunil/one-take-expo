@@ -1,6 +1,6 @@
 # Related issue acceptance map
 
-This map records the implementation and evidence for #6, #8, #11, #13, #14, #16, #21, #24, #25, #29, #30 and #33.
+This map records the implementation and evidence for #6, #8, #11, #12, #13, #14, #16, #21, #24, #25, #29, #30 and #33.
 
 The audit snapshot is 2026-09-13.
 
@@ -51,6 +51,7 @@ No recipient was selected and no external message was sent during share testing.
 | #6 | Partial | Ownership handoff docs, shared types, fixtures, runners, CI checks and setup documentation | Fixture breadth, camera/vision examples, PR checklist, independent fresh-checkout runs and the two named peer reviews |
 | #8 | Research and evaluator implemented; accuracy gate open | Moonshine decision, pinned runtime notes, CPU timings and replayable evaluator | Candidate slice comparison, then 60 clean and 30 flub consented held-out rows and a human accuracy report |
 | #11 | Partial | Camera lifecycle recovery, optional captions, memory fix and two-minute saved take | Permission, interruption, route, low-storage and formal A/V sync scenarios |
+| #12 | Partial | Editable spoken lines, stable ids, bracketed action cues, manual required/done/skipped status and a published change intent | Device keyboard layout, draft recovery on a phone, a UX recording and the reviewer reproduction |
 | #13 | Partial | Offline Moonshine bridge, honest live/provisional/delayed/unavailable states and device live-caption run | Quiet/noisy/empty behavior, replay identity, model failure and interruption on device |
 | #14 | Partial | Durable projects, normalization, recovery metadata, missing-media states and coverage counts | Force-close, migration, failed-save and low-storage reopen scenarios |
 | #16 | Partial | Conservative coverage, take ranking, script normalization, multi-line utterances and retake history | End-to-end multi-take capture and held-out precision evidence |
@@ -79,6 +80,22 @@ The existing research also records a separate Nemotron QNN experiment, but that 
 Human speech accuracy remains unmeasured because no consented held-out set exists.
 The synthetic report must not be used as a design-target accuracy claim.
 GitHub currently shows #8 closed; this map records the remaining evidence limitation without reopening or claiming a new accuracy result.
+
+### #12
+
+`src/lib/script-lines.ts` parses a draft into ordered lines whose ids survive edits, reorders and deletes, and reports spoken word count and an estimated read time at 150 words per minute.
+Bracketed directions become action cues through the single `extractBracketedCues` regex that `transcript-workflow.ts` already owned, so cue text never reaches the spoken count.
+Inline, standalone, multiple, nested and empty brackets are covered by tests; an unclosed bracket stays spoken text, is flagged ambiguous and can be corrected either into an action cue or into plain spoken text.
+Action cues are optional until the creator requires them, and a required cue carries a manual `pending`, `done` or `skipped` status where `skipped` stays unresolved for wrap.
+Nothing infers that a visual action happened.
+An actions-only script reports `add-spoken-line`.
+`scriptChangeIntent` publishes edited, deleted, added and reordered line ids; the coverage and persistence owners implement the effects, which is why this row stays partial.
+`src/app/script.tsx` keeps the existing paste, 400 ms debounced draft save and `acceptDraft` behavior, and the raw `script_draft` value stays the exact string the camera route consumes; line ids and cue statuses go to a separate `script_draft_lines` key.
+`tests/script-lines.test.mjs` adds 24 behavior tests, including a 5,000-word parse under 100 ms and a check that the accepted string re-chunks into the same lines the screen showed.
+
+These are pure Node tests. They are not device evidence.
+Keyboard layout with the line list on screen, draft recovery after a force-close on a phone, the UX recording and the named reviewer's reproduction all remain open.
+The handoff for capture and coverage is [issue-12.md](development/handoffs/issue-12.md).
 
 ### #11 and #13
 
