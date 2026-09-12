@@ -123,10 +123,10 @@ export function TranscriptReview({ project, onChange, onSeek, onPreviewTake, onP
           <Text selectable className="text-neutral-200 text-sm">{segment.rawText ?? segment.text}</Text>
         </View>) : <Text className="text-neutral-300 text-sm">No raw transcript was saved.</Text>}
       </View>}
-      {project.recordings?.filter(recording => recording.evidenceStatus === 'pending').map(recording => <View key={recording.id} className="mb-3">
-        <Text className="text-amber-200 text-xs">Pickup video saved. Recognition did not finish; this recording does not count as coverage.</Text>
+      {project.recordings?.filter(recording => recording.mediaUri !== project.videoUri).map(recording => <View key={recording.id} className="mb-3">
+        <Text className="text-amber-200 text-xs">{recording.evidenceStatus === 'pending' ? 'Pickup video saved. Recognition did not finish; this recording does not count as coverage.' : 'Pickup original preserved. Review the recording even when no speech was recognized.'}</Text>
         <Pressable accessibilityRole="button" disabled={!onPreviewRecording} className="p-3" onPress={() => onPreviewRecording?.(recording.mediaUri, recording.duration)}>
-          <Text className="text-white text-xs">{onPreviewRecording ? 'Preview pending pickup original' : 'Pickup preview requires the Android media build'}</Text>
+          <Text className="text-white text-xs">{onPreviewRecording ? (recording.evidenceStatus === 'pending' ? 'Preview pending pickup original' : 'Preview pickup original') : 'Pickup preview requires the Android media build'}</Text>
         </Pressable>
       </View>)}
       {project.transcript.map((segment, index) => <View key={segment.id ?? index} className="mb-3">
