@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { router } from 'expo-router';
+import { launchProjectPickup } from '@/features/capture/project-handoff';
 import { Alert, Pressable, Text, TextInput, View } from 'react-native';
 import captions from '../../../modules/one-take-captions';
 import type { Project } from '@/lib/session';
@@ -9,8 +11,8 @@ import { excludeInterval } from '@/lib/review-cuts';
 import { listProjects, mergePickupProject } from '@/lib/store';
 import { restoreDecision, selectTake } from '@/lib/transcript-workflow';
 
-export function TranscriptReview({ project, onChange, onSeek, onPreviewTake, duration }: {
-  project: Project; onChange: (p: Project) => Promise<void>; onSeek: (t: number) => void; onPreviewTake?: (takeId: string) => void; duration?: number;
+export function TranscriptReview({ project, onChange, onSeek, onPreviewTake, onPreviewRecording, duration }: {
+  project: Project; onChange: (p: Project) => Promise<void>; onSeek: (t: number) => void; onPreviewTake?: (takeId: string) => void; onPreviewRecording?: (uri: string, duration: number) => void; duration?: number;
 }) {
   const [pickupChoices, setPickupChoices] = useState<Project[]>([]);
   const [importing, setImporting] = useState(false);
@@ -121,6 +123,12 @@ export function TranscriptReview({ project, onChange, onSeek, onPreviewTake, dur
           <Text selectable className="text-neutral-200 text-sm">{segment.rawText ?? segment.text}</Text>
         </View>) : <Text className="text-neutral-300 text-sm">No raw transcript was saved.</Text>}
       </View>}
+      {project.recordings?.filter(recording => recording.evidenceStatus === 'pending').map(recording => <View key={recording.id} className="mb-3">
+        <Text className="text-amber-200 text-xs">Pickup video saved. Recognition did not finish; this recording does not count as coverage.</Text>
+        <Pressable accessibilityRole="button" disabled={!onPreviewRecording} className="p-3" onPress={() => onPreviewRecording?.(recording.mediaUri, recording.duration)}>
+          <Text className="text-white text-xs">{onPreviewRecording ? 'Preview pending pickup original' : 'Pickup preview requires the Android media build'}</Text>
+        </Pressable>
+      </View>)}
       {project.transcript.map((segment, index) => <View key={segment.id ?? index} className="mb-3">
         <Pressable disabled={project.mediaMissing || (!onPreviewTake && !transcriptForSource(project, project.videoUri).includes(segment))} onPress={() => {
           const take = review.takes.find(item => segment.id && item.transcriptSegmentIds.includes(segment.id));
@@ -147,7 +155,13 @@ export function TranscriptReview({ project, onChange, onSeek, onPreviewTake, dur
           pickupRequest: { lineIds: pickupLineIds(review), requestedAt: Date.now() } })}>
           <Text className="text-white text-sm">Save pickup list · {pickupLineIds(review).length} lines</Text>
         </Pressable>
-        <Text className="text-neutral-400 text-xs mt-2">{project.pickupRequest ? 'Pickup list saved to this project. ' : ''}Direct pickup recording awaits the capture handoff. You can attach an existing saved pickup below.</Text>
+        <Pressable accessibilityRole="button" disabled={importing || progress !== null} className="p-3 bg-white rounded-lg mt-2" onPress={async () => {
+          setImporting(true);
+          try {
+            await launchProjectPickup(latest.current, change, route => router.push(route));
+          } finally { setImporting(false); }
+        }}><Text className="text-black text-sm">Record requested pickups</Text></Pressable>
+        <Text className="text-neutral-400 text-xs mt-2">{project.pickupRequest ? 'Pickup list saved to this project. ' : ''}Record needed lines into this project or attach an existing saved pickup below.</Text>
       </View>}
       {project.pickupRequest && <View className="mb-3">
         <Pressable disabled={importing || progress !== null} accessibilityRole="button" className="p-3" onPress={async () => {

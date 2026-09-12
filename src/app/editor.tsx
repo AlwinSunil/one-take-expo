@@ -273,7 +273,11 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
       <View className="items-center mt-6"><Scissors size={20} color="white" /><Text className="text-white text-xs mt-2">Trim</Text></View>
       <Text className="text-neutral-500 text-xs text-center mt-3">Drag the ends to trim. Slide across the filmstrip to preview.</Text>
       {!!message && <Text accessibilityRole="alert" className="text-neutral-200 text-sm mt-3 text-center">{message}</Text>}
-      {project && <TranscriptReview project={project} duration={valid ? duration : undefined} onChange={changeProject} onPreviewTake={NativeCutPreview ? id => {
+      {project && <TranscriptReview project={project} duration={valid ? duration : undefined} onChange={changeProject} onPreviewRecording={NativeCutPreview ? (recordingUri, recordingDuration) => {
+        if (!Number.isFinite(recordingDuration) || recordingDuration <= 0) return;
+        setTakePreview([{ uri: recordingUri, t0: 0, t1: recordingDuration, captions: [] }]);
+        setPreviewOriginal(false); setPreviewTrim(false); setNativeSeek(0); setNativePlaying(true);
+      } : undefined} onPreviewTake={NativeCutPreview ? id => {
         const take = review?.takes.find(item => item.id === id);
         if (!take?.mediaUri || !take.playable) return;
         setTakePreview([{ uri: take.mediaUri, t0: take.t0, t1: take.t1, takeId: id, captions: [] }]);

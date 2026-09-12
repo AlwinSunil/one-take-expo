@@ -48,6 +48,7 @@ export function useLiveCaptions() {
   // times already use that clock; anchoring at `start()` instead would add the
   // whole preparation interval to pause detection.
   const streamStart = useRef<number | null>(null);
+  const sourceStartedAt = useRef<number | null>(null);
   const warnedMissingStreamStart = useRef(false);
   const mounted = useRef(true);
   const transcript = useRef<CaptionSegment[]>([]);
@@ -184,7 +185,11 @@ export function useLiveCaptions() {
       if (mounted.current && update.sessionId === sessionId.current) {
         // The microphone stream exists from this point, so this is the origin
         // every stage timestamp is measured against.
-        if (update.status === 'listening' && streamStart.current === null) streamStart.current = Date.now();
+        if (update.status === 'listening' && streamStart.current === null) {
+          streamStart.current = Date.now();
+          sourceStartedAt.current ??= streamStart.current;
+          if (attempt.current > 0) retryOffset.current = Math.max(retryOffset.current, (streamStart.current - sourceStartedAt.current) / 1000);
+        }
         setSession(previous => reduceLiveCaptionStatus(previous, update));
       }
     });
@@ -245,6 +250,7 @@ export function useLiveCaptions() {
     const id = `${Date.now()}-${++nextSession}`;
     sessionId.current = id;
     streamStart.current = null;
+    if (!resume) sourceStartedAt.current = null;
     warnedMissingStreamStart.current = false;
     setCaption(captionState(id));
     // A fresh session clears any earlier unavailable or interrupted state,
@@ -335,6 +341,7 @@ export function useLiveCaptions() {
     stop,
     retry,
     transcript,
+    sourceStartedAt,
   };
 }
 

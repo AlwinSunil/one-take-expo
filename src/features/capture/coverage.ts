@@ -10,6 +10,7 @@ import {
   type TranscriptSegment,
   type TakeEvidence,
 } from '../../lib/transcript-workflow.ts';
+import { cleanReview } from '../../lib/clean-review.ts';
 import { coverageLedger, coverageSafeToWrap } from '../../lib/coverage-updates.ts';
 import type { LineEnd, LineVerdict, PrompterLine } from '../../lib/retake-prompts';
 
@@ -113,30 +114,7 @@ export function deriveProjectCaptureCoverage(
   document: ScriptDocument,
   project: Project,
 ): CaptureCoverageSnapshot {
-  const lines = spokenWorkflowLines(document);
-  const transcript = captureTranscriptSegments(project.transcript
-    .filter(segment => typeof segment.id === 'string' && segment.t1 > segment.t0)
-    .map((segment, index) => ({
-      id: segment.id || `${project.id}:segment:${index}`,
-      t0: segment.t0,
-      t1: segment.t1,
-      text: segment.text,
-      isFinal: segment.isFinal ?? true,
-    })));
-  const takes: TakeEvidence[] = project.takes?.map(take => ({
-    ...take,
-    playable: take.playable && !project.unavailableTakeIds?.includes(take.id),
-  })) ?? transcript.map(segment => ({
-    id: `${project.id}:segment-take:${segment.id}`,
-    t0: segment.t0,
-    t1: segment.t1,
-    mediaUri: project.videoUri,
-    playable: !!project.videoUri && !project.mediaMissing,
-    quality: 'clean' as const,
-    inFrame: false,
-    transcriptSegmentIds: [segment.id],
-  }));
-  const review = deriveReviewState({ lines, segments: transcript, takes });
+  const review = cleanReview(project);
   return makeSnapshot(document, review, [], [], false);
 }
 

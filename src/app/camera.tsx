@@ -8,6 +8,8 @@ import { Image } from 'expo-image';
 import { ArrowLeft, Images, ChevronLeft, ChevronRight, Grid3X3, SlidersHorizontal, SwitchCamera, X, Sparkles } from 'lucide-react-native';
 import {
   beginProjectPickup,
+  cancelProjectPickup,
+  checkpointProjectPickup,
   beginRecording,
   completeProjectPickup,
   getProject,
@@ -17,6 +19,7 @@ import {
   saveSetting,
 } from '@/lib/store';
 import type { Project } from '@/lib/session';
+import { projectCaptureDocument, requestedPickupLineIds, recordingTranscript } from '@/features/capture/project-handoff';
 import { projectScriptLines } from '@/lib/project-workflow';
 import { useLiveCaptions } from '@/hooks/use-live-captions';
 import { LOCAL_VIDEO_BUFFER } from '@/lib/video-buffer';
@@ -140,7 +143,7 @@ export default function CameraScreen() {
     script?: string;
     pickupProjectId?: string;
   }>();
-  const isScript = mode === 'script';
+  const isScript = mode === 'script' || !!requestedPickupProjectId;
   const routeScript = typeof script === 'string' ? script : '';
   const isFocused = useIsFocused();
   const [cameraPermission, requestCamera, getCameraPermission] = useCameraPermissions();
@@ -168,10 +171,15 @@ export default function CameraScreen() {
   const [previewUri, setPreviewUri] = useState<string | null>(null);
   const [previewDuration, setPreviewDuration] = useState(0);
   const [lastUri, setLastUri] = useState<string | null>(null);
+  const pendingSave = useRef<(() => Promise<Project>) | null>(null);
   const [recordedProject, setRecordedProject] = useState<Project | null>(null);
   const [scriptDocument, setScriptDocument] = useState<ScriptDocument>(() => parseScript(routeScript));
+  const scriptDocumentRef = useRef(scriptDocument);
+  scriptDocumentRef.current = scriptDocument;
   const [scriptDocumentLoaded, setScriptDocumentLoaded] = useState(!isScript);
   const [captureCoverage, setCaptureCoverage] = useState<CaptureCoverageSnapshot>(() => pendingCaptureCoverage(parseScript(routeScript)));
+  const [requestedLines, setRequestedLines] = useState<string[] | null>(null);
+  const [pickupProject, setPickupProject] = useState<Project | null>(null);
   const [pickupTargetId, setPickupTargetId] = useState<string | null>(null);
   const [captureFeedback, setCaptureFeedback] = useState('');
   const [promptNow, setPromptNow] = useState(Date.now());
@@ -208,7 +216,8 @@ export default function CameraScreen() {
   captionStatus.current = captions.status;
   captionMessage.current = captions.message;
   const interrupted = useRef(false);
-  const chunks = scriptDocument.lines.map(line => line.text);
+  const promptLines = requestedLines ? captureCoverage.lines.filter(line => requestedLines.includes(line.id)) : captureCoverage.lines;
+  const chunks = promptLines.map(line => line.spokenText);
 
   const refreshDeviceState = useCallback(() => {
     setStorageCheck(readCaptureStorage());
@@ -349,6 +358,7 @@ export default function CameraScreen() {
   }, [applyCaptureCommand]);
 
   useEffect(() => {
+    if (requestedPickupProjectId) return;
     if (!isScript) {
       setScriptDocumentLoaded(true);
       return;
@@ -370,7 +380,7 @@ export default function CameraScreen() {
         setScriptDocumentLoaded(true);
       });
     return () => { cancelled = true; };
-  }, [isScript, routeScript]);
+  }, [isScript, routeScript, requestedPickupProjectId]);
 
   useEffect(() => {
     if (!requestedPickupProjectId) return;
@@ -382,9 +392,11 @@ export default function CameraScreen() {
           setError('That project is no longer available for another take.');
           return;
         }
-        const document = await loadAcceptedScriptDocument(routeScript || project.script);
+        const document = projectCaptureDocument(project);
         if (cancelled) return;
         setPickupTargetId(project.id);
+        setPickupProject(project);
+        setRequestedLines(requestedPickupLineIds(project));
         setScriptDocument(document);
         setScriptDocumentLoaded(true);
         setCaptureCoverage(deriveProjectCaptureCoverage(document, project));
@@ -399,10 +411,12 @@ export default function CameraScreen() {
     if (!scriptDocumentLoaded || !isScript) return;
     if (recordedProject) {
       setCaptureCoverage(deriveProjectCaptureCoverage(scriptDocument, recordedProject));
+    } else if (pickupProject) {
+      setCaptureCoverage(deriveProjectCaptureCoverage(scriptDocument, pickupProject));
     } else if (!previewUri) {
       setCaptureCoverage(pendingCaptureCoverage(scriptDocument));
     }
-  }, [isScript, previewUri, recordedProject, scriptDocument, scriptDocumentLoaded]);
+  }, [isScript, previewUri, recordedProject, scriptDocument, scriptDocumentLoaded, pickupProject]);
 
   useEffect(() => {
     setChunk(current => Math.min(Math.max(current, 0), Math.max(0, chunks.length - 1)));
@@ -450,16 +464,20 @@ export default function CameraScreen() {
       stopActiveCapture('user');
       return;
     }
+    if (pendingSave.current) { setError('This recording still needs saving. Retry Save before recording another take.'); return; }
     if (busy.current || !ready || !camera.current || !activeScreen.current) return;
     busy.current = true;
     interrupted.current = false;
     capturePhase.current = 'preparing';
     stopLatch.current.reset();
     const generation = ++recordingGeneration.current;
-    const captureDocument = scriptDocumentLoaded ? scriptDocument : parseScript(routeScript);
+    let captureDocument = scriptDocumentLoaded ? scriptDocument : parseScript(routeScript);
     let project: Project | null = null;
     let targetProject: Project | null = null;
     let pickupRecordingId = '';
+    let pickupStarted = false;
+    let pickupReturned = false;
+    let returnedUri: string | null = null;
     let pickupLineIds: string[] = [];
     let captionFailure: string | undefined;
     setSeconds(0); setError(''); setPreparing(true);
@@ -485,14 +503,9 @@ export default function CameraScreen() {
       if (pickupTargetId) {
         targetProject = await getProject(pickupTargetId);
         if (!targetProject) throw new Error('That project is no longer available for another take.');
-        const targetLines = projectScriptLines(targetProject);
-        const targetCoverage = deriveProjectCaptureCoverage(captureDocument, targetProject);
-        const covered = new Set(targetCoverage.spokenLines
-          .filter(line => line.status === 'covered')
-          .map(line => line.id));
-        pickupLineIds = targetLines
-          .filter(line => line.spokenText.trim().length > 0 && !covered.has(line.id))
-          .map(line => line.id);
+        captureDocument = projectCaptureDocument(targetProject);
+        pickupLineIds = requestedPickupLineIds(targetProject);
+        setScriptDocument(captureDocument); setRequestedLines(pickupLineIds);
         if (pickupLineIds.length === 0) throw new Error('Every spoken line is already covered. You can wrap this project.');
         pickupRecordingId = `${targetProject.id}:pickup:${Date.now()}`;
       } else {
@@ -522,6 +535,8 @@ export default function CameraScreen() {
 
       if (targetProject) {
         await beginProjectPickup(targetProject.id, pickupRecordingId, pickupLineIds);
+        pickupStarted = true;
+        if (stopLatch.current.requested || !activeScreen.current || generation !== recordingGeneration.current) return;
       }
       const captureTakeId = pickupRecordingId || project?.id || `recording-${Date.now()}`;
       activeCaptureTakeId.current = captureTakeId;
@@ -533,20 +548,30 @@ export default function CameraScreen() {
       setRecording(true);
       const result = await camera.current.recordAsync();
       if (!result) throw new Error('No video was returned. Please try again.');
+      pickupReturned = true;
+      returnedUri = result.uri;
       commandGate.current.end();
       activeCaptureTakeId.current = null;
       setCaptureInputActive(false);
       const duration = (Date.now() - startedAt.current) / 1000;
       capturePhase.current = 'saving';
       setSaving(true);
+      if (targetProject) {
+        const targetId = targetProject.id;
+        pendingSave.current = () => checkpointProjectPickup(targetId, pickupRecordingId, { videoUri: result.uri, duration });
+        setRecordedProject(await pendingSave.current());
+      }
       // Make the returned original discoverable before waiting for analysis.
       // If the process stops during caption cleanup, Projects can recover it.
       if (project) {
-        await saveProjectMetadata({ ...project, videoUri: result.uri, duration,
+        const recoverable: Project = { ...project, videoUri: result.uri, duration,
           recordingStatus: 'interrupted',
           recoveryMessage: 'The original is available. Saving or analysis did not finish; review this take in Projects.',
-           transcript: captions.transcript.current,
-         });
+          transcript: recordingTranscript(captions.transcript.current, captions.sourceStartedAt.current, startedAt.current, duration),
+        };
+        setRecordedProject(recoverable);
+        pendingSave.current = () => saveProject(recoverable);
+        await saveProjectMetadata(recoverable);
        }
       let transcript = captions.transcript.current;
       try {
@@ -562,7 +587,8 @@ export default function CameraScreen() {
         captionFailure ??= captionMessage.current || 'Live captions became unavailable.';
         setCaptureMode('record-only');
       }
-      const transcriptSegments = captureTranscriptSegments(transcript);
+      const alignedTranscript = recordingTranscript(transcript, captions.sourceStartedAt.current, startedAt.current, duration);
+      const transcriptSegments = captureTranscriptSegments(alignedTranscript.map((segment, index) => ({ ...segment, id: segment.id ?? `${captureTakeId}:${index}`, isFinal: segment.isFinal ?? true })));
       lastTranscript.current = transcriptSegments;
       const coverage = deriveCaptureCoverage({
         document: captureDocument,
@@ -580,7 +606,7 @@ export default function CameraScreen() {
             ? captureFailureMessage('storage')
             : captureFailureMessage('interrupted')
           : undefined,
-        captionFailure ? `Live captions need recovery: ${captionFailure} Recheck the saved audio in the editor.` : undefined,
+        captionFailure ? `Live captions need recovery: ${captionFailure} ${targetProject ? 'Review the saved pickup original and record those lines again if needed.' : 'Recheck the saved audio in the editor.'}` : undefined,
       ].filter((value): value is string => !!value);
 
       let saved: Project;
@@ -588,15 +614,16 @@ export default function CameraScreen() {
         const captured: Project = { ...project, videoUri: result.uri, duration,
           recordingStatus: wasInterrupted ? 'interrupted' : 'complete',
           recoveryMessage: recoveryMessages.length ? recoveryMessages.join(' ') : undefined,
-          scriptLines: isScript ? captureScriptLines(captureDocument) : undefined,
+          scriptLines: isScript ? captureScriptLines(scriptDocumentRef.current) : undefined,
           takes: coverage.review.takes,
-          transcript: transcript.map(segment => ({ ...segment, rawText: segment.text, timingSource: 'live-estimate' as const })),
+          transcript: alignedTranscript.map(segment => ({ ...segment, rawText: segment.text, timingSource: 'live-estimate' as const })),
         };
         await saveProjectMetadata({ ...captured, recoveryMessage: [
           'Recording is available in temporary storage. Open and save it to preserve it.',
           ...recoveryMessages,
         ].join(' ') });
-        saved = await saveProject(captured);
+        pendingSave.current = () => saveProject(captured);
+        saved = await pendingSave.current();
         setCaptureCoverage(deriveCaptureCoverage({
           document: captureDocument,
           takeId: captureTakeId,
@@ -605,14 +632,17 @@ export default function CameraScreen() {
           scratched: scratchRequested.current,
         }));
       } else {
-        saved = await completeProjectPickup(targetProject!.id, pickupRecordingId, {
-          videoUri: result.uri,
-          duration,
-          transcript: transcript.map(segment => ({ ...segment, rawText: segment.text, timingSource: 'live-estimate' as const })),
-          takes: coverage.review.takes,
-        });
+        const targetId = targetProject!.id;
+        const latestTarget = await getProject(targetId);
+        if (!latestTarget) throw new Error('The pickup project was deleted.');
+        await saveProjectMetadata({ ...latestTarget, scriptLines: captureScriptLines(scriptDocumentRef.current) });
+        const input = { videoUri: result.uri, duration,
+          transcript: alignedTranscript.map(segment => ({ ...segment, rawText: segment.text, timingSource: 'live-estimate' as const })), takes: coverage.review.takes };
+        pendingSave.current = () => completeProjectPickup(targetId, pickupRecordingId, input);
+        saved = await pendingSave.current();
         setCaptureCoverage(deriveProjectCaptureCoverage(captureDocument, saved));
       }
+      pendingSave.current = null;
       lastCoverageTakeId.current = captureTakeId;
       lastCoverageUri.current = result.uri;
       setRecordedProject(saved);
@@ -620,7 +650,9 @@ export default function CameraScreen() {
       setPreviewUri(project ? saved.videoUri : result.uri);
       setLastUri(saved.videoUri);
       if (saved.videoUri) saveSetting('last_video_uri', saved.videoUri).catch(() => {});
+      if (activeScreen.current) { setPreviewUri(null); router.replace({ pathname: '/editor', params: { projectId: saved.id } }); }
     } catch (e) {
+      if (returnedUri) setPreviewUri(returnedUri);
       const classified = classifyCaptureFailure(e);
       const kind: CaptureFailureKind = classified === 'storage'
         ? 'storage'
@@ -630,6 +662,7 @@ export default function CameraScreen() {
       if (kind === 'camera-busy') setCameraMountFailure(kind);
       setError(captureFailureMessage(kind));
     } finally {
+      if (pickupStarted && !pickupReturned && targetProject) await cancelProjectPickup(targetProject.id, pickupRecordingId).catch(error => setError(String(error)));
       commandGate.current.end();
       activeCaptureTakeId.current = null;
       setCaptureInputActive(false);
@@ -643,9 +676,10 @@ export default function CameraScreen() {
 
   function retake() {
     if (saving) return;
+    if (pendingSave.current) { setError('Save this returned recording before starting a retake.'); return; }
     setPreviewUri(null);
     setRecordedProject(null);
-    setPickupTargetId(null);
+    setPickupTargetId(requestedPickupProjectId ?? pickupTargetId);
     setCaptureCoverage(pendingCaptureCoverage(scriptDocument));
     setCaptureFeedback('');
   }
@@ -665,7 +699,7 @@ export default function CameraScreen() {
     const uri = previewUri;
     const duration = previewDuration;
     try {
-      const project = recordedProject ?? await saveProject({
+      const project = pendingSave.current ? await pendingSave.current() : recordedProject ?? await saveProject({
         id: uri.split('/').pop() ?? `${Date.now()}`,
         mode: isScript ? 'script' : 'assisted',
         script: isScript && typeof script === 'string' ? script : undefined,
@@ -674,10 +708,11 @@ export default function CameraScreen() {
         transcript: captions.transcript.current,
         createdAt: Date.now(),
       });
+    pendingSave.current = null;
     setLastUri(project.videoUri);
     saveSetting('last_video_uri', project.videoUri!).catch(() => {});
     setPreviewUri(null);
-    router.push({ pathname: '/editor', params: {
+    router.replace({ pathname: '/editor', params: {
       projectId: project.id,
       mode: isScript ? 'script' : 'assisted', videoUri: project.videoUri!,
       duration: String(duration),
@@ -692,8 +727,8 @@ export default function CameraScreen() {
   }
 
   const permissionDescription = describeCapturePermissions(cameraPermission, micPermission);
-  const currentPrompterLine = captureCoverage.lines[chunk] ?? null;
-  const nextPrompterLine = captureCoverage.lines[chunk + 1] ?? null;
+  const currentPrompterLine = promptLines[chunk] ?? null;
+  const nextPrompterLine = promptLines[chunk + 1] ?? null;
 
   async function requestAccess() {
     if (permissionRequesting.current || permissionDescription.state !== 'requestable') return;
@@ -825,7 +860,7 @@ export default function CameraScreen() {
           <Text className="text-neutral-400 text-[10px] mt-2 tracking-widest">SUGGESTIONS</Text>
         </Pressable>
         <View className="flex-1 items-center">
-          <Pressable accessibilityRole="button" accessibilityLabel={preparing ? 'Cancel recording preparation' : recording ? 'Stop recording' : 'Start recording'} disabled={!ready || saving || storageBlocked} onPress={record}
+          <Pressable accessibilityRole="button" accessibilityLabel={preparing ? 'Cancel recording preparation' : recording ? 'Stop recording' : 'Start recording'} disabled={!ready || saving || storageBlocked || !scriptDocumentLoaded || (!!requestedPickupProjectId && !pickupProject)} onPress={record}
             style={{ width: 84, height: 64, borderRadius: 40, borderWidth: 3, borderColor: 'white', padding: 5, opacity: !ready || saving || storageBlocked ? 0.4 : 1 }}>
             <View style={{ flex: 1, borderRadius: recording ? 10 : 32, backgroundColor: recording ? '#ef4444' : 'white', margin: recording ? 7 : 0 }} />
           </Pressable>
@@ -860,12 +895,12 @@ export default function CameraScreen() {
         </SafeAreaView>
       </View>
     </Modal>
-    <Modal visible={previewUri !== null} animationType="slide" onRequestClose={() => { if (!saving) setPreviewUri(null); }}>
+    <Modal visible={previewUri !== null} animationType="slide" onRequestClose={() => { if (!saving && !pendingSave.current) setPreviewUri(null); }}>
       <SafeAreaView className="flex-1 bg-black">
         <StatusBar style="light" />
         <View className="flex-row items-center justify-between px-4 h-16">
           <Text className="text-white text-xs tracking-widest">{recordedProject?.recordingStatus === 'interrupted' ? 'REVIEW INTERRUPTED TAKE' : 'PREVIEW'} · {videoQuality}</Text>
-          <IconButton icon="close" label="Discard recording" disabled={saving} onPress={() => setPreviewUri(null)} />
+          <IconButton icon="close" label="Close saved preview" disabled={saving || !!pendingSave.current} onPress={() => setPreviewUri(null)} />
         </View>
         <View className="flex-1 px-4">
           {previewUri && <PreviewPlayer key={previewUri} uri={previewUri} />}
