@@ -15,8 +15,9 @@ The implementation branch is [`feat/offline-speech-workflow`](https://github.com
 ## Evidence snapshot
 
 - `npm run typecheck` passes.
-- `npm test` passes 40 behavior-focused JavaScript tests.
+- `npm test` passes 68 behavior-focused JavaScript tests, including the 28 coverage ledger and coverage scenario replay tests added for #16.
 - `npm run samples` passes the deterministic caption replay.
+- `npm run coverage:report` replays the clean and flub scenarios and scores 16 synthetic fixture rows, while reporting zero consented human held-out rows.
 - `python3 tests/speech-evaluation.test.py` passes 12 evaluator tests.
 - `python3 tools/speech-fixtures/run_synthetic.py` passes 16 synthetic rows, while reporting zero eligible human held-out clean rows and zero eligible human held-out flub rows.
 - The Android caption module has 9 passing unit tests and the Media3 export module has 5 passing unit tests.
@@ -53,7 +54,7 @@ No recipient was selected and no external message was sent during share testing.
 | #11 | Partial | Camera lifecycle recovery, optional captions, memory fix and two-minute saved take | Permission, interruption, route, low-storage and formal A/V sync scenarios |
 | #13 | Partial | Offline Moonshine bridge, honest live/provisional/delayed/unavailable states and device live-caption run | Quiet/noisy/empty behavior, replay identity, model failure and interruption on device |
 | #14 | Partial | Durable projects, normalization, recovery metadata, missing-media states and coverage counts | Force-close, migration, failed-save and low-storage reopen scenarios |
-| #16 | Partial | Conservative coverage, take ranking, script normalization, multi-line utterances and retake history | End-to-end multi-take capture and held-out precision evidence |
+| #16 | Partial | Conservative coverage, take ranking, script normalization, multi-line utterances, retake history, replayable scenarios, script-change and missing-media recomputation | End-to-end multi-take capture, real framing observations and a consented human held-out precision report |
 | #21 | Partial | Media3 cuts, partitioned captions, progress, cancellation, retry, background service, gallery and share | Low-storage/permission/process-restart checks and formal A/V sync review |
 | #24 | Partial | Timed refinement, quiet/repeat review suggestions, filler flags and reversible decisions | Listening to quiet/noisy/stutter/filler outputs and accepting safe boundaries |
 | #25 | Research only | CPU baseline, explicit fallback and NNAPI/QNN candidate matrix | Integrated NPU delegation, five warm sessions, power, heat and memory evidence |
@@ -97,6 +98,30 @@ Coverage requires final transcript evidence and playable media, keeps earlier go
 Review state supports selecting takes, preparing cuts, undoing decisions and editing a segment's caption text.
 The editor currently edits a segment's text field rather than offering a separate tap-on-individual-word editor.
 Manual corrections remain separate from raw recognition evidence and therefore do not change a spoken-script verdict.
+
+### #16 source-side checks
+
+The following #16 acceptance work is now covered from source and is reproducible with `npm test` and `npm run coverage:report`.
+
+`src/development/coverage/scenarios.ts` defines ten deterministic scenarios: `clean`, `flub-reread`, `pending-timer`, `out-of-order`, `missing-file`, `two-lines-one-breath`, `off-frame-vs-in-frame`, `scratched-take`, `script-edit-after-coverage` and `required-action`.
+
+`tests/coverage-scenarios.test.mjs` replays every scenario twice and asserts identical coverage, identical take history and an identical cut order in script order rather than recording order.
+
+A simulated clock advanced far past the analysis timeout leaves a pending line pending, and only a final transcript segment covers it.
+
+A bad reread neither erases an earlier clean take nor lands on another line, an off-frame take loses to an otherwise suitable in-frame take, and scratched takes are excluded from coverage while remaining in history.
+
+`src/lib/coverage-updates.ts` consumes the script editor's `{ editedLineIds, deletedLineIds, addedLineIds, reorderedFrom }` change intent: an edited line returns to `needed` with its history, a deleted line is retired with its takes, and a reorder preserves every line id and verdict.
+
+When the capture layer reports that a take's media is gone, the line falls back to the next eligible take or returns to `needed` with reason `media-missing`, and the take stays in history.
+
+`npm run coverage:report` prints precision and recall per coverage verdict from the synthetic fixture rows and is labeled `synthetic fixtures, not human held-out data`.
+
+The framing values in these scenarios are declared fixture observations.
+
+The remaining #16 acceptance work is unchanged: an end-to-end scripted phone capture with multiple takes, omissions, restarts and required action cues; real vision or frame-quality observations feeding `inFrame`; a consented human held-out precision report; and the named non-author reviewer reproduction.
+
+Nothing in this source-side work establishes device, framing or human-accuracy behavior.
 
 ### #21, #24 and #33
 

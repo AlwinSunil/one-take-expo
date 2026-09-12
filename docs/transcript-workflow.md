@@ -120,6 +120,8 @@ An earlier playable clean take remains eligible after a later bad reread.
 
 When no explicit choice exists, an in-frame clean take wins, then the earliest take is used as a deterministic tie-breaker.
 
+`LineReview.eligibleTakeIds` lists the takes that could still be selected for that line: clean, playable and backed by final transcript evidence.
+
 `selectTake` records a creator choice under a stable `take:<lineId>` decision id.
 
 The selected take still needs final transcript evidence when review state is derived.
@@ -158,12 +160,65 @@ This module does not claim speech accuracy, camera framing, audio/video sync, NP
 
 Those properties require the native and device checks described in the other workflow documents.
 
+## Coverage updates
+
+`src/lib/coverage-updates.ts` answers the separate question of what happens to a derived verdict when the script changes or a recording disappears.
+
+`coverageLedger(review)` snapshots the derived state as one `CoverageEntry` per line, each with a `reason` code and the full take history for that line.
+
+History records keep the take id, quality, framing, playability, times and whether the take is still eligible, so losing coverage never loses evidence.
+
+`applyScriptChangeIntent(ledger, intent)` consumes the script editor's published `{ editedLineIds, deletedLineIds, addedLineIds, reorderedFrom }` object.
+
+Editing a line returns it to `needed` with reason `script-edited`, because the recorded words no longer match the script, while its takes stay in history.
+
+Deleting a line moves its entry to `ledger.retired` with reason `line-deleted`, so its takes remain available for review and never gate a wrap.
+
+Adding a line appends a `needed` entry with reason `line-added` and no history; an added id that already exists is rejected.
+
+`reorderedFrom` is the line order *before* the change, and coverage is keyed by line id, so a reorder preserves every id and every verdict and is only validated here.
+
+A `reorderedFrom` list that is not exactly the current set of line ids, or an edited or deleted id that the ledger does not know, throws.
+
+`applyMediaAvailability(ledger, takeIds)` recomputes coverage after the capture layer reports that media is gone.
+
+The affected history records become unplayable and ineligible, the line falls back to its next eligible take when one exists, and otherwise returns to `needed` with reason `media-missing`.
+
+That is deliberately different from the `media-unavailable` pending state: a file that never became playable may still arrive, while a file the capture layer reports as gone will not.
+
+`selectedCutOrder(ledger)` returns the selected takes in script order, never in recording order.
+
+Consecutive lines covered by one take stay one unbroken cut, and a take covering non-adjacent lines is still played once, at its first script position.
+
+`coverageSafeToWrap(ledger, unresolvedRequiredActionCueIds)` requires at least one line, every current line covered, and no unresolved required cue.
+
+## Scenario replay
+
+`src/development/coverage/scenarios.ts` defines ten deterministic scenarios: `clean`, `flub-reread`, `pending-timer`, `out-of-order`, `missing-file`, `two-lines-one-breath`, `off-frame-vs-in-frame`, `scratched-take`, `script-edit-after-coverage` and `required-action`.
+
+Each scenario declares its script lines, recognizer utterances, takes with media availability and framing, any script change or media loss, and the coverage and cut order it must produce.
+
+Framing values in a scenario are declared fixture observations and are never a vision or NPU measurement.
+
+`runScenario` is pure, so replaying a scenario returns identical coverage, identical history and an identical cut order every time.
+
+`ScenarioOptions.nowSeconds` is a simulated clock that coverage never reads.
+
+The replay reports `timedOutTakeIds` for pending takes whose analysis window has elapsed, which lets a test advance the clock past any timeout and show that the pending line is still pending.
+
 ## Local verification
 
 Run the behavior tests with:
 
 ```sh
-node --test tests/transcript-workflow.test.mjs
+npm test
+npm run coverage:report
 ```
 
 The tests cover refinement ordering, manual correction preservation, number and brand normalization, whole-utterance multi-line coverage, stable script edits, needed/pending/covered state, missing media, scratched takes, take ranking, required cues, review-only suggestions, and explicit undo.
+
+`tests/coverage-updates.test.mjs` covers the ledger, script change intents and media loss, and `tests/coverage-scenarios.test.mjs` replays every scenario twice.
+
+`npm run coverage:report` prints precision and recall per coverage verdict from the synthetic fixture rows.
+
+That report is labeled `synthetic fixtures, not human held-out data` and is not a human accuracy measurement.
