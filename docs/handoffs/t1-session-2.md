@@ -44,3 +44,68 @@ Extend the existing coach after merge, do not mount a second coach.
 PR #57 owns incoming capture integration and PR #54 recording hardening; resolve camera changes only after merge.
 #35 additionally depends on #28 and selected-take/source identity from Session 3.
 No unmerged Tier 0 changes are copied or cherry-picked here.
+
+## Published references and browser blocker
+
+Initial contract commit: `2f18288` on `feat/t1-coaching-framing` (pushed).
+Session 3 can inspect it immediately without access to this worktree.
+The current main camera still displays unavailable visual analysis; the incoming Tier 0 coach is not merged.
+Session 2 adds an explicit development-only camera parameter `coachingDevelopment=1` for manual setup control review; it is not a common release gate and cannot enable production coaching.
+Replace this temporary exposure with Session 3's accepted common gate only after release acceptance.
+
+Browser baseline reproduction: `EXPO_NO_DOTENV=1 npx expo start --web --port 8094`, open `/camera?coachingDevelopment=1`.
+Metro fails resolving `expo-sqlite/web/wa-sqlite/wa-sqlite.wasm` before rendering any route.
+The file exists in installed dependencies; current `metro.config.js` only wraps Expo defaults with NativeWind.
+Session 3 should inspect Expo SQLite web asset configuration and land the owner-authored fix.
+Evidence: `docs/handoffs/evidence/t1-session-2/web-baseline-blocker.png`.
+This is a baseline app-flow blocker, not a passed camera/UI check.
+No config, package or lock files were edited.
+
+## Integration order
+
+1. Merge dependency PRs through their owners and normal review; then merge latest `origin/main` into this lane branch.
+2. Preserve incoming recording lifecycle and the single vision hook in `camera.tsx`.
+3. Replace the development-only manual sheet exposure with the existing `CaptureSuggestions` surface, mapping `talking-head` to `talking-head`, `vlog` to `subject`, and `product-demo` to `product`.
+4. Feed the Tier 1 priority gate from Session 1, then invoke the existing `CompositionCoach` only on delegation.
+5. Keep the Tier 0 cue stability/cooldown/dismissal mechanism and observation calibration checks; do not derive calibrated cues from ML Kit face-presence boxes.
+6. Add source-relative track extraction behind the #15 producer only once orientation, subject selection, relevant hands/products and actual inference provenance are available.
+7. Session 3 persists optional suggestions, validates immutable identity and applies explicit reversible preview/export choices.
+8. Rerun affected regression and device/human checks before the common gate can be enabled.
+
+Framing-track sampling is evidence at sampled instants, not proof of every intervening frame.
+Even a mathematically valid suggested crop requires creator preview; no suggestion certifies media quality or safe splice timing.
+
+## Transcript and priority adapter details
+
+Executable API: `gateTier1Coach` in `src/features/coach/tier1-policy.ts`.
+The gate does not choose cues; `delegate` maps the intent for the incoming Tier 0 policy.
+Its `nowMs` and signal `observedAtMs` are monotonic milliseconds on the same clock, never source PTS or wall-clock timestamps.
+Signals older than 1000 ms or from the future are unusable during recording.
+`captureGeneration` is an opaque string replaced whenever capture/lens binding or take lifecycle changes.
+Use a new `takeId` at each new recording and clear cached transcript/priority state on rebinding.
+Required work must be represented by current priority state; missing priority is not permission to show coaching.
+The gate never consumes transcript strings and never resolves actions, wrap or take selection.
+A `delegate` result still requires fresh calibrated scene observations and the Tier 0 1.5-second issue / 1-second clear / 15-second distinct-prompt timing rules.
+No fixture is converted into `on-device-vision` evidence.
+
+## Final framing API and fixtures
+
+Import `FramingAnalysisRequest`, `FramingRegionTrack`, `buildFramingSuggestion`, and `validateFramingSuggestion` from `src/features/vision/framing.ts`.
+Each track carries `identity: { sourceMediaId, takeId, analysisId, analysisRevision }` matching the request.
+The request uses `sourceDurationMs`, `selectedInterval: { startMs, endMs }`, and the explicit `frame` and `provenance` structures.
+Each region track has `trackId`, `kind`, explicit `selected`/`relevant` flags, and ordered `observations: { timestampMs, rect, confidence }[]`.
+Increment analysis identity/revision whenever orientation, source, intent, region selection or analysis configuration changes.
+`buildFramingSuggestion(request, tracks)` is disabled by default; explicit `{ enabled: true }` is for accepted integration or developmental replay only.
+`validateFramingSuggestion(result, currentRequest)` must pass before persistence or offering apply; `originalFrameFallback` means retain the original and offer no automatic edit.
+An invalid request returns an invalid-request fallback for diagnostic handling, not a persistable substitute source identity.
+
+The 0.75 confidence floor, 500 ms maximum observation gap, 6% normalized margin and 1.35x maximum zoom are conservative fixture-policy parameters, not calibrated model thresholds.
+Options may tighten these limits but cannot relax them.
+Use `source: 'fixture', processor: 'cpu'` only for explicitly developmental region fixtures; a native producer must report its actual runtime/model/processor without guessing.
+Unsupported, pending, failed or thermally disabled native analysis must clear tracks and retain the original; never reuse an old result as a fresh detection.
+Framing does not infer missing hands, select a speaker, or transform sensor boxes into upright coordinates for the producer.
+
+Replay: `node --experimental-strip-types tests/t1-session2-replay.mjs`.
+The catalog in `src/features/vision/framing-fixtures.ts` contains portrait, moving vlog, product plus two hands, safe/unsafe groups, missing/off-frame/uncertain/discontinuous tracks, and missing hands.
+`docs/handoffs/evidence/t1-session-2/replay-output.json` includes expected/actual crops and reasons for Session 3.
+These are synthetic region observations; unseen real scenes and native detection quality remain unverified.
