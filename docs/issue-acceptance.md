@@ -91,10 +91,11 @@ Nothing infers that a visual action happened.
 An actions-only script reports `add-spoken-line`.
 `scriptChangeIntent` publishes edited, deleted, added and reordered line ids; the coverage and persistence owners implement the effects, which is why this row stays partial.
 `src/app/script.tsx` keeps the existing paste, 400 ms debounced draft save and `acceptDraft` behavior, and the raw `script_draft` value stays the exact string the camera route consumes; line ids and cue statuses go to a separate `script_draft_lines` key.
-`tests/script-lines.test.mjs` adds 24 behavior tests, including a 5,000-word parse under 100 ms and a check that the accepted string re-chunks into the same lines the screen showed.
+`tests/script-lines.test.mjs` adds 30 behavior tests, including a 5,000-word parse under 100 ms, a check that the accepted string re-chunks into the same lines the screen showed, and three data-loss guards: correcting a bracket at the end of a sentence cannot emit a junk line, ordinary typing cannot manufacture deleted history, and a failed structure read still restores the creator's text.
 
 These are pure Node tests. They are not device evidence.
 Keyboard layout with the line list on screen, draft recovery after a force-close on a phone, the UX recording and the named reviewer's reproduction all remain open.
+The line list is not virtualized and every keystroke re-parses, so typing and scrolling feel on a long script is also unmeasured.
 The handoff for capture and coverage is [issue-12.md](development/handoffs/issue-12.md).
 
 ### #11 and #13

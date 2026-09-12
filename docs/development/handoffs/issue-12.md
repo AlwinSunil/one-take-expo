@@ -50,7 +50,9 @@ interface ScriptActionCue {
 Nothing in this module infers that an action happened.
 
 Bracket parsing is not duplicated: `extractBracketedCues` is now exported from `transcript-workflow.ts` and re-exported from `script-lines.ts`, so review and script share one regex.
-An unclosed `[hold up` stays in `spokenText` and is reported as an `AmbiguousCue`; `correctAmbiguousCue(document, cueId, 'action' | 'spoken')` rewrites the line either way.
+An unclosed `[hold up` stays in `spokenText` and is reported in `line.ambiguousCues`; `correctAmbiguousCue(document, cueId, 'action' | 'spoken')` rewrites the line either way.
+The brief asked for an `ambiguous: true` flag; a per-line list carries the same fact plus the fragment and its offset, which the correction needs.
+The sentence's own terminal punctuation is not part of the direction: correcting `Now [hold up the product.` produces `Now [hold up the product].`, never `...product.]`, so the closing bracket cannot re-chunk into a line of its own.
 
 ## Change intent for coverage and persistence
 
@@ -66,6 +68,9 @@ scriptChangeIntent(previous, next): {
 Consumers decide the effects; this lane only reports them.
 The intended reactions are: an edited line that was already covered needs a new verdict, a deleted line keeps its historical takes (the line itself stays in `document.removedLines`), and a reorder changes nothing about coverage because the ids are unchanged.
 
+Only `deleteLine` writes `document.removedLines`.
+Parsing never does, so a creator who backspaces through a line and retypes it does not manufacture deleted history on every keystroke.
+
 ## Draft persistence
 
 `script_draft` keeps holding the raw text and nothing else, so any existing reader, including the camera route, is unaffected.
@@ -76,6 +81,10 @@ This deviates from the plan's suggestion of opening `expo-sqlite` directly from 
 `restoreScriptDocument(text, serialized)` always rebuilds from the raw text.
 A missing, empty, stale or unreadable structure costs line ids and cue statuses only; the creator's script is still restored.
 The two writes are not one transaction, so a crash between them can leave a stale structure. That is safe by construction because the raw text is authoritative.
+A stored counter that trails the stored ids is clamped past the highest saved id, so a stale structure cannot mint a duplicate line id.
+
+`restoreScriptDocumentFrom(text, read)` absorbs a rejected structure read and still returns the parsed raw text.
+`script.tsx` additionally starts its autosave only after the raw draft has been read, so a failed read reports itself instead of letting the debounce write an empty script over the saved one.
 
 ## Requested changes in other lanes
 
@@ -90,4 +99,5 @@ It is not proposed as part of #12 because it touches `camera.tsx`.
 
 - No device or emulator run: keyboard layout with the line list visible, draft recovery after force-close and paste from a real clipboard are unverified.
 - No UX recording or screenshot is attached.
+- The line list is a plain `ScrollView`, not a virtualized list, and every keystroke re-parses the whole script. A 5,000-word paste mounts about 500 rows. Parsing measures under 100 ms in Node, but scroll and typing feel on a phone is unmeasured.
 - The named reviewer has not reproduced any of this.
