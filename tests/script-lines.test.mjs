@@ -299,3 +299,20 @@ test('re-parsing a long script after one edit stays under 100 ms and keeps ids',
   assert.deepEqual(second.lines.map(line => line.id), first.lines.map(line => line.id));
   assert.deepEqual(scriptChangeIntent(first, second).editedLineIds, [first.lines[250].id]);
 });
+
+test('the text handed to the camera route always chunks back into the same lines', () => {
+  const pasted = 'This is the camera. [hold up the product] It records in 4K!\n[smile]\nAsk for the price? Now [wave';
+  let document = parseScript(pasted);
+
+  const ambiguousId = document.lines.at(-1).ambiguousCues[0].id;
+  document = correctAmbiguousCue(document, ambiguousId, 'action');
+  document = deleteLine(document, document.lines[1].id);
+  document = reorderLines(document, [document.lines[1].id, document.lines[0].id, document.lines[2].id]);
+
+  // camera.tsx receives only the raw string and re-chunks it with this regex.
+  assert.deepEqual(cameraChunks(document.text), document.lines.map(line => line.text));
+  assert.deepEqual(
+    cameraChunks(document.text).map(text => parseScript(text).lines[0].spokenText),
+    document.lines.map(line => line.spokenText),
+  );
+});
