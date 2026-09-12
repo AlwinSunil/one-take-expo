@@ -21,6 +21,9 @@ Nothing here has been reproduced on a device; see the open checks at the end.
 `parseScript` splits with the same expression `camera.tsx` uses, `/[^.!?\n]+[.!?]?/g`, and every editing helper rebuilds the raw text by joining line texts with a newline.
 A test asserts that the string handed to the camera re-chunks into exactly the lines the script screen displayed, including after a reorder, a delete and a bracket correction.
 
+Deleting, reordering or correcting a bracket therefore rewrites the draft text as one line per script line.
+The creator's own paragraph breaks survive plain typing and pasting; they are normalized only by those explicit structural edits.
+
 ## Line and cue shapes
 
 ```ts
@@ -76,7 +79,8 @@ The two writes are not one transaction, so a crash between them can leave a stal
 
 ## Requested changes in other lanes
 
-None. No file outside this lane was edited.
+None. No file owned by another lane was edited.
+The only change to existing shared domain code is that `extractBracketedCues` in `transcript-workflow.ts` went from private to exported; its behavior is untouched.
 
 If capture wants the parsed lines instead of re-chunking the raw string, the smallest future change is for `camera.tsx` to call `parseScript(script)` from `@/lib/script-lines` and read `lines[i].spokenText` for the prompter and `lines[i].actionCues` for an on-screen direction.
 That would let the prompter stop showing bracket text to the creator while reading.

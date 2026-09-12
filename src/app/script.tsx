@@ -49,9 +49,10 @@ export default function ScriptInput() {
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
       // The raw text is saved first and on its own key, so the camera route keeps
-      // reading exactly what the creator typed even if the structure write fails.
+      // reading exactly what the creator typed. A failed structure write only costs
+      // line ids and cue statuses, which the next parse rebuilds, so it stays quiet.
       saveDraft(doc.text)
-        .then(() => saveScriptStructure(doc))
+        .then(() => saveScriptStructure(doc).catch(() => {}))
         .catch(() => setSaveError('Could not save draft.'));
     }, 400);
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
@@ -98,7 +99,7 @@ export default function ScriptInput() {
             placeholder="Enter or paste your script…"
             placeholderTextColor="#525252"
             textAlignVertical="top"
-            className="bg-neutral-900 border border-neutral-800 text-white text-sm p-4 mt-3 min-h-[180px]"
+            className="bg-neutral-900 border border-neutral-800 text-white text-sm p-4 mt-3 min-h-[180px] max-h-[320px]"
           />
 
           {!!saveError && <Text className="text-red-300 text-xs mt-2">{saveError}</Text>}
