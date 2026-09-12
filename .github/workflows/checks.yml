@@ -1,20 +1,24 @@
-name: Checks
-on:
-  push:
-  pull_request:
+name: Source checks
+on: [push, pull_request]
 permissions:
   contents: read
 jobs:
-  shared-handoffs:
+  checks:
     runs-on: ubuntu-latest
+    env:
+      EXPO_NO_DOTENV: '1'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: '24'
           cache: npm
       - run: npm ci
       - run: npm run typecheck
+      - run: npm test
+      - run: npm run samples
+      - run: python3 tests/speech-evaluation.test.py
+      - run: python3 tools/speech-fixtures/run_synthetic.py
       - run: npm run test:samples
       - name: Bundle Android production JavaScript
         run: npx expo export --platform android --output-dir dist

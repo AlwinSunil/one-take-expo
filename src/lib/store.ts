@@ -2,6 +2,7 @@ import * as SQLite from 'expo-sqlite';
 import { Directory, File, Paths } from 'expo-file-system';
 
 import type { Project } from './session';
+import { normalizeProject } from './project-data';
 
 let db: Promise<SQLite.SQLiteDatabase> | null = null;
 
@@ -29,7 +30,11 @@ export async function saveProject(p: Project) {
   const destination = new File(directory, `${encodeURIComponent(p.id)}.mp4`);
   if (!destination.exists) {
     if (!source.exists) throw new Error('The recording file is missing.');
-    source.copy(destination);
+    if (Paths.availableDiskSpace < source.size + 10 * 1024 * 1024) throw new Error('Not enough storage to save this recording. Free some space and retry.');
+    const temporary = new File(directory, `${encodeURIComponent(p.id)}.part`);
+    if (temporary.exists) temporary.delete();
+    await source.copy(temporary);
+    await temporary.move(destination);
   }
   const saved = { ...p, videoUri: destination.uri };
   await d.runAsync('INSERT OR REPLACE INTO projects (id, data) VALUES (?, ?)', p.id, JSON.stringify(saved));
@@ -38,14 +43,36 @@ export async function saveProject(p: Project) {
 
 export async function listProjects(): Promise<Project[]> {
   const d = await getDb();
-  const rows = await d.getAllAsync<{ data: string }>('SELECT data FROM projects ORDER BY rowid DESC');
-  return rows.map((r) => JSON.parse(r.data) as Project);
+  const rows = await d.getAllAsync<{ id: string; data: string }>('SELECT id, data FROM projects ORDER BY rowid DESC');
+  return rows.map((r) => {
+    try { return checkMedia(normalizeProject(JSON.parse(r.data))); }
+    catch { return { id: r.id, mode: 'assisted' as const, videoUri: null, clips: [], transcript: [], createdAt: 0, recoveryMessage: 'This project has unreadable metadata. Its original files have not been deleted.' }; }
+  });
 }
 
 export async function getProject(id: string): Promise<Project | null> {
   const d = await getDb();
   const row = await d.getFirstAsync<{ data: string }>('SELECT data FROM projects WHERE id = ?', id);
-  return row ? (JSON.parse(row.data) as Project) : null;
+  return row ? checkMedia(normalizeProject(JSON.parse(row.data))) : null;
+}
+
+function checkMedia(project: Project): Project {
+  const missing = !project.videoUri || !new File(project.videoUri).exists;
+  return { ...project, mediaMissing: missing, recoveryMessage: missing ? 'The recording file is missing. Its transcript and edits are still saved.' : project.recoveryMessage };
+}
+
+export async function saveProjectMetadata(project: Project): Promise<void> {
+  const d = await getDb();
+  const preserved = new File(Paths.document, 'videos', `${encodeURIComponent(project.id)}.mp4`);
+  const metadata = preserved.exists ? { ...project, videoUri: preserved.uri } : project;
+  const result = await d.runAsync('UPDATE projects SET data = ? WHERE id = ?', JSON.stringify(metadata), project.id);
+  if (result.changes !== 1) throw new Error('This project is no longer available to update.');
+}
+
+export async function beginRecording(project: Project): Promise<void> {
+  const d = await getDb();
+  await d.runAsync('INSERT INTO projects (id, data) VALUES (?, ?)', project.id,
+    JSON.stringify({ ...project, recordingStatus: 'interrupted', recoveryMessage: 'Recording did not finish. Any usable original remains on this device.' }));
 }
 
 const DRAFT_KEY = 'script_draft';
