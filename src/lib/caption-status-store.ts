@@ -1,3 +1,7 @@
+// The repository convention, set by the other `src/lib` modules: a value
+// import carries the `.ts` extension because the tests run these sources
+// directly through Node, while a type-only import is erased before Node ever
+// resolves it and so does not need one.
 import { captionTimingReport, captionTimingState, type CaptionTimingReport } from './caption-timing.ts';
 import type { CaptionFailureReason, LiveCaptionStatus } from './live-caption-state';
 
