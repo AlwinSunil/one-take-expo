@@ -259,3 +259,20 @@ test('stale raw evidence is not relabeled with the current requirement revision'
   assert.equal(result.evidence.requirementRevision, 0);
   assert.equal(isCurrentMustSayEvidence(requirement, result.evidence), false);
 });
+
+test('merged script document ids carry must-say intent through edits, reorder and serialized reopen', async () => {
+  const { parseScript, moveLine, serializeScriptDocument, restoreScriptDocument } = await import('../src/lib/script-lines.ts');
+  let document = parseScript('First line.\nThis is sponsored. [show product]');
+  const disclosure = document.lines.find(line => line.spokenText === 'This is sponsored.');
+  let metadata = setMustSayEnabled(createMustSayMetadata(document.lines), disclosure.id, true);
+  document = moveLine(document, disclosure.id, -1);
+  metadata = reconcileMustSayMetadata(metadata, document.lines);
+  assert.equal(metadata.requirements.find(item => item.lineId === disclosure.id).enabled, true);
+  document = parseScript(document.text.replace('This is sponsored.', 'This video is sponsored.'), document);
+  metadata = reconcileMustSayMetadata(metadata, document.lines);
+  assert.equal(metadata.requirements.find(item => item.lineId === disclosure.id).revision, 1);
+  const reopened = restoreScriptDocument(document.text, serializeScriptDocument(document));
+  const restored = reconcileMustSayMetadata(deserializeMustSayMetadata(serializeMustSayMetadata(metadata)), reopened.lines);
+  assert.deepEqual(restored, metadata);
+  assert.equal(restored.requirements.find(item => item.lineId === disclosure.id).requiredText, 'This video is sponsored.');
+});
