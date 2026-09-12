@@ -17,15 +17,29 @@ internal object CaptionFailureReason {
   const val INITIALIZATION_FAILED = "initialization-failed"
   const val UNSUPPORTED_DEVICE = "unsupported-device"
   const val PERMISSION_DENIED = "permission-denied"
-  const val LIFECYCLE_INTERRUPTED = "lifecycle-interrupted"
   const val UNKNOWN = "unknown"
+
+  /**
+   * Interruptions the take survives. The next start clears them.
+   *
+   * `AUDIO_FOCUS_LOST` and `AUDIO_ROUTE_CHANGED` complete the wire contract
+   * with the TypeScript side; no `AudioManager` listener raises them yet, so
+   * only `LIFECYCLE_INTERRUPTED` is emitted today.
+   */
+  const val AUDIO_FOCUS_LOST = "audio-focus-lost"
+  const val AUDIO_ROUTE_CHANGED = "audio-route-changed"
+  const val LIFECYCLE_INTERRUPTED = "lifecycle-interrupted"
 
   /** Ordered most specific first: a checksum mismatch also names the model. */
   private val patterns = listOf(
     Regex("checksum mismatch|hash mismatch|corrupt") to MODEL_CORRUPT,
     Regex("model asset .* is unavailable|prepare_moonshine|install caption model|model directory") to MODEL_MISSING,
     Regex("permission") to PERMISSION_DENIED,
-    Regex("arm64|api 26|android 8|unsupported") to UNSUPPORTED_DEVICE,
+    // Anchored to the exact device-support sentences this module emits. A
+    // bare "unsupported" would also match an unsupported PCM encoding or
+    // channel count, which are retryable audio failures and must not tell
+    // the user their phone cannot run the model.
+    Regex("arm64|android api 26 or newer|android 8 or newer") to UNSUPPORTED_DEVICE,
   )
 
   fun classify(message: String?): String {

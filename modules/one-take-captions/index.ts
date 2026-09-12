@@ -1,11 +1,27 @@
 import { NativeModule, requireNativeModule } from 'expo-modules-core';
 import { Platform } from 'react-native';
 
-export type {
-  CaptionFailureReason,
-  CaptionInterruptionReason,
-  CaptionUnavailableReason,
-} from '@/lib/live-caption-state';
+/**
+ * Why recognition stopped producing text.
+ *
+ * These names are the wire contract with `CaptionFailureReason.kt`; the app
+ * imports them from here rather than the other way round.
+ */
+export type CaptionUnavailableReason =
+  | 'model-missing'
+  | 'model-corrupt'
+  | 'initialization-failed'
+  | 'unsupported-device'
+  | 'permission-denied'
+  | 'unknown';
+
+/** A failure the take survives, which the next start clears on its own. */
+export type CaptionInterruptionReason =
+  | 'audio-focus-lost'
+  | 'audio-route-changed'
+  | 'lifecycle-interrupted';
+
+export type CaptionFailureReason = CaptionUnavailableReason | CaptionInterruptionReason;
 
 /**
  * The wire status vocabulary emitted by the Kotlin module.

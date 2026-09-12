@@ -1,3 +1,14 @@
+// Type-only, so this does not pull the native module or React Native into a
+// plain Node test run. The reason vocabulary is the native module's wire
+// contract, so it is owned there and re-exported here for app consumers.
+import type {
+  CaptionFailureReason,
+  CaptionInterruptionReason,
+  CaptionUnavailableReason,
+} from '../../modules/one-take-captions';
+
+export type { CaptionFailureReason, CaptionInterruptionReason, CaptionUnavailableReason };
+
 export interface CaptionSegmentUpdate {
   id: string;
   t0: number;
@@ -43,6 +54,26 @@ export function mergeCaptionSegments(
     a.t0 - b.t0 || a.t1 - b.t1 || a.id.localeCompare(b.id));
 }
 
+/**
+ * Namespace a retried session's segment ids.
+ *
+ * A retry after a mid-take failure starts a new native session, and the
+ * recognizer restarts its segment ids from the beginning. Without a namespace
+ * those ids would collide with the utterances recognized before the failure
+ * and silently overwrite them. Attempt 0 is the first session and is left
+ * untouched, so an ordinary take keeps the ids the native module produced.
+ */
+export function namespaceCaptionSegments(
+  segments: readonly CaptionSegmentUpdate[],
+  attempt: number,
+): CaptionSegmentUpdate[] {
+  if (!Number.isInteger(attempt) || attempt < 0) {
+    throw new RangeError('Caption retry attempt must be a non-negative integer.');
+  }
+  if (attempt === 0) return [...segments];
+  return segments.map(segment => ({ ...segment, id: `r${attempt}:${segment.id}` }));
+}
+
 export interface CaptionReplayResult {
   sessionId: string;
   sequence: number;
@@ -79,21 +110,6 @@ export function replayCaptionSession(
     segments,
   };
 }
-
-export type CaptionUnavailableReason =
-  | 'model-missing'
-  | 'model-corrupt'
-  | 'initialization-failed'
-  | 'unsupported-device'
-  | 'permission-denied'
-  | 'unknown';
-
-export type CaptionInterruptionReason =
-  | 'audio-focus-lost'
-  | 'audio-route-changed'
-  | 'lifecycle-interrupted';
-
-export type CaptionFailureReason = CaptionUnavailableReason | CaptionInterruptionReason;
 
 export type LiveCaptionStatus =
   | 'idle'
@@ -150,7 +166,11 @@ const MESSAGE_REASONS: readonly [RegExp, CaptionFailureReason][] = [
   [/checksum mismatch|hash mismatch|corrupt/, 'model-corrupt'],
   [/model asset .* is unavailable|prepare_moonshine|install caption model|model directory/, 'model-missing'],
   [/permission/, 'permission-denied'],
-  [/arm64|api 26|android 8|unsupported/, 'unsupported-device'],
+  // Anchored to the exact device-support sentences the native module emits.
+  // A bare "unsupported" would also match failures such as an unsupported PCM
+  // encoding or channel count, which are retryable audio problems and must not
+  // tell the user their phone cannot run the model.
+  [/arm64|android api 26 or newer|android 8 or newer/, 'unsupported-device'],
   [/audio focus/, 'audio-focus-lost'],
   [/audio route|route change|headset|bluetooth/, 'audio-route-changed'],
   [/interrupt|background/, 'lifecycle-interrupted'],
@@ -204,8 +224,25 @@ export function reduceLiveCaptionStatus(
   const message = update.message || state.message;
 
   if (update.status === 'error' || update.status === 'interrupted') {
+    // The native module decides whether the take survives, so its status owns
+    // the interrupted/unavailable split. Classification only refines why.
     const failure = classifyCaptionFailure(update.reason, update.message);
-    return { sessionId: state.sessionId, ...failure, message };
+    if (update.status === 'interrupted') {
+      return {
+        sessionId: state.sessionId,
+        status: 'interrupted',
+        reason: isInterruption(failure.reason) ? failure.reason : 'lifecycle-interrupted',
+        message,
+        retryable: true,
+      };
+    }
+    return {
+      sessionId: state.sessionId,
+      status: 'unavailable',
+      reason: failure.reason,
+      message,
+      retryable: failure.retryable,
+    };
   }
 
   if (update.status === 'preparing' || update.status === 'listening' || update.status === 'delayed') {

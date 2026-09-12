@@ -27,6 +27,21 @@ class CaptionFailureReasonTest {
       CaptionFailureReason.UNSUPPORTED_DEVICE,
       CaptionFailureReason.classify("Moonshine live captions require an arm64-v8a device"),
     )
+    assertEquals(
+      CaptionFailureReason.UNSUPPORTED_DEVICE,
+      CaptionFailureReason.classify("Moonshine live captions require Android API 26 or newer"),
+    )
+  }
+
+  @Test fun anAudioFormatFailureIsNotBlamedOnTheDevice() {
+    assertEquals(
+      CaptionFailureReason.INITIALIZATION_FAILED,
+      CaptionFailureReason.classify("Unsupported PCM encoding: 4"),
+    )
+    assertEquals(
+      CaptionFailureReason.INITIALIZATION_FAILED,
+      CaptionFailureReason.classify("Audio track has an unsupported channel count"),
+    )
   }
 
   @Test fun anUnrecognizedFailureIsNotGivenAnInventedCause() {

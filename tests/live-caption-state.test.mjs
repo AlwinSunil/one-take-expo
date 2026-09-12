@@ -5,6 +5,7 @@ import {
   classifyCaptionFailure,
   liveCaptionSession,
   mergeCaptionSegments,
+  namespaceCaptionSegments,
   reduceCaption,
   reduceLiveCaptionStatus,
   replayCaptionSession,
@@ -146,4 +147,76 @@ test('replaying a session ignores stale sequences and other sessions', () => {
   assert.equal(replayed.isFinal, true);
   assert.equal(replayed.sequence, 2);
   assert.deepEqual(replayed.segments, [{ id: '1', t0: 0.2, t1: 2.2, text: 'The camera records clearly.', isFinal: true }]);
+});
+
+test('an audio format failure is retryable and does not blame the device', () => {
+  assert.deepEqual(
+    classifyCaptionFailure(undefined, 'Unsupported PCM encoding: 4'),
+    { status: 'unavailable', reason: 'initialization-failed', retryable: true },
+  );
+  assert.deepEqual(
+    classifyCaptionFailure(undefined, 'Audio track has an unsupported channel count'),
+    { status: 'unavailable', reason: 'initialization-failed', retryable: true },
+  );
+  // The two sentences the module actually emits about device support still
+  // classify as unsupported-device.
+  assert.equal(
+    classifyCaptionFailure(undefined, 'Moonshine live captions require Android API 26 or newer').reason,
+    'unsupported-device',
+  );
+  assert.equal(
+    classifyCaptionFailure(undefined, 'Offline captions require arm64 Android 8 or newer').reason,
+    'unsupported-device',
+  );
+});
+
+test('the native status decides the interrupted split even with no reason or message', () => {
+  const interrupted = reduceLiveCaptionStatus(liveCaptionSession('one'), {
+    sessionId: 'one',
+    status: 'interrupted',
+  });
+  assert.equal(interrupted.status, 'interrupted');
+  assert.equal(interrupted.reason, 'lifecycle-interrupted');
+  assert.equal(interrupted.retryable, true);
+
+  // A nonsensical pairing keeps the native split rather than the classified one.
+  const odd = reduceLiveCaptionStatus(liveCaptionSession('one'), {
+    sessionId: 'one',
+    status: 'interrupted',
+    reason: 'model-corrupt',
+  });
+  assert.equal(odd.status, 'interrupted');
+  assert.equal(odd.reason, 'lifecycle-interrupted');
+
+  const failed = reduceLiveCaptionStatus(liveCaptionSession('one'), {
+    sessionId: 'one',
+    status: 'error',
+    message: 'The audio route changed during recording',
+  });
+  assert.equal(failed.status, 'unavailable');
+  assert.equal(failed.reason, 'audio-route-changed');
+});
+
+test('a retry keeps the utterances recognized before the failure', () => {
+  const beforeFailure = [
+    { id: '1', t0: 0.4, t1: 2.1, text: 'The light is low.', isFinal: true },
+    { id: '2', t0: 2.6, t1: 4.2, text: 'And the room is quiet.', isFinal: true },
+  ];
+  // The retried native session restarts its segment ids from the beginning.
+  const afterRetry = [{ id: '1', t0: 6.1, t1: 7.8, text: 'Reading the third line.', isFinal: true }];
+
+  const resumed = mergeCaptionSegments(beforeFailure, namespaceCaptionSegments(afterRetry, 1));
+  assert.deepEqual(resumed.map(segment => segment.text), [
+    'The light is low.',
+    'And the room is quiet.',
+    'Reading the third line.',
+  ]);
+  assert.deepEqual(resumed.map(segment => segment.id), ['1', '2', 'r1:1']);
+
+  // Without the namespace the retried session would silently overwrite the
+  // first utterance, which is the regression this guards.
+  assert.equal(mergeCaptionSegments(beforeFailure, afterRetry).length, 2);
+
+  assert.deepEqual(namespaceCaptionSegments(afterRetry, 0), afterRetry);
+  assert.throws(() => namespaceCaptionSegments(afterRetry, -1), RangeError);
 });
