@@ -1,9 +1,13 @@
-:root {
-  --font-display:
-    Spline Sans, Inter, ui-sans-serif, system-ui, sans-serif, Apple Color Emoji, Segoe UI Emoji,
-    Segoe UI Symbol, Noto Color Emoji;
-  --font-mono:
-    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, Courier New, monospace;
-  --font-rounded: 'SF Pro Rounded', 'Hiragino Maru Gothic ProN', Meiryo, 'MS PGothic', sans-serif;
-  --font-serif: Georgia, 'Times New Roman', serif;
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * { font-family: Inter_400Regular; }
+}
+
+@layer utilities {
+  .font-medium { font-family: Inter_500Medium; font-weight: normal; }
+  .font-semibold { font-family: Inter_600SemiBold; font-weight: normal; }
+  .font-bold { font-family: Inter_700Bold; font-weight: normal; }
 }
