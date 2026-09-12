@@ -1,5 +1,5 @@
 import { getSetting, saveSetting } from './store.ts';
-import { restoreScriptDocument, serializeScriptDocument, type ScriptDocument } from './script-lines.ts';
+import { restoreScriptDocumentFrom, serializeScriptDocument, type ScriptDocument } from './script-lines.ts';
 
 /**
  * Line ids and cue statuses live beside the raw draft under their own key in the
@@ -12,9 +12,12 @@ export async function saveScriptStructure(document: ScriptDocument): Promise<voi
   await saveSetting(STRUCTURE_KEY, serializeScriptDocument(document));
 }
 
-/** Rebuild the draft from the raw text, which always wins, plus whatever structure survived. */
+/**
+ * Rebuild the draft from the raw text, which always wins, plus whatever structure
+ * survived. A failed structure read is absorbed, so it can never cost the script.
+ */
 export async function loadScriptDocument(text: string): Promise<ScriptDocument> {
-  return restoreScriptDocument(text, await getSetting(STRUCTURE_KEY));
+  return restoreScriptDocumentFrom(text, () => getSetting(STRUCTURE_KEY));
 }
 
 export async function clearScriptStructure(): Promise<void> {

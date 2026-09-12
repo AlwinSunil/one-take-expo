@@ -35,11 +35,18 @@ export default function ScriptInput() {
 
   useEffect(() => {
     let cancelled = false;
+    // Autosave only starts once the saved draft has actually been read. If that read
+    // fails, the debounce must not run, or it would write an empty script over it.
     getDraft()
       .then(draft => loadScriptDocument(draft))
-      .then(restored => { if (!cancelled && restored.text) setDoc(restored); })
-      .catch(() => {})
-      .finally(() => { if (!cancelled) setLoaded(true); });
+      .then(restored => {
+        if (cancelled) return;
+        if (restored.text) setDoc(restored);
+        setLoaded(true);
+      })
+      .catch(() => {
+        if (!cancelled) setSaveError('Could not open your saved draft, so nothing typed here is being saved automatically.');
+      });
     return () => { cancelled = true; };
   }, []);
 
