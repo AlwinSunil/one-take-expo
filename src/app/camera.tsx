@@ -1,7 +1,8 @@
 import { CameraType, CameraView, useCameraPermissions, useMicrophonePermissions } from 'expo-camera';
 import { useEvent } from 'expo';
+import { Paths } from 'expo-file-system';
 import { useKeepAwake } from 'expo-keep-awake';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useFocusEffect, useIsFocused, useLocalSearchParams } from 'expo-router';
 import { useVideoPlayer, VideoView, type VideoThumbnail } from 'expo-video';
 import { Image } from 'expo-image';
 import { ArrowLeft, Images, ChevronLeft, ChevronRight, Grid3X3, SlidersHorizontal, SwitchCamera, X, Sparkles } from 'lucide-react-native';
@@ -11,8 +12,21 @@ import { projectScriptLines } from '@/lib/project-workflow';
 import { useLiveCaptions } from '@/hooks/use-live-captions';
 import { LOCAL_VIDEO_BUFFER } from '@/lib/video-buffer';
 import { LiveCaptions } from '@/components/captions/live-captions';
+import { useVision } from '@/features/vision/use-vision';
+import { CaptureSuggestions } from '@/features/coach/capture-suggestions';
+import type { CoachIntent, CoachVisionEvidence } from '@/features/coach/policy';
+import {
+  captureFailureMessage,
+  classifyCaptureFailure,
+  createStopLatch,
+  describeCapturePermissions,
+  inspectCaptureStorage,
+  type CaptureFailureKind,
+  type CaptureStorageCheck,
+  type CaptureStopReason,
+} from '@/features/capture/reliability';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, AppState, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import {
   PinchGestureHandler,
@@ -79,18 +93,31 @@ function clamp01(v: number) {
 
 const ZOOM_STOPS = [0, 0.25, 0.5];
 
+type CapturePhase = 'idle' | 'preparing' | 'recording' | 'saving';
+
+function readCaptureStorage(): CaptureStorageCheck {
+  try {
+    return inspectCaptureStorage(Paths.availableDiskSpace);
+  } catch {
+    return inspectCaptureStorage(undefined);
+  }
+}
+
 
 export default function CameraScreen() {
   useKeepAwake();
   const { mode, script } = useLocalSearchParams<{ mode?: string; script?: string }>();
   const isScript = mode === 'script';
-  const [cameraPermission, requestCamera] = useCameraPermissions();
-  const [micPermission, requestMic] = useMicrophonePermissions();
+  const isFocused = useIsFocused();
+  const [cameraPermission, requestCamera, getCameraPermission] = useCameraPermissions();
+  const [micPermission, requestMic, getMicPermission] = useMicrophonePermissions();
   const camera = useRef<CameraView>(null);
   const captions = useLiveCaptions();
-  const activeScreen = useRef(true);
+  const activeScreen = useRef(AppState.currentState === 'active' && isFocused);
   const recordingGeneration = useRef(0);
   const busy = useRef(false);
+  const capturePhase = useRef<CapturePhase>('idle');
+  const stopLatch = useRef(createStopLatch());
   const startedAt = useRef(0);
   const [recording, setRecording] = useState(false);
   const [preparing, setPreparing] = useState(false);
@@ -108,29 +135,80 @@ export default function CameraScreen() {
   const [previewDuration, setPreviewDuration] = useState(0);
   const [lastUri, setLastUri] = useState<string | null>(null);
   const [recordedProject, setRecordedProject] = useState<Project | null>(null);
+  const [captureMode, setCaptureMode] = useState<'pending' | 'live' | 'record-only'>('pending');
+  const [storageCheck, setStorageCheck] = useState<CaptureStorageCheck>(() => readCaptureStorage());
+  const [cameraMountFailure, setCameraMountFailure] = useState<CaptureFailureKind | null>(null);
+  const [cameraRetry, setCameraRetry] = useState(0);
+  const [requestingPermission, setRequestingPermission] = useState(false);
+  const [appInForeground, setAppInForeground] = useState(AppState.currentState === 'active');
+  const [coachEnabled, setCoachEnabled] = useState(true);
+  const [shotIntent, setShotIntent] = useState<CoachIntent>('talking-head');
+  const vision = useVision({
+    enabled: isFocused && appInForeground && previewUri === null
+      && !!cameraPermission?.granted && !!micPermission?.granted,
+    ready,
+    lensFacing: facing,
+    recording: preparing || recording || saving,
+  });
+  // Face presence alone cannot certify lighting, background, or visible crop.
+  const coachEvidence: CoachVisionEvidence = vision.evidence.status === 'pending'
+    ? { status: 'pending', reason: 'model-loading' }
+    : vision.evidence.status === 'ready'
+      ? { status: 'ready', frameCapturedAtMs: vision.evidence.frameCapturedAtMs, observations: {} }
+      : { status: 'unavailable', reason: 'unknown' };
+  const permissionRequesting = useRef(false);
+  const captionStatus = useRef(captions.status);
+  const captionMessage = useRef(captions.message);
+  captionStatus.current = captions.status;
+  captionMessage.current = captions.message;
   const interrupted = useRef(false);
   const chunks = (script ?? '').match(/[^.!?\n]+[.!?]?/g)?.map(s => s.trim()).filter(Boolean) ?? [];
 
-  useEffect(() => {
+  const refreshDeviceState = useCallback(() => {
+    setStorageCheck(readCaptureStorage());
+    void Promise.all([getCameraPermission(), getMicPermission()]).catch(() => {});
+  }, [getCameraPermission, getMicPermission]);
+
+  const stopActiveCapture = useCallback((reason: CaptureStopReason) => {
+    const phase = capturePhase.current;
+    if (phase !== 'preparing' && phase !== 'recording') return;
+    if (reason !== 'user') interrupted.current = true;
+    if (!stopLatch.current.request(reason)) return;
+    if (phase === 'preparing') recordingGeneration.current++;
+    if (reason === 'storage') setError(captureFailureMessage('storage'));
+    if (reason !== 'user' && reason !== 'storage') setError(captureFailureMessage('interrupted'));
+    setSaving(true);
+    camera.current?.stopRecording();
+    void captions.stop().catch(() => {});
+  }, [captions.stop]);
+
+  useFocusEffect(useCallback(() => {
     activeScreen.current = AppState.currentState === 'active';
+    refreshDeviceState();
+    return () => {
+      activeScreen.current = false;
+      setReady(false);
+      stopActiveCapture('screen-blur');
+    };
+  }, [refreshDeviceState, stopActiveCapture]));
+
+  useEffect(() => {
+    activeScreen.current = AppState.currentState === 'active' && isFocused;
     const subscription = AppState.addEventListener('change', state => {
-      activeScreen.current = state === 'active';
+      setAppInForeground(state === 'active');
+      activeScreen.current = state === 'active' && isFocused;
       if (state !== 'active') {
-        if (busy.current) interrupted.current = true;
-        recordingGeneration.current++;
-        if (busy.current) camera.current?.stopRecording();
-        void captions.stop().catch(() => {});
+        stopActiveCapture('interruption');
+      } else {
+        refreshDeviceState();
       }
     });
     return () => {
       activeScreen.current = false;
-      if (busy.current) interrupted.current = true;
       recordingGeneration.current++;
       subscription.remove();
-      camera.current?.stopRecording();
-      void captions.stop().catch(() => {});
     };
-  }, [captions.stop]);
+  }, [isFocused, refreshDeviceState, stopActiveCapture]);
 
   const settingsLoaded = useRef(false);
   useEffect(() => {
@@ -174,6 +252,25 @@ export default function CameraScreen() {
     return () => clearInterval(id);
   }, [recording]);
 
+  useEffect(() => {
+    if (captions.status === 'error') setCaptureMode('record-only');
+  }, [captions.status]);
+
+  useEffect(() => {
+    if (!recording) return;
+    const checkStorage = () => {
+      const next = readCaptureStorage();
+      setStorageCheck(next);
+      if (next.state === 'blocked' && !stopLatch.current.requested) {
+        stopActiveCapture('storage');
+        setError(next.message);
+      }
+    };
+    checkStorage();
+    const id = setInterval(checkStorage, 1000);
+    return () => clearInterval(id);
+  }, [recording, stopActiveCapture]);
+
   const zoomRef = useRef(zoom);
   useEffect(() => { zoomRef.current = zoom; }, [zoom]);  const pinchBase = useRef(0);
   function onPinchState(e: PinchGestureHandlerStateChangeEvent) {
@@ -184,33 +281,64 @@ export default function CameraScreen() {
   }
 
   async function record() {
-    if (busy.current) {
-      setSaving(true);
-      camera.current?.stopRecording();
-      void captions.stop().catch(() => {});
+    if (capturePhase.current === 'preparing' || capturePhase.current === 'recording') {
+      stopActiveCapture('user');
       return;
     }
-    if (!ready || !camera.current) return;
+    if (busy.current || !ready || !camera.current || !activeScreen.current) return;
     busy.current = true;
     interrupted.current = false;
-    const project: Project = { id: `recording-${Date.now()}`, mode: isScript ? 'script' : 'assisted',
-      script: isScript && typeof script === 'string' ? script : undefined,
-      videoUri: null, transcript: [], clips: [], createdAt: Date.now(), schemaVersion: 2 };
+    capturePhase.current = 'preparing';
+    stopLatch.current.reset();
     const generation = ++recordingGeneration.current;
     setSeconds(0); setError(''); setPreparing(true);
+    setCaptureMode('pending');
     let captionFailure: string | undefined;
     try {
+      const [latestCamera, latestMic] = await Promise.all([getCameraPermission(), getMicPermission()]);
+      const permissions = describeCapturePermissions(latestCamera, latestMic);
+      if (stopLatch.current.requested || !activeScreen.current || generation !== recordingGeneration.current) return;
+      if (permissions.state !== 'ready') {
+        setError(permissions.message);
+        return;
+      }
+
+      const storage = readCaptureStorage();
+      setStorageCheck(storage);
+      if (!storage.canRecord) {
+        setError(storage.message);
+        return;
+      }
+
+      const project: Project = { id: `recording-${Date.now()}`, mode: isScript ? 'script' : 'assisted',
+        script: isScript && typeof script === 'string' ? script : undefined,
+        videoUri: null, transcript: [], clips: [], createdAt: Date.now(), schemaVersion: 2 };
       await beginRecording(project);
+      if (stopLatch.current.requested || !activeScreen.current || generation !== recordingGeneration.current) return;
       const startResult = await captions.start();
-      if (!startResult.ok) captionFailure = startResult.message;
-      if (!activeScreen.current || generation !== recordingGeneration.current || !camera.current) return;
+      if (!startResult.ok) {
+        captionFailure = startResult.message;
+        setCaptureMode('record-only');
+      } else {
+        setCaptureMode('live');
+      }
+      if (stopLatch.current.requested || !activeScreen.current || generation !== recordingGeneration.current || !camera.current) return;
+      capturePhase.current = 'recording';
       setPreparing(false);
       startedAt.current = Date.now();
       setRecording(true);
       const result = await camera.current.recordAsync();
       if (!result) throw new Error('No video was returned. Please try again.');
       const duration = (Date.now() - startedAt.current) / 1000;
+      capturePhase.current = 'saving';
       setSaving(true);
+      // Make the returned original discoverable before waiting for analysis.
+      // If the process stops during caption cleanup, Projects can recover it.
+      await saveProjectMetadata({ ...project, videoUri: result.uri, duration,
+        recordingStatus: 'interrupted',
+        recoveryMessage: 'The original is available. Saving or analysis did not finish; review this take in Projects.',
+        transcript: captions.transcript.current,
+      });
       let transcript = captions.transcript.current;
       try {
         transcript = await captions.stop();
@@ -221,12 +349,23 @@ export default function CameraScreen() {
         captionFailure = e instanceof Error && e.message ? e.message : 'Could not finish captions.';
         transcript = captions.transcript.current;
       }
+      if (captionStatus.current === 'error') {
+        captionFailure ??= captionMessage.current || 'Live captions became unavailable.';
+        setCaptureMode('record-only');
+      }
+      const stopReason = stopLatch.current.reason;
+      const wasInterrupted = interrupted.current || stopReason === 'interruption' || stopReason === 'storage'
+        || stopReason === 'screen-blur' || stopReason === 'cleanup';
       const recoveryMessages = [
-        interrupted.current ? 'Recording was interrupted. Review this take before using it.' : undefined,
+        wasInterrupted
+          ? stopReason === 'storage'
+            ? captureFailureMessage('storage')
+            : captureFailureMessage('interrupted')
+          : undefined,
         captionFailure ? `Live captions need recovery: ${captionFailure} Recheck the saved audio in the editor.` : undefined,
       ].filter((value): value is string => !!value);
       const captured: Project = { ...project, videoUri: result.uri, duration,
-        recordingStatus: interrupted.current ? 'interrupted' : 'complete',
+        recordingStatus: wasInterrupted ? 'interrupted' : 'complete',
         recoveryMessage: recoveryMessages.length ? recoveryMessages.join(' ') : undefined,
         scriptLines: isScript ? projectScriptLines(project) : undefined,
         transcript: transcript.map(segment => ({ ...segment, rawText: segment.text, timingSource: 'live-estimate' as const })),
@@ -242,10 +381,19 @@ export default function CameraScreen() {
       setLastUri(saved.videoUri);
       saveSetting('last_video_uri', saved.videoUri!).catch(() => {});
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Recording failed. Please try again.');
+      const classified = classifyCaptureFailure(e);
+      const kind: CaptureFailureKind = classified === 'storage'
+        ? 'storage'
+        : interrupted.current || stopLatch.current.reason === 'interruption' || stopLatch.current.reason === 'screen-blur'
+          ? 'interrupted'
+          : classified;
+      if (kind === 'camera-busy') setCameraMountFailure(kind);
+      setError(captureFailureMessage(kind));
     } finally {
       setSaving(true);
       await captions.stop().catch(() => {});
+      capturePhase.current = 'idle';
+      stopLatch.current.reset();
       busy.current = false; setRecording(false); setSaving(false); setPreparing(false);
     }
   }
@@ -284,37 +432,62 @@ export default function CameraScreen() {
     }
   }
 
-  const camBlocked = !!cameraPermission && !cameraPermission.granted && !cameraPermission.canAskAgain;
-  const micBlocked = !!micPermission && !micPermission.granted && !micPermission.canAskAgain;
-  const settingsBlocked = camBlocked || micBlocked;
+  const permissionDescription = describeCapturePermissions(cameraPermission, micPermission);
 
-  if (!cameraPermission?.granted || !micPermission?.granted) return (
+  async function requestAccess() {
+    if (permissionRequesting.current || permissionDescription.state !== 'requestable') return;
+    permissionRequesting.current = true;
+    setRequestingPermission(true);
+    setError('');
+    try {
+      await requestCamera();
+      await requestMic();
+      await Promise.all([getCameraPermission(), getMicPermission()]);
+    } catch {
+      setError('Could not update camera permissions. Open Settings and try again.');
+    } finally {
+      permissionRequesting.current = false;
+      setRequestingPermission(false);
+    }
+  }
+
+  if (permissionDescription.state !== 'ready') return (
     <SafeAreaView className="flex-1 bg-black items-center justify-center px-6">
       <StatusBar style="light" />
-      <Text className="text-white text-base text-center">Camera and microphone access</Text>
+      <Text className="text-white text-base text-center">{permissionDescription.title}</Text>
       <Text className="text-neutral-400 text-sm text-center mt-2 leading-6">
-        One Take needs the camera for video and the microphone for audio. Recording is impossible without both.
+        {permissionDescription.message}
       </Text>
-      {settingsBlocked ? (
+      {permissionDescription.action === 'settings' ? (
         <Pressable className="bg-white rounded-full px-6 py-4 mt-5" onPress={() => Linking.openSettings()}>
           <Text className="text-black font-semibold">Open Settings</Text>
         </Pressable>
-      ) : (
-        <Pressable className="bg-white rounded-full px-6 py-4 mt-5" onPress={async () => {
-          await requestCamera(); await requestMic();
-        }}><Text className="text-black font-semibold">Allow access</Text></Pressable>
-      )}
+      ) : permissionDescription.action === 'request' ? (
+        <Pressable disabled={requestingPermission} className="bg-white rounded-full px-6 py-4 mt-5" onPress={requestAccess}>
+          <Text className="text-black font-semibold">{requestingPermission ? 'Checking access…' : 'Allow access'}</Text>
+        </Pressable>
+      ) : null}
+      {!!error && <Text accessibilityRole="alert" className="text-red-300 text-xs text-center mt-4">{error}</Text>}
+      {permissionDescription.state === 'loading' && <Text className="text-neutral-500 text-xs text-center mt-4">Please wait a moment.</Text>}
       <Pressable onPress={() => router.push('/projects')} className="p-4"><Text className="text-neutral-400">View projects</Text></Pressable>
       <Pressable onPress={() => router.back()} className="p-4"><Text className="text-neutral-400">Back</Text></Pressable>
     </SafeAreaView>
   );
 
+  const storageBlocked = storageCheck.state === 'blocked';
+
   return <SafeAreaView className="flex-1 bg-black">
     <StatusBar style="light" />
     <View className="flex-1 overflow-hidden bg-neutral-950">
-        <CameraView ref={camera} style={StyleSheet.absoluteFill} facing={facing} mode="video"
+        {isFocused ? <CameraView key={cameraRetry} ref={camera} style={StyleSheet.absoluteFill} facing={facing} mode="video"
           videoQuality={videoQuality} zoom={zoom}
-          onCameraReady={() => setReady(true)} onMountError={event => { setReady(false); setError(event.message); }} />
+          onCameraReady={() => { setReady(true); if (cameraMountFailure) { setCameraMountFailure(null); setError(''); } }}
+          onMountError={event => {
+            const kind = classifyCaptureFailure(event.message);
+            setReady(false);
+            setCameraMountFailure(kind);
+            setError(captureFailureMessage(kind));
+          }} /> : <View style={StyleSheet.absoluteFill} />}
     <View className="flex-row items-center justify-between px-4 h-16 bg-black/40">
       <IconButton icon="arrow_back" label="Back" disabled={preparing || recording || saving} onPress={() => router.back()} />
       <Text className="text-white text-xs tracking-widest">{isScript ? 'SCRIPT' : 'ASSISTED'}</Text>
@@ -331,9 +504,20 @@ export default function CameraScreen() {
           {[1, 2].map(n => <View key={`h${n}`} style={{ position: 'absolute', top: `${n * 100 / 3}%`, left: 0, right: 0, borderTopWidth: StyleSheet.hairlineWidth, borderColor: '#ffffff55' }} />)}
         </View>}
         <View className="self-center mt-4 bg-white rounded px-3 py-1.5">
-          <Text className="text-black text-xs font-bold">{preparing ? 'PREPARING CAPTIONS' : recording ? `${saving ? 'SAVING' : 'REC'}  ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}` : `VIDEO · ${videoQuality}`}</Text>
+          <Text className="text-black text-xs font-bold">{preparing ? 'PREPARING CAPTIONS' : recording ? `${captureMode === 'record-only' ? 'RECORD-ONLY · ' : ''}${saving ? 'SAVING' : 'REC'}  ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}` : `VIDEO · ${videoQuality}`}</Text>
         </View>
         {(preparing || recording) && <LiveCaptions text={captions.text} isFinal={captions.isFinal} status={captions.status} />}
+        {(preparing || recording) && captureMode === 'record-only' && <Text accessibilityRole="alert" className="self-center mt-2 rounded bg-amber-950/90 px-3 py-1.5 text-center text-amber-200 text-xs">RECORD-ONLY · Live analysis unavailable. Video and camera audio will still be saved.</Text>}
+        <View pointerEvents="none" className="self-center mx-3 mt-2 rounded-lg bg-black/70 px-3 py-2">
+          <Text className="text-neutral-200 text-xs text-center">
+            {vision.status === 'ready' && vision.faceStable
+              ? vision.facePresence === 'present' ? 'Face detected' : 'No face detected'
+              : vision.status === 'pending' ? 'Checking framing' : 'Framing unavailable'}
+            {vision.device?.batteryPercent != null ? ` · Battery ${vision.device.batteryPercent}%` : ''}
+            {vision.device && vision.device.thermalStatus !== 'none' && vision.device.thermalStatus !== 'unknown'
+              ? ` · Phone ${['light', 'moderate'].includes(vision.device.thermalStatus) ? 'warm' : 'hot'}` : ''}
+          </Text>
+        </View>
         {isScript && <View className="absolute bottom-3 left-3 right-3 bg-black/70 rounded-xl px-3 py-2">
           <Text numberOfLines={2} className="text-white text-base leading-6">{chunks[chunk] ?? 'No script'}</Text>
           <View className="flex-row justify-between items-center">
@@ -349,6 +533,8 @@ export default function CameraScreen() {
 
     <View className="w-full self-center px-4" style={{ maxWidth: 520 }}>
       {!!error && <Text accessibilityRole="alert" numberOfLines={3} className="text-red-300 text-xs text-center py-2">{error}</Text>}
+      {(storageCheck.state === 'warning' || storageCheck.state === 'blocked') && <Text accessibilityRole="alert" numberOfLines={3} className="text-amber-200 text-xs text-center pb-2">{storageCheck.message}</Text>}
+      {!!cameraMountFailure && <Pressable accessibilityRole="button" accessibilityLabel="Retry camera" onPress={() => { setCameraMountFailure(null); setReady(false); setError(''); setCameraRetry(value => value + 1); }} className="self-center rounded-lg bg-neutral-900 border border-neutral-700 px-4 py-2 mb-2 active:opacity-70"><Text className="text-neutral-200 text-xs font-semibold">Retry camera</Text></Pressable>}
       <View className="flex-row items-center border-b border-neutral-800 py-2">
         <View className="flex-1 items-center"><IconButton icon="grid_3x3" label={grid ? 'Hide grid' : 'Show grid'} onPress={() => setGrid(v => !v)} /></View>
         <View className="flex-1 items-center border-l border-neutral-800"><Pressable accessibilityRole="button" accessibilityLabel="Change zoom" onPress={() => setZoom(v => {
@@ -361,13 +547,13 @@ export default function CameraScreen() {
         <View className="flex-1 items-center border-l border-neutral-800"><IconButton icon="tune" label="Camera settings" disabled={preparing || recording || saving} onPress={() => setSheet('settings')} /></View>
       </View>
       <View className="flex-row items-center py-5">
-        <Pressable accessibilityRole="button" accessibilityLabel="Visual Suggestions" onPress={() => setSheet('suggestions')} className="flex-1 items-center py-2 active:opacity-60">
+        <Pressable accessibilityRole="button" accessibilityLabel="Visual Suggestions" disabled={preparing || recording || saving} accessibilityState={{ disabled: preparing || recording || saving }} onPress={() => setSheet('suggestions')} className="flex-1 items-center py-2 active:opacity-60" style={{ opacity: preparing || recording || saving ? 0.4 : 1 }}>
           <View className="bg-amber-400 rounded-full px-5 py-2"><Sparkles size={20} strokeWidth={1.75} color="black" /></View>
           <Text className="text-neutral-400 text-[10px] mt-2 tracking-widest">SUGGESTIONS</Text>
         </Pressable>
         <View className="flex-1 items-center">
-          <Pressable accessibilityRole="button" accessibilityLabel={preparing ? 'Preparing captions' : recording ? 'Stop recording' : 'Start recording'} disabled={!ready || preparing || saving} onPress={record}
-            style={{ width: 84, height: 64, borderRadius: 40, borderWidth: 3, borderColor: 'white', padding: 5, opacity: !ready || preparing || saving ? 0.4 : 1 }}>
+          <Pressable accessibilityRole="button" accessibilityLabel={preparing ? 'Cancel recording preparation' : recording ? 'Stop recording' : 'Start recording'} disabled={!ready || saving || storageBlocked} onPress={record}
+            style={{ width: 84, height: 64, borderRadius: 40, borderWidth: 3, borderColor: 'white', padding: 5, opacity: !ready || saving || storageBlocked ? 0.4 : 1 }}>
             <View style={{ flex: 1, borderRadius: recording ? 10 : 32, backgroundColor: recording ? '#ef4444' : 'white', margin: recording ? 7 : 0 }} />
           </Pressable>
         </View>
@@ -387,7 +573,16 @@ export default function CameraScreen() {
               <Text className="text-neutral-300 text-sm mt-3">Maximum recording quality</Text>
               <Text className="text-neutral-500 text-xs mt-2 leading-5">Applies to the recorded file, not the live preview. Unsupported qualities fall back to the highest available.</Text>
               <View className="flex-row flex-wrap gap-2 mt-4">{(['2160p', '1080p', '720p', '480p'] as const).map(value => <Pressable key={value} onPress={() => { setVideoQuality(value); setSheet(null); }} className={`rounded-lg px-3 py-2 ${videoQuality === value ? 'bg-white' : 'bg-neutral-900'}`}><Text className={`text-xs ${videoQuality === value ? 'text-black' : 'text-white'}`}>{value}</Text></Pressable>)}</View>
-            </> : <Text className="text-neutral-400 text-sm leading-6 mt-3">Visual analysis is not connected yet. Suggestions will appear here once the on-device vision engine is available.</Text>}
+            </> : <CaptureSuggestions enabled={coachEnabled} onEnabledChange={setCoachEnabled}
+              intent={shotIntent} onIntentChange={setShotIntent} evidence={coachEvidence} nowMs={vision.nowMs} />}
+            {__DEV__ && sheet === 'suggestions' && <View className="mt-4 border-t border-neutral-800 pt-4">
+              <Text className="text-neutral-400 text-xs">Engine diagnostics · Debug only</Text>
+              <Text selectable className="text-neutral-500 text-xs leading-5 mt-2">
+                {vision.diagnostics
+                  ? `Engine: ${vision.diagnostics.engine ?? 'unknown'}\nProcessor: ${vision.diagnostics.processor ?? 'unknown'}\nNPU: ${vision.diagnostics.npuStatus ?? 'unavailable'}\n${vision.diagnostics.npuUnavailableReason ?? ''}\nFrames: ${vision.diagnostics.framesProcessed ?? 0}\nInference p95: ${vision.diagnostics.p95InferenceMs ?? 'unknown'} ms`
+                  : 'Diagnostics unavailable in this build.'}
+              </Text>
+            </View>}
           </ScrollView>
         </SafeAreaView>
       </View>
@@ -396,12 +591,13 @@ export default function CameraScreen() {
       <SafeAreaView className="flex-1 bg-black">
         <StatusBar style="light" />
         <View className="flex-row items-center justify-between px-4 h-16">
-          <Text className="text-white text-xs tracking-widest">PREVIEW · {videoQuality}</Text>
+          <Text className="text-white text-xs tracking-widest">{recordedProject?.recordingStatus === 'interrupted' ? 'REVIEW INTERRUPTED TAKE' : 'PREVIEW'} · {videoQuality}</Text>
           <IconButton icon="close" label="Discard recording" disabled={saving} onPress={() => setPreviewUri(null)} />
         </View>
         <View className="flex-1 px-4">
           {previewUri && <PreviewPlayer key={previewUri} uri={previewUri} />}
         </View>
+        {!!recordedProject?.recoveryMessage && <Text accessibilityRole="alert" className="text-amber-200 text-sm px-4 pt-3">{recordedProject.recoveryMessage}</Text>}
         {!!error && <Text accessibilityRole="alert" className="text-red-300 text-sm px-4 pt-3">{error}</Text>}
         <View className="flex-row gap-2 px-4 py-5" style={{ maxWidth: 520, width: '100%', alignSelf: 'center' }}>
           <Pressable disabled={saving} accessibilityRole="button" accessibilityLabel="Retake video" onPress={() => setPreviewUri(null)} className="flex-1 bg-neutral-900 border border-neutral-800 rounded-xl py-3.5 active:opacity-70">

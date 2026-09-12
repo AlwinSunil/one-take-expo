@@ -126,6 +126,19 @@ test('keeps unsupported lighting and background analysis honest', () => {
   assert.match(result.message, /unavailable|paused/i);
 });
 
+test('shows a measured cue when a later requested cue is unavailable', () => {
+  const result = chooseCoachView(input({
+    evidence: readyEvidence({
+      'face-clipping': observation('issue', 'selected-face', COACH_THRESHOLDS.issueStableMs, { confidence: 0.99 }),
+      backlight: { state: 'unsupported', reason: 'camera-calibration-pending' },
+      'background-distraction': { state: 'unsupported', reason: 'selected-subject-model-pending' },
+    }),
+  }));
+
+  assert.equal(result.kind, 'prompt');
+  assert.equal(result.cue, 'face-clipping');
+});
+
 test('never accepts an uncalibrated issue as a real automatic cue', () => {
   const result = chooseCoachView(input({
     evidence: readyEvidence({

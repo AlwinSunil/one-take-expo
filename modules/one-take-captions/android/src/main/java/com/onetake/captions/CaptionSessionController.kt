@@ -69,7 +69,7 @@ internal class CaptionSessionController(
   private var current: Session? = null
   private var closed = false
   private var closeJob: Job? = null
-  private var lastResult: Pair<String, List<Map<String, Any>>>? = null
+  private var lastResult: Pair<String, CaptionStopResult>? = null
   fun isActive(): Boolean = synchronized(lock) { current != null }
 
   /** Resolves after the model and microphone are ready for camera recording. */
@@ -123,7 +123,7 @@ internal class CaptionSessionController(
     val shouldStop: Boolean
     synchronized(lock) {
       when (state.stop(sessionId)) {
-        CaptionSessionState.StopResult.AlreadyStopped -> return lastResult?.takeIf { it.first == sessionId }?.second ?: emptyList()
+        CaptionSessionState.StopResult.AlreadyStopped -> return lastResult?.takeIf { it.first == sessionId }?.second?.transcriptOrThrow() ?: emptyList()
         CaptionSessionState.StopResult.Stale -> {
           throw IllegalArgumentException("Stale caption session: $sessionId")
         }
@@ -143,14 +143,14 @@ internal class CaptionSessionController(
 
     if (!shouldStop) {
       awaitStop(session)
-      return session.transcript
+      return CaptionStopResult(session.transcript, session.failureMessage).transcriptOrThrow()
     }
 
     session.microphone.requestStop()
     session.preparationJob?.cancel()
     scheduleCleanup(session)
     awaitStop(session)
-    return session.transcript
+    return CaptionStopResult(session.transcript, session.failureMessage).transcriptOrThrow()
   }
 
   /** Called by Expo activity lifecycle callbacks. */
@@ -334,7 +334,7 @@ internal class CaptionSessionController(
         false
       } else {
         session.stopCompleted = true
-        lastResult = session.id to session.transcript
+        lastResult = session.id to CaptionStopResult(session.transcript, session.failureMessage)
         state.finish(session.id)
         if (current === session) current = null
         // Keep stopped ahead of any subsequent session's preparing event.

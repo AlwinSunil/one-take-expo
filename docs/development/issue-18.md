@@ -206,3 +206,10 @@ npm run typecheck
 These checks exercise policy timing, stale frames, invalid evidence, intent suppression, speech quieting, dismissal, cooldown, all-good, and pending/unavailable states.
 
 They do not establish camera-frame, NPU, thermal, A/V, or integrated recording correctness.
+
+## Camera integration
+
+The Suggestions sheet now renders the intent picker, enable switch, automatic-cue availability, and manual setup tips.
+The sheet cannot be opened during preparation, recording, or saving, so it cannot cover an active read.
+The shared vision hook supplies real face presence, but no calibrated composition cue is inferred from that alone.
+Automatic cues therefore remain unavailable until the producer supplies the measured evidence required by this policy.
