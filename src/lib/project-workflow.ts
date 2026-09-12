@@ -1,5 +1,5 @@
 import type { Project, TranscriptSeg } from './session';
-import { createScriptLine, createTranscriptSegment, deriveReviewState } from './transcript-workflow.ts';
+import { createScriptLine, createTranscriptSegment, deriveReviewState, type WorkflowInput } from './transcript-workflow.ts';
 
 export function projectSegments(project: Project) {
   return project.transcript.filter(s => s.t1 > s.t0).map((s, i) => createTranscriptSegment({
@@ -16,12 +16,37 @@ export function projectScriptLines(project: Project) {
 export function projectReview(project: Project) {
   const segments = projectSegments(project);
   const lines = projectScriptLines(project);
-  return deriveReviewState({ lines, segments, decisions: project.reviewDecisions,
+  const unclearIds = new Set(project.transcript.filter(segment => segment.t1 > segment.t0)
+    .flatMap((segment, index) => segment.needsListening ? [segment.id || `${project.id}:${index}`] : []));
+  const pendingUris = new Set(project.recordings?.filter(recording => recording.evidenceStatus === 'pending').map(recording => recording.mediaUri));
+  return deriveScopedReview({ lines, segments, decisions: project.reviewDecisions,
     silences: project.quietIntervals?.map((s, i) => ({ ...s, id: `${project.id}:quiet:${i}`, verifiedBoundary: false })),
-    takes: segments.map(s => ({ id: `take:${s.id}`, t0: s.t0, t1: s.t1, mediaUri: project.videoUri,
-      playable: !!project.videoUri && !project.mediaMissing, quality: project.transcript.find(segment => segment.id === s.id)?.needsListening ? 'scratched' as const : 'clean' as const,
+    takes: project.takes?.map(take => ({ ...take, quality: take.quality === 'clean' && take.transcriptSegmentIds.some(id => unclearIds.has(id)) ? 'scratched' as const : take.quality, playable: take.playable && !pendingUris.has(take.mediaUri ?? '') && !project.unavailableTakeIds?.includes(take.id) })) ?? segments.map(s => ({ id: `take:${s.id}`, t0: s.t0, t1: s.t1, mediaUri: project.videoUri,
+      playable: !!project.videoUri && !project.mediaMissing, quality: unclearIds.has(s.id) ? 'scratched' as const : 'clean' as const,
       inFrame: false, transcriptSegmentIds: [s.id] })),
   });
+}
+
+/** Scope limits coverage eligibility, never the source audio interval or transcript history. */
+export function deriveScopedReview(input: WorkflowInput) {
+  const baseline = deriveReviewState(input);
+  const scoped = input.takes as NonNullable<Project['takes']>;
+  if (!scoped.some(take => take.eligibleLineIds !== undefined)) return baseline;
+  const groups = new Map<string, ReturnType<typeof deriveReviewState>>();
+  const lines = baseline.lines.map((line, lineIndex) => {
+    const indices = scoped.flatMap((take, index) => take.eligibleLineIds === undefined || take.eligibleLineIds.includes(line.id) ? [index] : []);
+    if (indices.length === scoped.length) return line;
+    const key = indices.join(',');
+    let group = groups.get(key);
+    if (!group) {
+      group = deriveReviewState({ ...input, takes: indices.map(index => scoped[index]) });
+      groups.set(key, group);
+    }
+    return group.lines[lineIndex];
+  });
+  return { ...baseline, lines,
+    safeToWrap: lines.every(line => line.status === 'covered') && baseline.unresolvedRequiredActionCueIds.length === 0,
+  };
 }
 
 /** Different recognition jobs may segment audio differently; IDs are not cross-job identities. */
@@ -89,4 +114,11 @@ function validateRefinementPayload(value: unknown): TranscriptSeg[] {
     }
     return { ...segment };
   });
+}
+
+export function toggleCaptionListening(project: Project, segmentId: string | number): Project {
+  const index = typeof segmentId === 'number' ? segmentId : project.transcript.findIndex(segment => segment.id === segmentId);
+  if (!Number.isInteger(index) || index < 0 || index >= project.transcript.length) throw new Error('This caption is no longer available.');
+  return { ...project, cuts: undefined, reviewSegments: undefined, cutsReviewed: false,
+    transcript: project.transcript.map((segment, position) => position === index ? { ...segment, needsListening: !segment.needsListening } : segment) };
 }

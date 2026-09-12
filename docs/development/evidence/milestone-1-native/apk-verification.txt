@@ -1,0 +1,4 @@
+native: 3 packaged SHA-256 hashes match
+models: 8 packaged SHA-256 hashes match
+refinementSmall: 8 packaged SHA-256 hashes match
+APK contains the verified arm64 Moonshine Tiny Streaming artifacts.

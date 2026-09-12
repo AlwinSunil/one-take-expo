@@ -1,0 +1,12 @@
+{
+  "at": "2026-09-12T22:28:25.027Z",
+  "lines": [
+    "Start production 8-second two-source export tier0-1789252102936",
+    "PASS completed in 1051 ms: file:/data/user/0/com.anonymous.onetake/files/exports/tier0-1789252102936.mp4",
+    "PASS active export deletion settled",
+    "PASS missing source rejected",
+    "PASS gallery save content://media/external/video/media/165",
+    "PASS native output and app-created gallery copy deletion",
+    "PASS original preserved"
+  ]
+}

@@ -4,7 +4,7 @@ export function normalizeProject(value: unknown): Project {
   if (!value || typeof value !== 'object') throw new Error('Project data is unreadable.');
   const p = value as Project;
   if (typeof p.id !== 'string' || !p.id || !['script', 'assisted'].includes(p.mode)) throw new Error('Project identity is invalid.');
-  for (const key of ['scriptLines', 'reviewDecisions', 'rawTranscript', 'refinementCandidate', 'cuts', 'quietIntervals'] as const) {
+  for (const key of ['scriptLines', 'reviewDecisions', 'rawTranscript', 'refinementCandidate', 'cuts', 'quietIntervals', 'takes', 'recordings', 'reviewSegments'] as const) {
     if (p[key] !== undefined && !Array.isArray(p[key])) throw new Error(`Project ${key} data is unreadable.`);
   }
   if (p.scriptLines?.some(line =>
@@ -15,6 +15,28 @@ export function normalizeProject(value: unknown): Project {
     || line.actionCues.some(cue => !isValidActionCue(cue))
   )) throw new Error('Project script lines are unreadable.');
   if (p.cuts?.some(cut => !cut || !Number.isFinite(cut.t0) || !Number.isFinite(cut.t1) || cut.t0 < 0 || cut.t1 <= cut.t0)) throw new Error('Project cuts are unreadable.');
+  if (p.takes?.some(take => !take || typeof take.id !== 'string' || !take.id
+    || !Number.isFinite(take.t0) || !Number.isFinite(take.t1) || take.t0 < 0 || take.t1 <= take.t0
+    || (take.mediaUri !== null && typeof take.mediaUri !== 'string')
+    || typeof take.playable !== 'boolean' || typeof take.inFrame !== 'boolean'
+    || !['clean', 'scratched', 'flub'].includes(take.quality)
+    || !Array.isArray(take.transcriptSegmentIds) || take.transcriptSegmentIds.some(id => typeof id !== 'string')
+    || (take.eligibleLineIds !== undefined && (!Array.isArray(take.eligibleLineIds) || take.eligibleLineIds.some(id => typeof id !== 'string')))
+    || (take.lineIds !== undefined && (!Array.isArray(take.lineIds) || take.lineIds.some(id => typeof id !== 'string')))
+  )) throw new Error('Project takes are unreadable.');
+  if (p.pickupRequest && (!Array.isArray(p.pickupRequest.lineIds)
+    || p.pickupRequest.lineIds.some(id => typeof id !== 'string')
+    || !Number.isFinite(p.pickupRequest.requestedAt))) throw new Error('Project pickup request is unreadable.');
+  if (p.recordings?.some(recording => !recording || typeof recording.id !== 'string' || !recording.id
+    || typeof recording.mediaUri !== 'string' || !recording.mediaUri || !Number.isFinite(recording.duration) || recording.duration < 0
+    || !Number.isFinite(recording.createdAt)
+    || (recording.evidenceStatus !== undefined && !['pending', 'complete'].includes(recording.evidenceStatus)))) throw new Error('Project recordings are unreadable.');
+  if (p.recordings && new Set(p.recordings.map(recording => recording.id)).size !== p.recordings.length) throw new Error('Project recording identities are duplicated.');
+  if (p.reviewSegments?.some(segment => !segment || typeof segment.uri !== 'string' || !segment.uri
+    || !Number.isFinite(segment.t0) || !Number.isFinite(segment.t1) || segment.t0 < 0 || segment.t1 <= segment.t0
+    || (segment.captions !== undefined && (!Array.isArray(segment.captions) || segment.captions.some(caption => !caption
+      || typeof caption.text !== 'string' || !Number.isFinite(caption.t0) || !Number.isFinite(caption.t1)
+      || caption.t0 < 0 || caption.t1 <= caption.t0))))) throw new Error('Project review segments are unreadable.');
   const transcript = Array.isArray(p.transcript) ? p.transcript.filter((s): s is TranscriptSeg =>
     !!s && typeof s.text === 'string' && Number.isFinite(s.t0) && Number.isFinite(s.t1) && s.t0 >= 0 && s.t1 >= s.t0,
   ) : [];
@@ -44,4 +66,102 @@ function isValidActionCue(value: unknown): value is {
     && cue.text.trim().length > 0
     && typeof cue.required === 'boolean'
     && typeof cue.resolved === 'boolean';
+}
+
+export const PENDING_PICKUP_MESSAGE = 'A pickup recording is safely saved, but its captions and coverage did not finish. Review the raw recording or record those lines again.';
+
+export interface PickupRecordingInput {
+  videoUri: string;
+  duration: number;
+  transcript: Project['transcript'];
+  takes: NonNullable<Project['takes']>;
+  eligibleLineIds?: string[];
+  evidenceStatus?: 'pending' | 'complete';
+}
+
+/** Source times stay relative to each recording; only identities are namespaced. */
+export function mergePickupRecording(project: Project, recordingId: string, input: PickupRecordingInput, createdAt: number): Project {
+  const existing = project.recordings?.find(recording => recording.id === recordingId);
+  if (existing && (existing.evidenceStatus !== 'pending' || input.evidenceStatus === 'pending')) return project;
+  if (existing && existing.mediaUri !== input.videoUri) throw new Error('This pickup evidence belongs to a different recording.');
+  if (input.evidenceStatus === 'pending' && (input.transcript.length || input.takes.length)) throw new Error('A media checkpoint cannot claim finalized caption or take evidence.');
+  if (!recordingId || !Number.isFinite(input.duration) || input.duration <= 0 || !input.videoUri) throw new Error('The pickup recording is incomplete.');
+  const segmentIds = new Map<string, string>();
+  const transcript = input.transcript.map((segment, index) => {
+    const oldId = segment.id ?? `segment:${index}`;
+    if (segmentIds.has(oldId)) throw new Error('The pickup contains duplicate caption identities.');
+    const id = `${recordingId}:caption:${encodeURIComponent(oldId)}`;
+    segmentIds.set(oldId, id);
+    if (!Number.isFinite(segment.t0) || !Number.isFinite(segment.t1) || segment.t0 < 0 || segment.t1 <= segment.t0 || segment.t1 > input.duration || typeof segment.text !== 'string') throw new Error('The pickup caption timing is invalid.');
+    return { ...segment, id, recordingId };
+  });
+  const takeIds = new Set<string>();
+  const takes = input.takes.map(take => {
+    if (take.mediaUri && take.mediaUri !== input.videoUri) throw new Error('A pickup can only reference its own recording.');
+    if (takeIds.has(take.id)) throw new Error('The pickup contains duplicate take identities.');
+    takeIds.add(take.id);
+    if (take.t0 < 0 || take.t1 > input.duration || !Number.isFinite(take.t0) || !Number.isFinite(take.t1) || take.t1 <= take.t0) throw new Error('The pickup take timing is invalid.');
+    const references = take.transcriptSegmentIds.map(id => {
+      const mapped = segmentIds.get(id);
+      if (!mapped) throw new Error('A pickup take references an unknown caption.');
+      const segment = transcript.find(segment => segment.id === mapped)!;
+      if (segment.t0 < take.t0 || segment.t1 > take.t1) throw new Error('A pickup caption falls outside its take audio interval.');
+      return mapped;
+    });
+    return { ...take, eligibleLineIds: input.eligibleLineIds ? [...new Set(input.eligibleLineIds)] : take.eligibleLineIds, id: `${recordingId}:take:${encodeURIComponent(take.id)}`, mediaUri: input.videoUri, transcriptSegmentIds: references, recordedAt: createdAt };
+  });
+  const legacyTranscript = project.transcript.map((segment, index) => ({ ...segment, id: segment.id || `${project.id}:legacy:${index}` }));
+  const legacyTakes = project.takes ?? legacyTranscript.filter(segment => segment.t1 > segment.t0).map(segment => ({
+    id: `take:${segment.id}`, t0: segment.t0, t1: segment.t1, mediaUri: project.videoUri,
+    playable: !!project.videoUri, quality: segment.needsListening ? 'scratched' as const : 'clean' as const,
+    inFrame: false, transcriptSegmentIds: [segment.id], recordedAt: project.createdAt,
+  }));
+  const existingIds = new Set([...legacyTranscript.map(segment => segment.id), ...legacyTakes.map(take => take.id)]);
+  if ([...transcript, ...takes].some(item => existingIds.has(item.id))) throw new Error('This pickup identity is already in use.');
+  const primary = project.videoUri ? [{ id: `${project.id}:original`, mediaUri: project.videoUri,
+    duration: project.duration ?? Math.max(0, ...legacyTranscript.map(segment => segment.t1), ...legacyTakes.map(take => take.t1)), createdAt: project.createdAt }] : [];
+  return normalizeProject({ ...project,
+    recordings: existing
+      ? project.recordings!.map(recording => recording.id === recordingId ? { ...recording, duration: input.duration, evidenceStatus: 'complete' as const } : recording)
+      : [...(project.recordings ?? primary), { id: recordingId, mediaUri: input.videoUri, duration: input.duration, createdAt, evidenceStatus: input.evidenceStatus ?? 'complete' }],
+    transcript: [...legacyTranscript, ...transcript], takes: [...legacyTakes, ...takes],
+    pickupRequest: input.evidenceStatus === 'pending' ? project.pickupRequest : undefined, cutsReviewed: false, reviewSegments: undefined,
+    recoveryMessage: existing?.evidenceStatus === 'pending' && project.recoveryMessage === PENDING_PICKUP_MESSAGE ? undefined : project.recoveryMessage,
+    captionRevision: (project.captionRevision ?? 0) + 1,
+  });
+}
+
+/** An editor opened before a pickup must not overwrite newly attached history. */
+export function preserveNewRecordings(current: Project, incoming: Project): Project {
+  const known = new Map(incoming.recordings?.map(recording => [recording.id, recording]) ?? []);
+  const added = current.recordings?.filter(recording => !known.has(recording.id)
+    || (known.get(recording.id)?.evidenceStatus === 'pending' && recording.evidenceStatus !== 'pending')) ?? [];
+  if (!added.length) return incoming;
+  const addedIds = new Set(added.map(recording => recording.id));
+  const addedUris = new Set(added.filter(recording => recording.mediaUri !== incoming.videoUri).map(recording => recording.mediaUri));
+  const captionIds = new Set(incoming.transcript.map(segment => segment.id));
+  const takes = incoming.takes ?? current.takes ?? [];
+  const takeIds = new Set(takes.map(take => take.id));
+  return { ...incoming,
+    recordings: [...(incoming.recordings ?? []).filter(recording => !addedIds.has(recording.id)), ...added],
+    transcript: [...incoming.transcript, ...current.transcript.filter(segment => segment.recordingId && addedIds.has(segment.recordingId) && !captionIds.has(segment.id))],
+    takes: [...takes, ...(current.takes ?? []).filter(take => take.mediaUri && addedUris.has(take.mediaUri) && !takeIds.has(take.id))],
+    cutsReviewed: false, reviewSegments: undefined, pickupRequest: current.pickupRequest,
+    recoveryMessage: incoming.recoveryMessage === PENDING_PICKUP_MESSAGE && !current.recordings?.some(recording => recording.evidenceStatus === 'pending')
+      ? current.recoveryMessage === PENDING_PICKUP_MESSAGE ? undefined : current.recoveryMessage
+      : incoming.recoveryMessage,
+    captionRevision: Math.max(current.captionRevision ?? 0, incoming.captionRevision ?? 0),
+  };
+}
+
+
+/** A durable file copy does not mean capture or recognition finished successfully. */
+export function projectWithDurableOriginal(project: Project, videoUri: string): Project {
+  return { ...project, videoUri,
+    takes: project.takes?.map(take => take.mediaUri === project.videoUri ? { ...take, mediaUri: videoUri } : take),
+    recordingStatus: project.recordingStatus === 'interrupted' ? 'interrupted' : 'complete',
+    recoveryMessage: project.recordingStatus === 'interrupted'
+      ? project.recoveryMessage || 'Recording did not finish. The available original is safely saved for review.'
+      : undefined,
+  };
 }

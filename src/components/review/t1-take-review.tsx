@@ -2,11 +2,11 @@ import { useMemo, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import type { Project } from '@/lib/session';
 import { projectReview } from '@/lib/project-workflow';
-import { canReviewFootage, chooseReviewTake } from '@/lib/t1-review';
+import { canReviewFootage, chooseReviewTake, takeFootage } from '@/lib/t1-review';
 
 export function Tier1TakeReview({ project, onChange, onPreview }: {
   project: Project; onChange: (project: Project) => Promise<void>;
-  onPreview: (range: { t0: number; t1: number }) => void;
+  onPreview: (range: { recordingId: string; t0: number; t1: number }) => void;
 }) {
   const review = useMemo(() => projectReview(project), [project]);
   const [error, setError] = useState('');
@@ -27,7 +27,7 @@ export function Tier1TakeReview({ project, onChange, onPreview }: {
       {line.candidateTakeIds.map(id => {
         const take = review.takes.find(item => item.id === id);
         if (!take) return null;
-        const playable = take.playable && canReviewFootage(project, { recordingId: project.id, t0: take.t0, t1: take.t1 });
+        const playable = take.playable && canReviewFootage(project, takeFootage(project, take));
         const flags = reasons.filter(reason => reason?.takeId === id && typeof reason.message === 'string');
         return <View key={id} className="py-2">
           <Text className="text-neutral-300">{take.t0.toFixed(1)}–{take.t1.toFixed(1)} seconds · {playable ? 'Available' : 'Media unavailable'}</Text>
@@ -40,7 +40,7 @@ export function Tier1TakeReview({ project, onChange, onPreview }: {
           </View>)}
           <Pressable accessibilityRole="button" disabled={!playable || busy} className="py-3 disabled:opacity-40" onPress={async () => {
             setBusy(true); setError('');
-            try { await onChange(chooseReviewTake(project, line.id, id)); onPreview(take); }
+            try { await onChange(chooseReviewTake(project, line.id, id)); onPreview(takeFootage(project, take)); }
             catch (e) { setError(e instanceof Error ? e.message : 'Could not save take choice.'); }
             finally { setBusy(false); }
           }}><Text className="text-white">{line.selectedTakeId === id ? 'Selected · preview' : 'Choose and preview take'}</Text></Pressable>

@@ -11,6 +11,15 @@ Run the dependency-free fixture check from the repository root:
 python3 tools/speech-fixtures/run_synthetic.py
 ```
 
+Run the coverage verdict report, which sends the deterministic coverage scenarios and every fixture row through the real coverage domain:
+
+```sh
+npm run coverage:report
+```
+
+It prints precision and recall per coverage verdict and is labeled `synthetic fixtures, not human held-out data`.
+It exits non-zero when a scenario replay disagrees with itself or a fixture row receives the wrong verdict.
+
 Inspect the full report with:
 
 ```sh

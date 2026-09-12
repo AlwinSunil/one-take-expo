@@ -1,0 +1,34 @@
+{
+  "synthetic": true,
+  "name": "noisy-read",
+  "sessionId": "noisy-read",
+  "description": "The same two lines read over background noise. Recognition revises itself more often, falls behind once, and reports a delayed state before catching up.",
+  "capturedDurationMs": 9200,
+  "events": [
+    {"atMs": 1240, "sessionId": "noisy-read", "sequence": 1, "text": "the light", "isFinal": false, "segments": [{"id": "n1", "t0": 0.7, "t1": 1.2, "text": "the light", "isFinal": false}]},
+    {"atMs": 1870, "sessionId": "noisy-read", "sequence": 2, "text": "the light is loud", "isFinal": false, "segments": [{"id": "n1", "t0": 0.7, "t1": 1.8, "text": "the light is loud", "isFinal": false}]},
+    {"atMs": 1880, "sessionId": "quiet-read", "sequence": 99, "text": "The light is low.", "isFinal": true, "segments": [{"id": "q1", "t0": 0.6, "t1": 2.1, "text": "The light is low.", "isFinal": true}]},
+    {"atMs": 4260, "sessionId": "noisy-read", "sequence": 3, "text": "The light is low.", "isFinal": true, "segments": [{"id": "n1", "t0": 0.7, "t1": 2.3, "text": "The light is low.", "isFinal": true}]},
+    {"atMs": 5510, "sessionId": "noisy-read", "sequence": 1, "text": "the light", "isFinal": false},
+    {"atMs": 6180, "sessionId": "noisy-read", "sequence": 4, "text": "and the room is", "isFinal": false, "segments": [{"id": "n2", "t0": 5.4, "t1": 6.1, "text": "and the room is", "isFinal": false}]},
+    {"atMs": 7640, "sessionId": "noisy-read", "sequence": 5, "text": "And the room is noisy.", "isFinal": true, "segments": [{"id": "n2", "t0": 5.4, "t1": 7.2, "text": "And the room is noisy.", "isFinal": true}]}
+  ],
+  "statusEvents": [
+    {"atMs": 0, "sessionId": "noisy-read", "status": "preparing"},
+    {"atMs": 710, "sessionId": "noisy-read", "status": "listening"},
+    {"atMs": 3400, "sessionId": "noisy-read", "status": "delayed"},
+    {"atMs": 4900, "sessionId": "noisy-read", "status": "listening"},
+    {"atMs": 8900, "sessionId": "noisy-read", "status": "stopping"},
+    {"atMs": 9200, "sessionId": "noisy-read", "status": "stopped"}
+  ],
+  "timingEvents": [
+    {"utteranceId": "n1", "stage": "speech-end", "at": 2300},
+    {"utteranceId": "n1", "stage": "pause-detected", "at": 2620},
+    {"utteranceId": "n1", "stage": "final-segment", "at": 4260},
+    {"utteranceId": "n1", "stage": "coverage-verdict", "at": 4480},
+    {"utteranceId": "n2", "stage": "speech-end", "at": 7200},
+    {"utteranceId": "n2", "stage": "pause-detected", "at": 7480},
+    {"utteranceId": "n2", "stage": "final-segment", "at": 7640},
+    {"utteranceId": "n2", "stage": "coverage-verdict", "at": 7790}
+  ]
+}

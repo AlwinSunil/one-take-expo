@@ -1,7 +1,27 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 
 import captions, { type CaptionSegment } from '../../modules/one-take-captions';
-import { captionState, reduceCaption } from '@/lib/live-caption-state';
+import {
+  captionStatusStore,
+  type CaptureCaptionStatus,
+} from '@/lib/caption-status-store';
+import {
+  captionTimingReport,
+  captionTimingState,
+  reduceCaptionTiming,
+  selectNewTimingLines,
+  streamElapsedMs,
+  timingAdjustedStatus,
+  type CaptionTimingStage,
+} from '@/lib/caption-timing';
+import {
+  captionState,
+  liveCaptionSession,
+  mergeCaptionSegments,
+  namespaceCaptionSegments,
+  reduceCaption,
+  reduceLiveCaptionStatus,
+} from '@/lib/live-caption-state';
 
 let nextSession = 0;
 
@@ -20,27 +40,98 @@ function describeError(error: unknown, fallback: string) {
 
 export function useLiveCaptions() {
   const [caption, setCaption] = useState(() => captionState(''));
-  const [status, setStatus] = useState('idle');
-  const [message, setMessage] = useState('');
-  const session = useRef<string | null>(null);
+  const [session, setSession] = useState(() => liveCaptionSession(''));
+  const [timing, setTiming] = useState(captionTimingState);
+  const sessionId = useRef<string | null>(null);
+  // Every stage timestamp is milliseconds on the audio-stream clock, whose
+  // origin is the moment the native module reported `listening`. Segment end
+  // times already use that clock; anchoring at `start()` instead would add the
+  // whole preparation interval to pause detection.
+  const streamStart = useRef<number | null>(null);
+  const sourceStartedAt = useRef<number | null>(null);
+  const warnedMissingStreamStart = useRef(false);
   const mounted = useRef(true);
   const transcript = useRef<CaptionSegment[]>([]);
   const stopRequest = useRef<StopRequest | null>(null);
   const acceptedSequence = useRef(-1);
-  const segmentHistory = useRef(new Map<string, CaptionSegment>());
+  const finalized = useRef(new Set<string>());
+  const loggedLines = useRef(new Set<string>());
+  // Zero for the first attempt of a take; incremented by each retry so the
+  // retried session's segment ids cannot overwrite what was already
+  // recognized.
+  const attempt = useRef(0);
+  // Utterances recognized by earlier attempts of the take in progress. The
+  // native stop result only describes the current session, so these are
+  // re-merged rather than being replaced by it.
+  const carried = useRef<CaptionSegment[]>([]);
+  const retryOffset = useRef(0);
 
-  function retainSegments(segments: readonly CaptionSegment[]) {
-    for (const segment of segments) {
-      if (typeof segment.id === 'string' && segment.id.length > 0) {
-        // Events are accepted in sequence order, so a later occurrence of an
-        // id is the latest revision of that utterance, including its finality
-        // and timing.
-        segmentHistory.current.set(segment.id, segment);
+  const report = useMemo(() => captionTimingReport(timing), [timing]);
+
+  /**
+   * Record one stage observation on the session clock.
+   *
+   * Only `final-segment` and `speech-end` have a native source today: the
+   * arrival of the revision that finalizes a segment, and that segment's own
+   * end time.  `pause-detected` and `coverage-verdict` come from this lane's
+   * endpointing and coverage passes through `noteCaptionTiming`, so nothing
+   * here estimates a stage that was never observed.
+   */
+  const recordTiming = useCallback((utteranceId: string, stage: CaptionTimingStage, at: number | null) => {
+    if (at === null) {
+      if (!warnedMissingStreamStart.current) {
+        warnedMissingStreamStart.current = true;
+        console.warn(`caption-timing: dropped utterance=${utteranceId} stage=${stage} before audio stream start was known`);
       }
+      return;
     }
-    transcript.current = [...segmentHistory.current.values()].sort((a, b) =>
-      a.t0 - b.t0 || a.t1 - b.t1 || a.id.localeCompare(b.id));
-  }
+    let rejection: string | null = null;
+    setTiming(previous => {
+      try {
+        return reduceCaptionTiming(previous, { utteranceId, stage, at: Math.max(0, Math.round(at)) });
+      } catch (error) {
+        // Reported outside the updater, which React may run twice.
+        rejection = describeError(error, 'invalid event');
+        return previous;
+      }
+    });
+    if (rejection) console.warn(`caption-timing: rejected utterance=${utteranceId} stage=${stage} ${rejection}`);
+  }, []);
+
+  /**
+   * Report a stage the recognizer cannot observe, such as a coverage verdict.
+   *
+   * `at` is milliseconds on the audio-stream clock. Omit it to use now.
+   */
+  const noteCaptionTiming = useCallback((utteranceId: string, stage: CaptionTimingStage, at?: number) => {
+    if (!sessionId.current) return;
+    recordTiming(utteranceId, stage, at ?? streamElapsedMs(Date.now(), streamStart.current));
+  }, [recordTiming]);
+
+  const retainSegments = useCallback((segments: readonly CaptionSegment[]) => {
+    const owned = namespaceCaptionSegments(segments, attempt.current);
+    transcript.current = mergeCaptionSegments(
+      transcript.current,
+      namespaceCaptionSegments(segments, attempt.current, retryOffset.current),
+    );
+    const elapsed = streamElapsedMs(Date.now(), streamStart.current);
+    // Timing remains on the native session clock, without the transcript offset.
+    for (const segment of owned) {
+      if (!segment?.isFinal || finalized.current.has(segment.id)) continue;
+      finalized.current.add(segment.id);
+      recordTiming(segment.id, 'speech-end', segment.t1 * 1_000);
+      recordTiming(segment.id, 'final-segment', elapsed);
+    }
+  }, [recordTiming]);
+
+  const fail = useCallback((id: string, message: string, reason?: string) => {
+    setSession(previous => reduceLiveCaptionStatus(previous, {
+      sessionId: id,
+      status: 'error',
+      message,
+      reason,
+    }));
+  }, []);
 
   /**
    * Finish one native session exactly once.
@@ -54,7 +145,7 @@ export function useLiveCaptions() {
     if (existing?.id === id) return existing.promise;
 
     if (!captions) {
-      if (session.current === id) session.current = null;
+      if (sessionId.current === id) sessionId.current = null;
       return Promise.resolve(transcript.current);
     }
 
@@ -62,55 +153,82 @@ export function useLiveCaptions() {
     promise = (async () => {
       try {
         const result = await captions.stop(id);
-        if (session.current === id && Array.isArray(result)) {
-          segmentHistory.current.clear();
+        if (sessionId.current === id && Array.isArray(result)) {
+          transcript.current = carried.current;
           retainSegments(result);
         }
         return transcript.current;
       } catch (error) {
-        if (mounted.current && session.current === id) {
-          setStatus('error');
-          setMessage(describeError(error, 'Could not finish captions.'));
+        if (mounted.current && sessionId.current === id) {
+          fail(id, describeError(error, 'Could not finish captions.'));
         }
         throw error;
       } finally {
         // Keep stopRequest so a second caller observes the same rejection or
         // result. A later start clears it after it has observed completion.
-        if (session.current === id) session.current = null;
+        if (sessionId.current === id) sessionId.current = null;
       }
     })();
     stopRequest.current = { id, promise };
     return promise;
-  }, []);
+  }, [fail, retainSegments]);
 
   useEffect(() => {
     mounted.current = true;
     const textListener = captions?.addListener('onCaption', update => {
-      if (!mounted.current || update.sessionId !== session.current || update.sequence <= acceptedSequence.current) return;
+      if (!mounted.current || update.sessionId !== sessionId.current || update.sequence <= acceptedSequence.current) return;
       acceptedSequence.current = update.sequence;
       if (Array.isArray(update.segments)) retainSegments(update.segments);
       setCaption(previous => reduceCaption(previous, update));
     });
     const statusListener = captions?.addListener('onStatus', update => {
-      if (mounted.current && update.sessionId === session.current) {
-        setStatus(previous => previous === 'error' && update.status === 'stopped' ? previous : update.status);
-        if (update.message) setMessage(update.message);
+      if (mounted.current && update.sessionId === sessionId.current) {
+        // The microphone stream exists from this point, so this is the origin
+        // every stage timestamp is measured against.
+        if (update.status === 'listening' && streamStart.current === null) {
+          streamStart.current = Date.now();
+          sourceStartedAt.current ??= streamStart.current;
+          if (attempt.current > 0) retryOffset.current = Math.max(retryOffset.current, (streamStart.current - sourceStartedAt.current) / 1000);
+        }
+        setSession(previous => reduceLiveCaptionStatus(previous, update));
       }
     });
     return () => {
       mounted.current = false;
       textListener?.remove();
       statusListener?.remove();
-      const id = session.current;
+      const id = sessionId.current;
       if (id) void stopSession(id).catch(() => {});
     };
-  }, [stopSession]);
+  }, [retainSegments, stopSession]);
 
-  const start = useCallback(async (): Promise<LiveCaptionStartResult> => {
+  // Pause detection, recognition finalization and coverage processing are
+  // logged separately so a slow stage can be identified from a device log.
+  useEffect(() => {
+    // Selection is by line identity, not by count: utterances reach their
+    // coverage verdict in a different order from the one they were first
+    // observed in, so slicing would drop and repeat lines.
+    for (const entry of selectNewTimingLines(report, loggedLines.current)) {
+      loggedLines.current.add(entry.key);
+      console.log(entry.line);
+    }
+  }, [report]);
+
+  /**
+   * Start one native caption session.
+   *
+   * `resume` keeps the transcript, timing and retry counter of the take in
+   * progress. It is used by `retry()` after a mid-take failure, where the
+   * video recording never stopped and the utterances already recognized must
+   * survive into the saved project.
+   */
+  const start = useCallback(async (
+    { resume = false }: { resume?: boolean } = {},
+  ): Promise<LiveCaptionStartResult> => {
     // A new native run must not overlap an earlier stop. In normal camera use
     // this is already serialized by the recording state, but this also makes
     // retries and React cleanup safe.
-    const previousId = session.current;
+    const previousId = sessionId.current;
     if (previousId) {
       try {
         await stopSession(previousId);
@@ -130,21 +248,33 @@ export function useLiveCaptions() {
     }
 
     const id = `${Date.now()}-${++nextSession}`;
-    session.current = id;
+    sessionId.current = id;
+    streamStart.current = null;
+    if (!resume) sourceStartedAt.current = null;
+    warnedMissingStreamStart.current = false;
     setCaption(captionState(id));
-    setMessage('');
-    setStatus('preparing');
-    transcript.current = [];
+    // A fresh session clears any earlier unavailable or interrupted state,
+    // which is how an interruption recovers on the next start.
+    setSession(liveCaptionSession(id));
     acceptedSequence.current = -1;
-    segmentHistory.current.clear();
+    if (resume) {
+      attempt.current += 1;
+      carried.current = transcript.current;
+      retryOffset.current = carried.current.reduce((end, segment) => Math.max(end, segment.t1), 0);
+    } else {
+      attempt.current = 0;
+      retryOffset.current = 0;
+      carried.current = [];
+      setTiming(captionTimingState());
+      loggedLines.current.clear();
+      transcript.current = [];
+      finalized.current.clear();
+    }
 
     if (!captions) {
       const message = 'Live captions require the Android development build.';
-      session.current = null;
-      if (mounted.current) {
-        setStatus('error');
-        setMessage(message);
-      }
+      sessionId.current = null;
+      if (mounted.current) fail(id, message, 'unsupported-device');
       return { ok: false, message };
     }
 
@@ -160,16 +290,13 @@ export function useLiveCaptions() {
       } catch {
         // Preserve the start error as the actionable message below.
       }
-      if (mounted.current) {
-        setStatus('error');
-        setMessage(message);
-      }
+      if (mounted.current) fail(id, message);
       return { ok: false, message };
     }
-  }, [stopSession]);
+  }, [fail, stopSession]);
 
   const stop = useCallback((): Promise<CaptionSegment[]> => {
-    const id = session.current;
+    const id = sessionId.current;
     // A background transition or unmount may have already settled the native
     // request. Reuse that promise so a later recording callback still sees a
     // stop failure instead of treating the partial transcript as complete.
@@ -177,5 +304,59 @@ export function useLiveCaptions() {
     return stopSession(id);
   }, [stopSession]);
 
-  return { text: caption.text, isFinal: caption.isFinal, status, message, start, stop, transcript };
+  /**
+   * Prepare recognition again after a recoverable failure.
+   *
+   * Preparation is only reachable through a native session start, so a retry
+   * is a fresh session rather than a separate repair step. The recording that
+   * is already running is untouched; only captions are re-attempted.
+   */
+  const retry = useCallback(() => start({ resume: true }), [start]);
+
+  const status = timingAdjustedStatus(session.status, report);
+
+  useEffect(() => {
+    captionStatusStore.publish({
+      status,
+      reason: session.reason,
+      message: session.message,
+      retryable: session.retryable,
+      retry,
+      timing: report,
+    });
+  }, [report, retry, session.message, session.reason, session.retryable, status]);
+
+  useEffect(() => () => captionStatusStore.reset(), []);
+
+  return {
+    text: caption.text,
+    isFinal: caption.isFinal,
+    status,
+    reason: session.reason,
+    message: session.message,
+    retryable: session.retryable,
+    timing: report,
+    noteCaptionTiming,
+    start,
+    stop,
+    retry,
+    transcript,
+    sourceStartedAt,
+  };
+}
+
+/**
+ * Read-only recognition status for the capture lane.
+ *
+ * The camera route can call this without owning or starting a caption
+ * session, and without the captions hook being lifted into shared state. It
+ * reflects whichever mounted `useLiveCaptions()` is currently running, and
+ * reports `idle` when none is.
+ */
+export function useCaptionStatusForCapture(): CaptureCaptionStatus {
+  return useSyncExternalStore(
+    captionStatusStore.subscribe,
+    captionStatusStore.getSnapshot,
+    captionStatusStore.getSnapshot,
+  );
 }

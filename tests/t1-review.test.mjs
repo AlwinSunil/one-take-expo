@@ -24,3 +24,19 @@ import { buildExportPlan } from '../src/lib/export-plan.ts';
 test('stale URI marked missing cannot start an export', () => {
   assert.throws(() => buildExportPlan({...project, mediaMissing:true}, {...project, mediaMissing:undefined}, 0, 5), /unavailable/);
 });
+
+test('prepared multi-source export picks reopened word corrections rather than stale caption snapshots', () => {
+  const value = { ...project, recordings: [{id:'pickup', mediaUri:'file:///pickup.mp4', duration:5, createdAt:1}], availableMediaUris:['file:///pickup.mp4'], cutsReviewed:true,
+    transcript:[{id:'p1',recordingId:'pickup',t0:1,t1:3,text:'raw speech',manualCorrection:'corrected caption',isFinal:true}],
+    reviewSegments:[{uri:'file:///pickup.mp4',t0:1,t1:3,captions:[{t0:1,t1:3,text:'stale caption'}]}] };
+  const plan = buildExportPlan(JSON.parse(JSON.stringify(value)), 0, 5);
+  assert.equal(plan.segments[0].captions[0].text, 'corrected caption');
+  assert.equal(value.transcript[0].text, 'raw speech');
+});
+test('pickup evidence resolves only through the refreshed source inventory', () => {
+  const value = {...project, recordings:[{id:'pickup',mediaUri:'file:///pickup.mp4',duration:5,createdAt:1}]};
+  const reference = {recordingId:'pickup',t0:1,t1:3};
+  assert.equal(canReviewFootage(value, reference), false);
+  assert.equal(canReviewFootage({...value,availableMediaUris:['file:///pickup.mp4']},reference), true);
+  assert.equal(canReviewFootage({...value,availableMediaUris:[]},reference), false);
+});

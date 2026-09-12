@@ -1,0 +1,25 @@
+{
+  "project_id": "tier0-review-1789254825864",
+  "recording_id": "tier0-review-1789254825864:pickup:1789255461067",
+  "stored_duration_s": 32.171,
+  "actual_media": {
+    "programs": [],
+    "stream_groups": [],
+    "streams": [
+      {
+        "codec_type": "video",
+        "duration": "32.166100"
+      },
+      {
+        "codec_type": "audio",
+        "duration": "32.171333"
+      }
+    ],
+    "format": {
+      "duration": "32.184333"
+    }
+  },
+  "earlier_recordings_preserved": 3,
+  "original_media_shared": false,
+  "scope": "Physical capture and durable metadata check; no claim of deliberate speech recognition or human sync."
+}
