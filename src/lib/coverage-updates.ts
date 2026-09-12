@@ -47,12 +47,20 @@ export interface CoverageTakeRecord {
   t1: number;
   /** True while the take could still be selected as this line's coverage. */
   eligible: boolean;
+  /** True once the take was recorded against wording the line no longer has. */
+  stale: boolean;
 }
 
 export interface CoverageEntry {
   lineId: string;
   status: CoverageStatus;
   selectedTakeId: string | null;
+  /**
+   * The take the creator chose explicitly, whether or not it is currently
+   * usable.  A recomputation never replaces an explicit choice with another
+   * take; only the creator can change it.
+   */
+  explicitTakeId: string | null;
   reason: CoverageReason;
   /** Every take that ever referenced this line, in observation order. */
   history: CoverageTakeRecord[];
@@ -86,10 +94,14 @@ export interface CoverageCut {
 /** Snapshot the derived review state as a ledger that survives later changes. */
 export function coverageLedger(review: ReviewState): CoverageLedger {
   const takeById = new Map(review.takes.map((take) => [take.id, take]));
+  const chosenByLine = new Map(review.decisions
+    .filter((decision) => decision.type === 'take-selection')
+    .map((decision) => [decision.lineId, decision.takeId]));
   const entries = review.lines.map((line) => ({
     lineId: line.id,
     status: line.status,
     selectedTakeId: line.selectedTakeId,
+    explicitTakeId: chosenByLine.get(line.id) ?? null,
     reason: derivedReason(line),
     history: historyFor(line, review.takes, takeById),
   }));
@@ -132,8 +144,17 @@ export function applyScriptChangeIntent(
   const retired = ledger.retired.slice();
 
   for (const entry of ledger.entries) {
+    // Every take of an edited line was recorded against the earlier wording, so
+    // it stays in history as stale evidence and can never cover the line again.
     const current = editedSet.has(entry.lineId)
-      ? { ...entry, status: 'needed' as const, selectedTakeId: null, reason: 'script-edited' as const }
+      ? {
+        ...entry,
+        status: 'needed' as const,
+        selectedTakeId: null,
+        explicitTakeId: null,
+        reason: 'script-edited' as const,
+        history: entry.history.map((record) => ({ ...record, eligible: false, stale: true })),
+      }
       : entry;
     if (deletedSet.has(entry.lineId)) {
       retired.push({ ...current, reason: 'line-deleted' });
@@ -147,6 +168,7 @@ export function applyScriptChangeIntent(
       lineId,
       status: 'needed',
       selectedTakeId: null,
+      explicitTakeId: null,
       reason: 'line-added',
       history: [],
     });
@@ -220,10 +242,27 @@ export function coverageSafeToWrap(
     && unresolvedRequiredActionCueIds.length === 0;
 }
 
+/**
+ * Losing a file can only ever take coverage away.  A replacement take is
+ * chosen in exactly one case: the line was covered by a take this module
+ * itself picked, and that take is the one that disappeared.
+ */
 function recomputeEntry(entry: CoverageEntry, unavailable: ReadonlySet<string>): CoverageEntry {
   if (!entry.history.some((record) => unavailable.has(record.takeId))) return entry;
-
   const history = markUnavailable(entry.history, unavailable);
+  const lost = { ...entry, history, status: 'needed' as const, selectedTakeId: null, reason: 'media-missing' as const };
+
+  // An explicit creator choice is never silently swapped for another take.
+  if (entry.explicitTakeId !== null) {
+    return unavailable.has(entry.explicitTakeId) ? lost : { ...entry, history };
+  }
+
+  // A line that is not covered by a derived clean take cannot be promoted here.
+  // An edited, added or retired line keeps its own reason.
+  if (entry.status !== 'covered' || entry.reason !== 'clean-take') {
+    return history.some((record) => record.playable) ? { ...entry, history } : lost;
+  }
+
   const kept = history.find((record) => record.takeId === entry.selectedTakeId && record.eligible);
   if (kept) return { ...entry, history };
 
@@ -231,22 +270,13 @@ function recomputeEntry(entry: CoverageEntry, unavailable: ReadonlySet<string>):
     .filter((record) => record.eligible)
     .slice()
     .sort((a, b) => compareTakePreference(preferenceOf(a), preferenceOf(b)))[0];
-
-  if (replacement) {
-    return {
-      ...entry,
-      history,
-      status: 'covered',
-      selectedTakeId: replacement.takeId,
-      reason: 'clean-take',
-    };
-  }
+  if (!replacement) return lost;
   return {
     ...entry,
     history,
-    status: 'needed',
-    selectedTakeId: null,
-    reason: 'media-missing',
+    status: 'covered',
+    selectedTakeId: replacement.takeId,
+    reason: 'clean-take',
   };
 }
 
@@ -280,6 +310,7 @@ function historyFor(
       t0: take.t0,
       t1: take.t1,
       eligible: eligible.has(take.id),
+      stale: false,
     }));
 }
 
