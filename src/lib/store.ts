@@ -1,12 +1,14 @@
 import * as SQLite from 'expo-sqlite';
 import { Directory, File, Paths } from 'expo-file-system';
 
+import { isWithinFileRoots, localFileIdentity, settleProjectCancellation } from './project-deletion';
+
 import { projectReview, projectScriptLines, projectSegments } from './project-workflow';
 
 import media from '../../modules/one-take-media';
 
 import type { Project } from './session';
-import { mergePickupRecording, normalizeProject, preserveNewRecordings, type PickupRecordingInput } from './project-data';
+import { PENDING_PICKUP_MESSAGE, mergePickupRecording, normalizeProject, preserveNewRecordings, type PickupRecordingInput } from './project-data';
 
 const deletedIds = new Set<string>();
 
@@ -77,8 +79,9 @@ function checkMedia(project: Project): Project {
   if (original.exists) project = { ...project, videoUri: original.uri };
   const missing = !project.videoUri || !new File(project.videoUri).exists;
   const unavailableTakeIds = project.takes?.filter(take => !take.mediaUri || !new File(take.mediaUri).exists).map(take => take.id) ?? [];
+  const pendingEvidence = project.recordings?.some(recording => recording.evidenceStatus === 'pending');
   const unavailable = unavailableTakeIds.length;
-  return { ...project, unavailableTakeIds, mediaMissing: missing, recoveryMessage: unavailable ? `${unavailable} takes are unavailable for coverage. Your saved text and edits remain; record replacement takes.` : missing ? 'The recording file is missing. Its transcript and edits are still saved.' : project.recoveryMessage };
+  return { ...project, unavailableTakeIds, mediaMissing: missing, recoveryMessage: pendingEvidence ? PENDING_PICKUP_MESSAGE : unavailable ? `${unavailable} takes are unavailable for coverage. Your saved text and edits remain; record replacement takes.` : missing ? 'The recording file is missing. Its transcript and edits are still saved.' : project.recoveryMessage };
 }
 
 export async function saveProjectMetadata(project: Project): Promise<void> {
@@ -169,10 +172,7 @@ export async function registerProjectFile(id: string, uri: string): Promise<void
 }
 
 function isPrivateFile(uri: string): boolean {
-  try {
-    const normalized = new URL(uri).href;
-    return [Paths.document.uri, Paths.cache.uri].some(root => normalized.startsWith(root.endsWith('/') ? root : `${root}/`));
-  } catch { return false; }
+  return isWithinFileRoots(uri, [Paths.document.uri, Paths.cache.uri]);
 }
 
 export async function deleteProject(id: string, options: { deleteGallery?: boolean } = {}): Promise<void> {
@@ -186,7 +186,7 @@ export async function deleteProject(id: string, options: { deleteGallery?: boole
     await d.runAsync('INSERT OR IGNORE INTO deletion_options (project_id, delete_gallery) VALUES (?, ?)', id, options.deleteGallery ? 1 : 0);
     if (options.deleteGallery !== undefined) await d.runAsync('UPDATE deletion_options SET delete_gallery = ? WHERE project_id = ?', options.deleteGallery ? 1 : 0, id);
     const deletion = await d.getFirstAsync<{ delete_gallery: number }>('SELECT delete_gallery FROM deletion_options WHERE project_id = ?', id);
-    await Promise.all(Array.from(activeWork.get(id) ?? [], cancel => cancel()));
+    await settleProjectCancellation(Array.from(activeWork.get(id) ?? []));
     const latest = await getSetting(`export:${id}`);
     const history = JSON.parse(await getSetting(`exports:${id}`, '[]')) as string[];
     const exports = new Set([...history, ...(latest ? [latest] : [])]);
@@ -213,16 +213,19 @@ export async function deleteProject(id: string, options: { deleteGallery?: boole
       sharedUris.add(new File(Paths.document, 'videos', `${encodeURIComponent(other.id)}.mp4`).uri);
       try { const p = JSON.parse(other.data); if (typeof p.videoUri === 'string') sharedUris.add(p.videoUri); for (const take of [...(p.takes ?? []), ...(p.recordings ?? [])]) if (typeof take.mediaUri === 'string') sharedUris.add(take.mediaUri); } catch { /* Unreadable projects retain their canonical originals. */ }
     }
+    const sharedFiles = new Set([...sharedUris].map(localFileIdentity).filter(uri => uri !== null));
+    const deletedFiles = new Set<string>();
     let failed = false;
     for (const uri of uris) {
-      if (!isPrivateFile(uri) || sharedUris.has(uri)) continue;
-      try { const file = new File(uri); if (file.exists) file.delete(); } catch { failed = true; }
+      const identity = localFileIdentity(uri);
+      if (!identity || !isPrivateFile(uri) || sharedFiles.has(identity)) continue;
+      try { const file = new File(uri); if (file.exists) file.delete(); deletedFiles.add(identity); } catch { failed = true; }
     }
     if (failed) throw new Error('Some app files could not be removed. Keep this project and retry deletion. Shared copies are unchanged.');
-    let videoUri: string | undefined;
-    try { videoUri = row ? JSON.parse(row.data).videoUri : undefined; } catch { /* The canonical original is still removed for corrupt metadata. */ }
     await d.withTransactionAsync(async () => {
-      await d.runAsync('DELETE FROM kv WHERE key = ? AND (value = ? OR value = ?)', 'last_video_uri', original.uri, videoUri ?? original.uri);
+      const latestVideo = await d.getFirstAsync<{ value: string }>('SELECT value FROM kv WHERE key = ?', 'last_video_uri');
+      const latestIdentity = latestVideo ? localFileIdentity(latestVideo.value) : null;
+      if (latestIdentity && deletedFiles.has(latestIdentity)) await d.runAsync('DELETE FROM kv WHERE key = ?', 'last_video_uri');
       await d.runAsync('DELETE FROM kv WHERE key = ?', `project_draft:${id}`);
       await d.runAsync('DELETE FROM kv WHERE key IN (?, ?)', `export:${id}`, `exports:${id}`);
       const pickupKeys = await d.getAllAsync<{ key: string }>('SELECT key FROM kv');
@@ -316,6 +319,11 @@ async function saveRecordingOperation(operation: RecordingOperation, recoveringC
       throw new Error('The saved recording is incomplete. Its source has been preserved.');
     }
     await assertProjectAvailable(d, operation.projectId);
+    if (!recoveringCopy) {
+      operation.expectedSize = destination.size;
+      operation.phase = 'ready';
+      await writeOperation(operation);
+    }
     const previous = await d.getFirstAsync<{ data: string }>('SELECT data FROM projects WHERE id = ?', operation.projectId);
     const saved = operation.kind === 'pickup'
       ? mergePickupRecording(await readStoredProject(operation.projectId), operation.recordingId!,
@@ -325,7 +333,13 @@ async function saveRecordingOperation(operation: RecordingOperation, recoveringC
       const result = await d.runAsync('INSERT OR REPLACE INTO projects (id, data) SELECT ?, ? WHERE NOT EXISTS (SELECT 1 FROM deleted_projects WHERE id = ?)', saved.id, JSON.stringify(saved), saved.id);
       if (result.changes !== 1) throw new Error('This project was deleted and cannot be saved.');
       await d.runAsync('DELETE FROM project_operations WHERE id = ?', operation.id);
-      if (operation.recordingId) await d.runAsync('DELETE FROM kv WHERE key = ?', pickupKey(operation.projectId, operation.recordingId));
+      if (operation.recordingId) {
+        const key = pickupKey(operation.projectId, operation.recordingId);
+        if (operation.input?.evidenceStatus === 'pending') {
+          const draft = await d.getFirstAsync<{ value: string }>('SELECT value FROM kv WHERE key = ?', key);
+          if (draft) await d.runAsync('UPDATE kv SET value = ? WHERE key = ?', JSON.stringify({ ...JSON.parse(draft.value), checkpointSourceUri: operation.sourceUri }), key);
+        } else await d.runAsync('DELETE FROM kv WHERE key = ?', key);
+      }
     });
     return checkMedia(saved);
   } finally {
@@ -378,19 +392,31 @@ export async function beginProjectPickup(projectId: string, recordingId: string,
   });
 }
 
+export async function checkpointProjectPickup(projectId: string, recordingId: string, input: { videoUri: string; duration: number }): Promise<Project> {
+  return savePickup(projectId, recordingId, { ...input, transcript: [], takes: [], evidenceStatus: 'pending' });
+}
+
 export async function completeProjectPickup(projectId: string, recordingId: string, input: PickupRecordingInput): Promise<Project> {
+  return savePickup(projectId, recordingId, { ...input, evidenceStatus: 'complete' });
+}
+
+async function savePickup(projectId: string, recordingId: string, input: PickupRecordingInput): Promise<Project> {
   return withProjectLock(projectId, async () => {
     await assertProjectExists(projectId);
     const project = await readStoredProject(projectId);
-    if (project.recordings?.some(recording => recording.id === recordingId)) return checkMedia(project);
+    const existing = project.recordings?.find(recording => recording.id === recordingId);
+    if (existing && (existing.evidenceStatus !== 'pending' || input.evidenceStatus === 'pending')) return checkMedia(project);
     const draft = await getSetting(pickupKey(projectId, recordingId));
     if (!draft) throw new Error('Start this pickup before saving it.');
-    const { createdAt, lineIds } = JSON.parse(draft) as { createdAt: number; lineIds: string[] };
+    const { createdAt, lineIds, checkpointSourceUri } = JSON.parse(draft) as { createdAt: number; lineIds: string[]; checkpointSourceUri?: string };
     if (!Array.isArray(lineIds) || !lineIds.length || lineIds.some(id => typeof id !== 'string')) throw new Error('The pickup line selection is unreadable.');
-    input = { ...input, eligibleLineIds: [...lineIds] };
+    if (existing && input.videoUri !== existing.mediaUri && input.videoUri !== checkpointSourceUri) throw new Error('This pickup evidence belongs to a different recording.');
+    const sourceUri = existing?.mediaUri ?? input.videoUri;
+    input = { ...input, eligibleLineIds: [...lineIds], videoUri: sourceUri,
+      takes: input.takes.map(take => take.mediaUri === input.videoUri ? { ...take, mediaUri: sourceUri } : take) };
     mergePickupRecording(project, recordingId, input, createdAt);
     const destination = pickupFile(projectId, recordingId);
-    return saveRecordingOperation({ id: pickupOperationId(projectId, recordingId), recordingId, projectId, kind: 'pickup', input, sourceUri: input.videoUri,
+    return saveRecordingOperation({ id: pickupOperationId(projectId, recordingId), recordingId, projectId, kind: 'pickup', input, sourceUri,
       destinationUri: destination.uri, expectedSize: 0, phase: 'copying', createdAt });
   });
 }
@@ -399,7 +425,8 @@ export async function cancelProjectPickup(projectId: string, recordingId: string
   return withProjectLock(projectId, async () => {
     const d = await getDb();
     const operation = await d.getFirstAsync('SELECT id FROM project_operations WHERE id = ? AND project_id = ?', pickupOperationId(projectId, recordingId), projectId);
-    if (operation) throw new Error('This pickup has a saved recording waiting for recovery. Retry saving it or delete the project to remove its files.');
+    const project = await readStoredProject(projectId);
+    if (operation || project.recordings?.some(recording => recording.id === recordingId && recording.evidenceStatus === 'pending')) throw new Error('This pickup has a saved recording waiting for recovery. Retry saving it or delete the project to remove its files.');
     await d.runAsync('DELETE FROM kv WHERE key = ?', pickupKey(projectId, recordingId));
   });
 }
@@ -429,8 +456,8 @@ async function pendingRecoveryMessages(): Promise<Map<string, string>> {
   for (const row of pickups) {
     if (!row.key.startsWith('pickup:')) continue;
     try {
-      const draft = JSON.parse(row.value) as { projectId: string };
-      if (typeof draft.projectId === 'string') messages.set(draft.projectId, 'A pickup did not finish. Your earlier takes are safe. Record those lines again or attach a saved pickup.');
+      const draft = JSON.parse(row.value) as { projectId: string; checkpointSourceUri?: string };
+      if (typeof draft.projectId === 'string') messages.set(draft.projectId, draft.checkpointSourceUri ? PENDING_PICKUP_MESSAGE : 'A pickup did not finish. Your earlier takes are safe. Record those lines again or attach a saved pickup.');
     } catch { /* Unrelated drafts must never prevent opening a recording. */ }
   }
   for (const row of await d.getAllAsync<{ project_id: string }>('SELECT project_id FROM project_operations')) {
@@ -461,6 +488,5 @@ function validateOperation(operation: RecordingOperation, id: string): void {
 }
 
 function isCacheFile(uri: string): boolean {
-  try { return new URL(uri).href.startsWith(Paths.cache.uri.endsWith('/') ? Paths.cache.uri : `${Paths.cache.uri}/`); }
-  catch { return false; }
+  return isWithinFileRoots(uri, [Paths.cache.uri]);
 }

@@ -1,0 +1,698 @@
+{
+  "method": "Host FFmpeg decoding of actual device-produced MP4; mono 2 kHz PCM; normalized cross-correlation in first/last 300ms voiced windows of both retained phrases, each of 15 cycles; search +/-250ms at 0.5ms increments. Positive lag means output audio later than expected cut mapping.",
+  "limitations": "Synthetic padded phrases; not human lip sync, not on-device decoding, not direct decoded video/audio synchronization. Resampling/boundary precision limits apply.",
+  "export_sha256": "3ffde26026e75a6ab05ca5cb5aeb9501cd6bda4bbb74e598d62c2e069588af02",
+  "source_sha256": "fe24d7e41dfb8832b970e217929ce0f88650f6c4fd63cdc0bfbac4c986d7d02b",
+  "container_duration_s": 120.067483,
+  "expected_video_duration_s": 120,
+  "results": [
+    {
+      "cycle": 1,
+      "source_start_s": 0,
+      "window": "first",
+      "source_window_s": 0.52,
+      "expected_output_s": 0.52,
+      "correlation": 0.93756,
+      "lag_ms": 20.5
+    },
+    {
+      "cycle": 1,
+      "source_start_s": 0,
+      "window": "last",
+      "source_window_s": 1.66,
+      "expected_output_s": 1.66,
+      "correlation": 0.92636,
+      "lag_ms": 20.5
+    },
+    {
+      "cycle": 1,
+      "source_start_s": 8,
+      "window": "first",
+      "source_window_s": 8.52,
+      "expected_output_s": 4.52,
+      "correlation": 0.92428,
+      "lag_ms": 32.5
+    },
+    {
+      "cycle": 1,
+      "source_start_s": 8,
+      "window": "last",
+      "source_window_s": 9.72,
+      "expected_output_s": 5.72,
+      "correlation": 0.91681,
+      "lag_ms": 32.5
+    },
+    {
+      "cycle": 2,
+      "source_start_s": 0,
+      "window": "first",
+      "source_window_s": 0.52,
+      "expected_output_s": 8.52,
+      "correlation": 0.98382,
+      "lag_ms": 20.5
+    },
+    {
+      "cycle": 2,
+      "source_start_s": 0,
+      "window": "last",
+      "source_window_s": 1.66,
+      "expected_output_s": 9.66,
+      "correlation": 0.98074,
+      "lag_ms": 20.5
+    },
+    {
+      "cycle": 2,
+      "source_start_s": 8,
+      "window": "first",
+      "source_window_s": 8.52,
+      "expected_output_s": 12.52,
+      "correlation": 0.91548,
+      "lag_ms": 33.0
+    },
+    {
+      "cycle": 2,
+      "source_start_s": 8,
+      "window": "last",
+      "source_window_s": 9.72,
+      "expected_output_s": 13.72,
+      "correlation": 0.90534,
+      "lag_ms": 33.0
+    },
+    {
+      "cycle": 3,
+      "source_start_s": 0,
+      "window": "first",
+      "source_window_s": 0.52,
+      "expected_output_s": 16.52,
+      "correlation": 0.99957,
+      "lag_ms": 20.5
+    },
+    {
+      "cycle": 3,
+      "source_start_s": 0,
+      "window": "last",
+      "source_window_s": 1.66,
+      "expected_output_s": 17.66,
+      "correlation": 0.9994,
+      "lag_ms": 20.5
+    },
+    {
+      "cycle": 3,
+      "source_start_s": 8,
+      "window": "first",
+      "source_window_s": 8.52,
+      "expected_output_s": 20.52,
+      "correlation": 0.97059,
+      "lag_ms": 33.0
+    },
+    {
+      "cycle": 3,
+      "source_start_s": 8,
+      "window": "last",
+      "source_window_s": 9.72,
+      "expected_output_s": 21.72,
+      "correlation": 0.96831,
+      "lag_ms": 33.0
+    },
+    {
+      "cycle": 4,
+      "source_start_s": 0,
+      "window": "first",
+      "source_window_s": 0.52,
+      "expected_output_s": 24.52,
+      "correlation": 0.98407,
+      "lag_ms": 20.5
+    },
+    {
+      "cycle": 4,
+      "source_start_s": 0,
+      "window": "last",
+      "source_window_s": 1.66,
+      "expected_output_s": 25.66,
+      "correlation": 0.98187,
+      "lag_ms": 20.5
+    },
+    {
+      "cycle": 4,
+      "source_start_s": 8,
+      "window": "first",
+      "source_window_s": 8.52,
+      "expected_output_s": 28.52,
+      "correlation": 0.9979,
+      "lag_ms": 33.0
+    },
+    {
+      "cycle": 4,
+      "source_start_s": 8,
+      "window": "last",
+      "source_window_s": 9.72,
+      "expected_output_s": 29.72,
+      "correlation": 0.9976,
+      "lag_ms": 33.0
+    },
+    {
+      "cycle": 5,
+      "source_start_s": 0,
+      "window": "first",
+      "source_window_s": 0.52,
+      "expected_output_s": 32.52,
+      "correlation": 0.94011,
+      "lag_ms": 20.5
+    },
+    {
+      "cycle": 5,
+      "source_start_s": 0,
+      "window": "last",
+      "source_window_s": 1.66,
+      "expected_output_s": 33.66,
+      "correlation": 0.92886,
+      "lag_ms": 20.5
+    },
+    {
+      "cycle": 5,
+      "source_start_s": 8,
+      "window": "first",
+      "source_window_s": 8.52,
+      "expected_output_s": 36.52,
+      "correlation": 0.99164,
+      "lag_ms": 33.0
+    },
+    {
+      "cycle": 5,
+      "source_start_s": 8,
+      "window": "last",
+      "source_window_s": 9.72,
+      "expected_output_s": 37.72,
+      "correlation": 0.99173,
+      "lag_ms": 33.0
+    },
+    {
+      "cycle": 6,
+      "source_start_s": 0,
+      "window": "first",
+      "source_window_s": 0.52,
+      "expected_output_s": 40.52,
+      "correlation": 0.90109,
+      "lag_ms": 21.0
+    },
+    {
+      "cycle": 6,
+      "source_start_s": 0,
+      "window": "last",
+      "source_window_s": 1.66,
+      "expected_output_s": 41.66,
+      "correlation": 0.88972,
+      "lag_ms": 21.0
+    },
+    {
+      "cycle": 6,
+      "source_start_s": 8,
+      "window": "first",
+      "source_window_s": 8.52,
+      "expected_output_s": 44.52,
+      "correlation": 0.95391,
+      "lag_ms": 33.0
+    },
+    {
+      "cycle": 6,
+      "source_start_s": 8,
+      "window": "last",
+      "source_window_s": 9.72,
+      "expected_output_s": 45.72,
+      "correlation": 0.94959,
+      "lag_ms": 33.0
+    },
+    {
+      "cycle": 7,
+      "source_start_s": 0,
+      "window": "first",
+      "source_window_s": 0.52,
+      "expected_output_s": 48.52,
+      "correlation": 0.96162,
+      "lag_ms": 21.0
+    },
+    {
+      "cycle": 7,
+      "source_start_s": 0,
+      "window": "last",
+      "source_window_s": 1.66,
+      "expected_output_s": 49.66,
+      "correlation": 0.9592,
+      "lag_ms": 21.0
+    },
+    {
+      "cycle": 7,
+      "source_start_s": 8,
+      "window": "first",
+      "source_window_s": 8.52,
+      "expected_output_s": 52.52,
+      "correlation": 0.88477,
+      "lag_ms": 33.0
+    },
+    {
+      "cycle": 7,
+      "source_start_s": 8,
+      "window": "last",
+      "source_window_s": 9.72,
+      "expected_output_s": 53.72,
+      "correlation": 0.87609,
+      "lag_ms": 33.0
+    },
+    {
+      "cycle": 8,
+      "source_start_s": 0,
+      "window": "first",
+      "source_window_s": 0.52,
+      "expected_output_s": 56.52,
+      "correlation": 0.99459,
+      "lag_ms": 21.0
+    },
+    {
+      "cycle": 8,
+      "source_start_s": 0,
+      "window": "last",
+      "source_window_s": 1.66,
+      "expected_output_s": 57.66,
+      "correlation": 0.99484,
+      "lag_ms": 21.0
+    },
+    {
+      "cycle": 8,
+      "source_start_s": 8,
+      "window": "first",
+      "source_window_s": 8.52,
+      "expected_output_s": 60.52,
+      "correlation": 0.9477,
+      "lag_ms": 33.5
+    },
+    {
+      "cycle": 8,
+      "source_start_s": 8,
+      "window": "last",
+      "source_window_s": 9.72,
+      "expected_output_s": 61.72,
+      "correlation": 0.9414,
+      "lag_ms": 33.5
+    },
+    {
+      "cycle": 9,
+      "source_start_s": 0,
+      "window": "first",
+      "source_window_s": 0.52,
+      "expected_output_s": 64.52,
+      "correlation": 0.9965,
+      "lag_ms": 21.0
+    },
+    {
+      "cycle": 9,
+      "source_start_s": 0,
+      "window": "last",
+      "source_window_s": 1.66,
+      "expected_output_s": 65.66,
+      "correlation": 0.99515,
+      "lag_ms": 21.0
+    },
+    {
+      "cycle": 9,
+      "source_start_s": 8,
+      "window": "first",
+      "source_window_s": 8.52,
+      "expected_output_s": 68.52,
+      "correlation": 0.988,
+      "lag_ms": 33.5
+    },
+    {
+      "cycle": 9,
+      "source_start_s": 8,
+      "window": "last",
+      "source_window_s": 9.72,
+      "expected_output_s": 69.72,
+      "correlation": 0.9868,
+      "lag_ms": 33.5
+    },
+    {
+      "cycle": 10,
+      "source_start_s": 0,
+      "window": "first",
+      "source_window_s": 0.52,
+      "expected_output_s": 72.52,
+      "correlation": 0.96511,
+      "lag_ms": 21.0
+    },
+    {
+      "cycle": 10,
+      "source_start_s": 0,
+      "window": "last",
+      "source_window_s": 1.66,
+      "expected_output_s": 73.66,
+      "correlation": 0.96061,
+      "lag_ms": 21.0
+    },
+    {
+      "cycle": 10,
+      "source_start_s": 8,
+      "window": "first",
+      "source_window_s": 8.52,
+      "expected_output_s": 76.52,
+      "correlation": 0.99928,
+      "lag_ms": 33.5
+    },
+    {
+      "cycle": 10,
+      "source_start_s": 8,
+      "window": "last",
+      "source_window_s": 9.72,
+      "expected_output_s": 77.72,
+      "correlation": 0.99913,
+      "lag_ms": 33.5
+    },
+    {
+      "cycle": 11,
+      "source_start_s": 0,
+      "window": "first",
+      "source_window_s": 0.52,
+      "expected_output_s": 80.52,
+      "correlation": 0.90614,
+      "lag_ms": 21.0
+    },
+    {
+      "cycle": 11,
+      "source_start_s": 0,
+      "window": "last",
+      "source_window_s": 1.66,
+      "expected_output_s": 81.66,
+      "correlation": 0.89265,
+      "lag_ms": 21.0
+    },
+    {
+      "cycle": 11,
+      "source_start_s": 8,
+      "window": "first",
+      "source_window_s": 8.52,
+      "expected_output_s": 84.52,
+      "correlation": 0.9783,
+      "lag_ms": 33.5
+    },
+    {
+      "cycle": 11,
+      "source_start_s": 8,
+      "window": "last",
+      "source_window_s": 9.72,
+      "expected_output_s": 85.72,
+      "correlation": 0.97498,
+      "lag_ms": 33.5
+    },
+    {
+      "cycle": 12,
+      "source_start_s": 0,
+      "window": "first",
+      "source_window_s": 0.52,
+      "expected_output_s": 88.52,
+      "correlation": 0.93611,
+      "lag_ms": 21.5
+    },
+    {
+      "cycle": 12,
+      "source_start_s": 0,
+      "window": "last",
+      "source_window_s": 1.66,
+      "expected_output_s": 89.66,
+      "correlation": 0.92507,
+      "lag_ms": 21.5
+    },
+    {
+      "cycle": 12,
+      "source_start_s": 8,
+      "window": "first",
+      "source_window_s": 8.52,
+      "expected_output_s": 92.52,
+      "correlation": 0.92388,
+      "lag_ms": 33.5
+    },
+    {
+      "cycle": 12,
+      "source_start_s": 8,
+      "window": "last",
+      "source_window_s": 9.72,
+      "expected_output_s": 93.72,
+      "correlation": 0.91982,
+      "lag_ms": 33.5
+    },
+    {
+      "cycle": 13,
+      "source_start_s": 0,
+      "window": "first",
+      "source_window_s": 0.52,
+      "expected_output_s": 96.52,
+      "correlation": 0.98205,
+      "lag_ms": 21.5
+    },
+    {
+      "cycle": 13,
+      "source_start_s": 0,
+      "window": "last",
+      "source_window_s": 1.66,
+      "expected_output_s": 97.66,
+      "correlation": 0.98086,
+      "lag_ms": 21.5
+    },
+    {
+      "cycle": 13,
+      "source_start_s": 8,
+      "window": "first",
+      "source_window_s": 8.52,
+      "expected_output_s": 100.52,
+      "correlation": 0.90962,
+      "lag_ms": 34.0
+    },
+    {
+      "cycle": 13,
+      "source_start_s": 8,
+      "window": "last",
+      "source_window_s": 9.72,
+      "expected_output_s": 101.72,
+      "correlation": 0.90507,
+      "lag_ms": 34.0
+    },
+    {
+      "cycle": 14,
+      "source_start_s": 0,
+      "window": "first",
+      "source_window_s": 0.52,
+      "expected_output_s": 104.52,
+      "correlation": 0.99961,
+      "lag_ms": 21.5
+    },
+    {
+      "cycle": 14,
+      "source_start_s": 0,
+      "window": "last",
+      "source_window_s": 1.66,
+      "expected_output_s": 105.66,
+      "correlation": 0.99955,
+      "lag_ms": 21.5
+    },
+    {
+      "cycle": 14,
+      "source_start_s": 8,
+      "window": "first",
+      "source_window_s": 8.52,
+      "expected_output_s": 108.52,
+      "correlation": 0.97067,
+      "lag_ms": 34.0
+    },
+    {
+      "cycle": 14,
+      "source_start_s": 8,
+      "window": "last",
+      "source_window_s": 9.72,
+      "expected_output_s": 109.72,
+      "correlation": 0.96754,
+      "lag_ms": 34.0
+    },
+    {
+      "cycle": 15,
+      "source_start_s": 0,
+      "window": "first",
+      "source_window_s": 0.52,
+      "expected_output_s": 112.52,
+      "correlation": 0.98604,
+      "lag_ms": 21.5
+    },
+    {
+      "cycle": 15,
+      "source_start_s": 0,
+      "window": "last",
+      "source_window_s": 1.66,
+      "expected_output_s": 113.66,
+      "correlation": 0.98284,
+      "lag_ms": 21.5
+    },
+    {
+      "cycle": 15,
+      "source_start_s": 8,
+      "window": "first",
+      "source_window_s": 8.52,
+      "expected_output_s": 116.52,
+      "correlation": 0.99723,
+      "lag_ms": 34.0
+    },
+    {
+      "cycle": 15,
+      "source_start_s": 8,
+      "window": "last",
+      "source_window_s": 9.72,
+      "expected_output_s": 117.72,
+      "correlation": 0.99717,
+      "lag_ms": 34.0
+    }
+  ],
+  "summary": {
+    "windows": 60,
+    "min_correlation": 0.87609,
+    "min_lag_ms": 20.5,
+    "max_lag_ms": 34.0,
+    "first_cycle": [
+      {
+        "cycle": 1,
+        "source_start_s": 0,
+        "window": "first",
+        "source_window_s": 0.52,
+        "expected_output_s": 0.52,
+        "correlation": 0.93756,
+        "lag_ms": 20.5
+      },
+      {
+        "cycle": 1,
+        "source_start_s": 0,
+        "window": "last",
+        "source_window_s": 1.66,
+        "expected_output_s": 1.66,
+        "correlation": 0.92636,
+        "lag_ms": 20.5
+      },
+      {
+        "cycle": 1,
+        "source_start_s": 8,
+        "window": "first",
+        "source_window_s": 8.52,
+        "expected_output_s": 4.52,
+        "correlation": 0.92428,
+        "lag_ms": 32.5
+      },
+      {
+        "cycle": 1,
+        "source_start_s": 8,
+        "window": "last",
+        "source_window_s": 9.72,
+        "expected_output_s": 5.72,
+        "correlation": 0.91681,
+        "lag_ms": 32.5
+      }
+    ],
+    "last_cycle": [
+      {
+        "cycle": 15,
+        "source_start_s": 0,
+        "window": "first",
+        "source_window_s": 0.52,
+        "expected_output_s": 112.52,
+        "correlation": 0.98604,
+        "lag_ms": 21.5
+      },
+      {
+        "cycle": 15,
+        "source_start_s": 0,
+        "window": "last",
+        "source_window_s": 1.66,
+        "expected_output_s": 113.66,
+        "correlation": 0.98284,
+        "lag_ms": 21.5
+      },
+      {
+        "cycle": 15,
+        "source_start_s": 8,
+        "window": "first",
+        "source_window_s": 8.52,
+        "expected_output_s": 116.52,
+        "correlation": 0.99723,
+        "lag_ms": 34.0
+      },
+      {
+        "cycle": 15,
+        "source_start_s": 8,
+        "window": "last",
+        "source_window_s": 9.72,
+        "expected_output_s": 117.72,
+        "correlation": 0.99717,
+        "lag_ms": 34.0
+      }
+    ]
+  },
+  "frame_observations": [
+    {
+      "output_s": 1,
+      "source_timecode_s": 1,
+      "scene": "green",
+      "caption": "This is the first clean take."
+    },
+    {
+      "output_s": 5,
+      "source_timecode_s": 9,
+      "scene": "blue",
+      "caption": "This is the final clean take."
+    },
+    {
+      "output_s": 117,
+      "source_timecode_s": 9,
+      "scene": "blue",
+      "caption": "This is the final clean take."
+    }
+  ],
+  "video_cadence": {
+    "decoded_frames": 3600,
+    "expected_frames": 3600,
+    "gaps_over_50ms": 0,
+    "max_gap_ms": 33.334,
+    "timestamps_near_first_splice": [
+      3.866667,
+      3.9,
+      3.933333,
+      3.966667,
+      4.0,
+      4.033333,
+      4.066667
+    ]
+  },
+  "audio_pcm_identical_to_previous_export": true,
+  "streams": [
+    {
+      "codec_type": "audio",
+      "codec_name": "aac",
+      "sample_rate": "22050",
+      "channels": 1,
+      "duration": "120.067483",
+      "start_time": "0.000000",
+      "r_frame_rate": "0/0",
+      "nb_frames": "2587"
+    },
+    {
+      "codec_type": "video",
+      "codec_name": "h264",
+      "width": 1280,
+      "height": 720,
+      "pix_fmt": "yuv420p",
+      "duration": "120.000000",
+      "start_time": "0.000000",
+      "r_frame_rate": "30/1",
+      "nb_frames": "3600",
+      "side_data_list": [
+        {
+          "side_data_type": "Display Matrix",
+          "displaymatrix": "\n00000000:            0       65536           0\n00000001:       -65536           0           0\n00000002:            0           0  1073741824\n",
+          "rotation": -90
+        }
+      ]
+    }
+  ]
+}

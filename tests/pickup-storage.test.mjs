@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mergePickupRecording, normalizeProject, preserveNewRecordings } from '../src/lib/project-data.ts';
+import { mergePickupRecording, normalizeProject, preserveNewRecordings, PENDING_PICKUP_MESSAGE } from '../src/lib/project-data.ts';
 
 const project = { id: 'project', mode: 'script', script: 'Hello.', videoUri: 'file:///primary.mp4', duration: 10,
   createdAt: 10, clips: [], transcript: [{ id: 'speech', t0: 1, t1: 3, text: 'Hello.', isFinal: true }], trim: { start: 0, end: 8 } };
@@ -74,4 +74,47 @@ test('a pickup can only replace requested lines while its whole take remains int
     assert.equal(review.takes.length, 2);
     assert.deepEqual([review.takes[1].t0, review.takes[1].t1], [0.5, 4]);
   }
+});
+
+test('a raw checkpoint survives while the same recording gains final evidence exactly once', async () => {
+  const { projectReview } = await import('../src/lib/project-workflow.ts');
+  const pending = mergePickupRecording(project, 'checkpoint', { videoUri: input.videoUri, duration: input.duration, transcript: [], takes: [], evidenceStatus: 'pending' }, 20);
+  assert.equal(pending.recordings[1].evidenceStatus, 'pending');
+  assert.equal(pending.transcript.length, project.transcript.length);
+  assert.deepEqual(mergePickupRecording(pending, 'checkpoint', { ...input, evidenceStatus: 'pending' }, 21), pending);
+  const complete = mergePickupRecording(pending, 'checkpoint', { ...input, evidenceStatus: 'complete' }, 22);
+  assert.equal(complete.recordings.length, 2);
+  assert.equal(complete.recordings[1].evidenceStatus, 'complete');
+  assert.equal(complete.recordings[1].mediaUri, pending.recordings[1].mediaUri);
+  assert.equal(complete.recordings[1].createdAt, 20);
+  assert.equal(complete.transcript.length, 2);
+  assert.deepEqual(mergePickupRecording(complete, 'checkpoint', input, 30), complete);
+  assert.equal(projectReview({ ...complete, recordings: pending.recordings }).takes[1].playable, false);
+});
+
+test('finalizing a checkpoint preserves later recordings and survives an older editor save', () => {
+  const pending = mergePickupRecording(project, 'checkpoint', { videoUri: input.videoUri, duration: 6, transcript: [], takes: [], evidenceStatus: 'pending' }, 20);
+  const later = mergePickupRecording(pending, 'later', { ...input, videoUri: 'file:///later.mp4', takes: input.takes.map(take => ({ ...take, mediaUri: 'file:///later.mp4' })) }, 30);
+  const complete = mergePickupRecording(later, 'checkpoint', input, 20);
+  assert.equal(complete.recordings.length, 3);
+  assert.equal(complete.transcript.length, 3);
+  const stale = preserveNewRecordings(complete, { ...pending, trim: { start: 2, end: 8 } });
+  assert.equal(stale.recordings.find(recording => recording.id === 'checkpoint').evidenceStatus, 'complete');
+  assert.equal(stale.recordings.length, 3);
+  assert.equal(stale.transcript.length, 3);
+  assert.deepEqual(stale.trim, { start: 2, end: 8 });
+  assert.throws(() => mergePickupRecording(pending, 'checkpoint', { ...input, videoUri: 'file:///unrelated.mp4' }, 20), /different recording/);
+});
+
+
+test('checkpoint preserves the requested subset and finalization clears only its own recovery warning', () => {
+  const requested = { ...project, pickupRequest: { lineIds: ['project:line:0'], requestedAt: 15 } };
+  const pending = mergePickupRecording(requested, 'checkpoint', { videoUri: input.videoUri, duration: 6, transcript: [], takes: [], evidenceStatus: 'pending' }, 20);
+  assert.deepEqual(pending.pickupRequest, requested.pickupRequest);
+  const complete = mergePickupRecording({ ...pending, recoveryMessage: PENDING_PICKUP_MESSAGE }, 'checkpoint', input, 20);
+  assert.equal(complete.recoveryMessage, undefined);
+  assert.equal(complete.pickupRequest, undefined);
+  assert.equal(preserveNewRecordings(complete, { ...pending, recoveryMessage: PENDING_PICKUP_MESSAGE }).recoveryMessage, undefined);
+  const unrelated = mergePickupRecording({ ...pending, recoveryMessage: 'Another source is missing.' }, 'checkpoint', input, 20);
+  assert.equal(unrelated.recoveryMessage, 'Another source is missing.');
 });

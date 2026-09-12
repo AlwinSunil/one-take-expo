@@ -48,7 +48,7 @@ export interface Project {
   captionRevision?: number;
   scriptLines?: ScriptLine[];
   takes?: (TakeEvidence & { recordedAt?: number; eligibleLineIds?: string[] })[];
-  recordings?: { id: string; mediaUri: string; duration: number; createdAt: number }[];
+  recordings?: { id: string; mediaUri: string; duration: number; createdAt: number; evidenceStatus?: 'pending' | 'complete' }[];
   reviewSegments?: { uri: string; t0: number; t1: number; takeId?: string; captions?: { t0: number; t1: number; text: string }[] }[];
   unavailableTakeIds?: string[];
   pickupRequest?: { lineIds: string[]; requestedAt: number };

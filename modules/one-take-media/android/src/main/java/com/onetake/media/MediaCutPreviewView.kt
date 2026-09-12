@@ -49,7 +49,7 @@ class MediaCutPreviewView(context: Context, appContext: AppContext) : ExpoView(c
     try {
       val composition = withContext(Dispatchers.IO) { MediaComposition.build(context, MediaExportRequestParser.parseJson(JSONObject(requestedSource))) }
       if (!isAttachedToWindow || source != requestedSource) return@launch
-      val next = CompositionPlayer.Builder(context).build()
+      val next = CompositionPlayer.Builder(context).setMediaSourceFactory(DecodeAheadMediaSourceFactory(context)).build()
       player = next; loadedSource = source; surface.player = next
       next.addListener(object : Player.Listener {
         private var reportedFirstFrame = false
