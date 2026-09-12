@@ -9,7 +9,7 @@ Everything below is an owner-authored proposal; nothing has been applied to the 
 
 | File | Purpose |
 | --- | --- |
-| `src/lib/retake-prompts.ts` | Pure scheduler: decides between an in-pause `Again, line N` prompt and a batched after-the-take list, plus the readability and label rules used by the components. |
+| `src/lib/retake-prompts.ts` | Pure scheduler: decides between an in-pause `Again, line N` prompt, a quiet in-take `deferred` count and the full batched after-the-take list, plus the readability and label rules used by the components. |
 | `src/components/prompter/coverage-strip.tsx` | One cell per spoken line, status by glyph and word first. |
 | `src/components/prompter/prompter-lines.tsx` | Current line large, next line small, action cues on a separate `Do:` row. |
 | `src/components/prompter/retake-prompt.tsx` | Renders one `PromptDecision` inside a polite live region. |
@@ -31,6 +31,7 @@ Every piece of logic lives in `src/lib/retake-prompts.ts` so it can be tested wi
 | `nextLineId` | `string \| null` | Secondary emphasis. |
 
 The strip hides earlier cells first when they do not fit, and shows `+N` chips with an accessibility label for what it hid.
+A `null` or unknown `currentLineId` anchors the window at the start of the script and emphasises no cell.
 Capacity comes from `useWindowDimensions().width` and the font scale, so large system text shows fewer, bigger cells instead of clipping.
 
 ### `PrompterLines`
@@ -46,14 +47,14 @@ Capacity comes from `useWindowDimensions().width` and the font scale, so large s
 
 | Prop | Type | Notes |
 | --- | --- | --- |
-| `decision` | `PromptDecision \| null` | The result of `decideRetakePrompt`. `null` renders an empty live region. |
+| `decision` | `PromptDecision \| null` | The result of `decideRetakePrompt`. `null` renders an empty live region. A `deferred` decision renders as a small right-aligned count, an `again` or `batched` decision as the full card. |
 
 ### `PrompterLine` and `PrompterActionCue`
 
 ```ts
 interface PrompterLine {
   id: string;
-  number: number;                    // 1-based, shown to the creator
+  number: number;                    // 1-based, shown to the creator and used verbatim in prompt text
   status: 'needed' | 'pending' | 'covered';
   spokenText: string;                // never contains cue text
   actionCues: PrompterActionCue[];
@@ -120,16 +121,21 @@ Add this state and tick beside the existing recording timer effect:
     return () => clearInterval(id);
   }, [recording]);
 
-  const promptDecision = recording ? decideRetakePrompt({
-    lines: coverage.lines,           // PrompterLine[] from the coverage lane
+  const promptDecision = decideRetakePrompt({
+    lines: coverage.lines,           // PrompterLine[] from the coverage lane, each with its own `number`
     lineEnds: coverage.lineEnds,     // { lineId, endedAt, nextStartsAt? }[] in ms
     verdicts: coverage.verdicts,     // { lineId, status, arrivedAt }[] in ms
     now: promptNow,
     midLine: coverage.isSpeaking,
+    takeEnded: !recording,
     engineState: captions.status === 'delayed' ? 'delayed'
       : captions.status === 'error' ? 'unavailable' : 'ready',
-  }) : null;
+  });
 ```
+
+`takeEnded` is what keeps the after-the-take list off the screen during the read.
+While it is false, anything unconfirmed renders as a one-line `deferred` count such as `2 lines to check after this take`, which names no line and asks for nothing.
+The full `We will check lines 2, 3 after this take` text appears only once the take has ended, so it belongs in the preview or wrap surface as well as the live overlay.
 
 Then render the overlay block as:
 
@@ -152,17 +158,18 @@ Then render the overlay block as:
 - No coverage decision. A status arrives as a prop; the components never derive one from speech.
 - No auto-completion of action cues. Advancing a line, finishing a take or stopping the recording never resolves a required cue; only `onCueDone` does.
 - No motion. There is no animation to suppress, so reduced-motion settings need nothing here.
+- No cross-platform live region. `accessibilityLiveRegion` is Android-only, so `RetakePrompt` also calls `AccessibilityInfo.announceForAccessibility` whenever the prompt text changes. That announcement has not been verified with a screen reader on a device.
 - No speech, camera or storage access, so mounting them cannot affect the existing recording, draft, project or trim behavior.
 - No device evidence. The fixtures and the harness replay hand-written timings.
 
 ## Reviewing without a camera
 
 ```bash
-npm test                 # 64 tests, 24 of them for the prompter
+npm test                 # 68 tests, 28 of them for the prompter
 npm run typecheck
 ```
 
-Mount `PrompterHarness` from `src/development/prompter/prompter-harness.tsx` in any dev screen to step the clock, toggle "creator speaking" and force the delayed engine against all five fixtures.
+Mount `PrompterHarness` from `src/development/prompter/prompter-harness.tsx` in any dev screen to step the clock, move the current line, toggle "creator speaking", end the take and force the delayed engine against all five fixtures.
 It is guarded by `__DEV__` and renders nothing in a release build.
 
 ## Open acceptance checks

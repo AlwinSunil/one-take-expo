@@ -15,7 +15,7 @@ The implementation branch is [`feat/offline-speech-workflow`](https://github.com
 ## Evidence snapshot
 
 - `npm run typecheck` passes.
-- `npm test` passes 64 behavior-focused JavaScript tests, including 24 for the #19 prompter.
+- `npm test` passes 68 behavior-focused JavaScript tests, including 28 for the #19 prompter.
 - `npm run samples` passes the deterministic caption replay.
 - `python3 tests/speech-evaluation.test.py` passes 12 evaluator tests.
 - `python3 tools/speech-fixtures/run_synthetic.py` passes 16 synthetic rows, while reporting zero eligible human held-out clean rows and zero eligible human held-out flub rows.
@@ -102,7 +102,8 @@ Manual corrections remain separate from raw recognition evidence and therefore d
 ### #19
 
 The prompt scheduler in `src/lib/retake-prompts.ts` offers an in-pause `Again, line N` prompt only when the verdict arrives within 1200 ms of the line end, before the next line starts and while the creator is not speaking.
-Anything else, including a delayed engine, becomes an honest batched `We will check lines N, M after this take` message.
+Anything else waits: during the take an unconfirmed line shows only a quiet count that names no line, and the honest `We will check lines N, M after this take` list appears once the take has ended.
+A delayed engine takes the same waiting path rather than guessing.
 The prompter components are props-only, show status by glyph and word before colour, label every coverage cell, keep the current line at 16 sp or more and truncate with a More control instead of clipping.
 A required action cue is never resolved by advancing a line; only an explicit Done press resolves it.
 `evaluatePromptTiming` replays a recorded log and reports how many line ends got a prompt before the next line, and it refuses to report a met target below 20 promptable line ends.
