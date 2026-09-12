@@ -39,6 +39,8 @@ export interface AmbiguousCue {
   raw: string;
   /** Index of the unclosed bracket inside the line text, used to rewrite it. */
   start: number;
+  /** Sentence punctuation that trailed the fragment and belongs after the closing bracket. */
+  trailing: string;
 }
 
 export interface ScriptDocumentLine {
@@ -84,6 +86,11 @@ function normalize(text: string): string {
   return text.trim().replace(/\s+/g, ' ');
 }
 
+/** Lifting a cue out of a sentence must not leave a gap in front of its punctuation. */
+function normalizeSpoken(text: string): string {
+  return normalize(text).replace(/\s+([.!?,;:])/g, '$1');
+}
+
 function countWords(text: string): number {
   return text.split(/\s+/).filter((word) => /[\p{L}\p{N}]/u.test(word)).length;
 }
@@ -105,9 +112,19 @@ function findAmbiguousCues(lineId: string, text: string): AmbiguousCue[] {
   const cues: AmbiguousCue[] = [];
   for (let index = text.indexOf('['); index >= 0; index = text.indexOf('[', index + 1)) {
     if (text.indexOf(']', index) >= 0) continue;
-    const cueText = normalize(text.slice(index + 1));
+    // The sentence's own terminal punctuation is not part of the direction. Keeping it
+    // out means closing the bracket cannot push a `]` past it into a line of its own.
+    const tail = text.slice(index + 1);
+    const terminal = /([.!?]+)\s*$/.exec(tail);
+    const cueText = normalize(terminal ? tail.slice(0, terminal.index) : tail);
     if (!cueText) continue;
-    cues.push({ id: `${lineId}:ambiguous:${cues.length}`, text: cueText, raw: text.slice(index), start: index });
+    cues.push({
+      id: `${lineId}:ambiguous:${cues.length}`,
+      text: cueText,
+      raw: text.slice(index),
+      start: index,
+      trailing: terminal ? terminal[1] : '',
+    });
   }
   return cues;
 }
@@ -126,7 +143,7 @@ function buildLine(id: string, text: string, carried: readonly ScriptActionCue[]
       status: previous?.status ?? 'pending',
     } satisfies ScriptActionCue;
   });
-  const spokenText = normalize(parsed.spokenText);
+  const spokenText = normalizeSpoken(parsed.spokenText);
   return {
     id,
     text,
@@ -207,8 +224,9 @@ export function parseScript(text: string, previous?: ScriptDocument): ScriptDocu
     return buildLine(id, chunkText);
   });
 
-  const dropped = previousLines.filter((line) => !claimed.has(line.id));
-  return summarize(text, lines, mergeRemoved(previous?.removedLines ?? [], dropped), nextLineNumber);
+  // A line that no chunk claimed was retyped, half-erased or cleared, not deleted.
+  // Only `deleteLine` records history, so ordinary typing cannot invent a deleted line.
+  return summarize(text, lines, previous?.removedLines ?? [], nextLineNumber);
 }
 
 function mergeRemoved(
@@ -297,7 +315,9 @@ export function correctAmbiguousCue(
   const cue = line?.ambiguousCues.find((candidate) => candidate.id === cueId);
   if (!line || !cue) return document;
   const head = line.text.slice(0, cue.start);
-  const corrected = as === 'action' ? `${head}[${cue.text}]` : `${head}${line.text.slice(cue.start + 1)}`;
+  const corrected = as === 'action'
+    ? `${head}[${cue.text}]${cue.trailing}`
+    : `${head}${line.text.slice(cue.start + 1)}`;
   const lines = document.lines.map((candidate) =>
     candidate.id === line.id ? { ...candidate, text: corrected } : candidate,
   );
@@ -400,8 +420,32 @@ export function restoreScriptDocument(text: string, serialized: string | null | 
   if (!stored) return parseScript(text);
   const lines = hydrate(stored.lines);
   const removedLines = hydrate(Array.isArray(stored.removedLines) ? stored.removedLines : []);
-  const nextLineNumber = Number.isInteger(stored.nextLineNumber) && stored.nextLineNumber > 0
-    ? stored.nextLineNumber
-    : 1;
+  // A stored counter that trails the stored ids would mint duplicates, so clamp it
+  // past every id that was actually saved.
+  const nextLineNumber = lines.concat(removedLines).reduce(
+    (highest, line) => Math.max(highest, mintedNumber(line.id) + 1),
+    Number.isInteger(stored.nextLineNumber) && stored.nextLineNumber > 0 ? stored.nextLineNumber : 1,
+  );
   return parseScript(text, summarize(text, lines, removedLines, nextLineNumber));
+}
+
+function mintedNumber(id: string): number {
+  const match = /^line-(\d+)$/.exec(id);
+  return match ? Number(match[1]) : 0;
+}
+
+/**
+ * Restore a draft from its raw text and a structure read that is allowed to fail.
+ * A rejected or unreadable read costs line ids and cue statuses only; the creator's
+ * text is never lost to a storage error.
+ */
+export async function restoreScriptDocumentFrom(
+  text: string,
+  readSerialized: () => Promise<string | null | undefined>,
+): Promise<ScriptDocument> {
+  try {
+    return restoreScriptDocument(text, await readSerialized());
+  } catch {
+    return parseScript(text);
+  }
 }

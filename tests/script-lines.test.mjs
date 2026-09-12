@@ -7,6 +7,7 @@ import {
   parseScript,
   reorderLines,
   restoreScriptDocument,
+  restoreScriptDocumentFrom,
   scriptChangeIntent,
   serializeScriptDocument,
   setCueRequired,
@@ -315,4 +316,84 @@ test('the text handed to the camera route always chunks back into the same lines
     cameraChunks(document.text).map(text => parseScript(text).lines[0].spokenText),
     document.lines.map(line => line.spokenText),
   );
+});
+
+test('correcting an unclosed bracket that ends a sentence leaves one clean line', () => {
+  const first = parseScript('Now [hold up the product.');
+  const cueId = first.lines[0].ambiguousCues[0].id;
+  const second = correctAmbiguousCue(first, cueId, 'action');
+
+  assert.equal(second.text, 'Now [hold up the product].');
+  assert.equal(second.lines.length, 1);
+  assert.deepEqual(second.lines[0].actionCues.map(cue => cue.text), ['hold up the product']);
+  assert.deepEqual(second.lines[0].ambiguousCues, []);
+  assert.equal(second.lines[0].spokenText, 'Now.');
+  // The closing bracket must never re-chunk into a junk line of its own.
+  assert.deepEqual(cameraChunks(second.text), second.lines.map(line => line.text));
+
+  const spoken = correctAmbiguousCue(first, cueId, 'spoken');
+  assert.equal(spoken.text, 'Now hold up the product.');
+  assert.equal(spoken.lines.length, 1);
+  assert.deepEqual(spoken.lines[0].ambiguousCues, []);
+  assert.equal(spoken.lines[0].spokenText, 'Now hold up the product.');
+});
+
+test('a question or exclamation around an unclosed bracket survives the correction', () => {
+  const first = parseScript('Say hi! Now [wave?');
+  const cueId = first.lines[1].ambiguousCues[0].id;
+  const second = correctAmbiguousCue(first, cueId, 'action');
+
+  assert.equal(second.text, 'Say hi!\nNow [wave]?');
+  assert.deepEqual(second.lines.map(line => line.spokenText), ['Say hi!', 'Now?']);
+  assert.deepEqual(second.lines[1].actionCues.map(cue => cue.text), ['wave']);
+  assert.deepEqual(cameraChunks(second.text), second.lines.map(line => line.text));
+});
+
+test('typing and retyping a line never manufactures deleted history', () => {
+  // Every keystroke re-parses, including the ones that pass through a half-erased line.
+  const keystrokes = [
+    'Hello there. Second line.',
+    'Hello there. Second line',
+    'Hello there. Second',
+    'Hello there. ',
+    'Hello there. Different',
+    'Hello there. Different second line.',
+  ];
+  let document = parseScript(keystrokes[0]);
+  for (const text of keystrokes.slice(1)) {
+    document = parseScript(text, document);
+    assert.deepEqual(document.removedLines, [], `typing "${text}" invented deleted history`);
+  }
+  assert.deepEqual(document.lines.map(line => line.spokenText), ['Hello there.', 'Different second line.']);
+  assert.equal(serializeScriptDocument(document).includes('Second line'), false);
+});
+
+test('clearing the whole script keeps no deleted history until a line is deleted on purpose', () => {
+  const typed = parseScript('One. Two.');
+  assert.deepEqual(parseScript('', typed).removedLines, []);
+  assert.deepEqual(deleteLine(typed, typed.lines[0].id).removedLines.map(line => line.spokenText), ['One.']);
+});
+
+test('a failing structure read still restores the creator text', async () => {
+  const text = 'Say hello. [smile]';
+  const failing = await restoreScriptDocumentFrom(text, async () => {
+    throw new Error('database is locked');
+  });
+  assert.equal(failing.text, text);
+  assert.deepEqual(failing.lines.map(line => line.spokenText), ['Say hello.', '']);
+
+  const working = parseScript(text);
+  const restored = await restoreScriptDocumentFrom(text, async () => serializeScriptDocument(working));
+  assert.deepEqual(restored.lines.map(line => line.id), working.lines.map(line => line.id));
+});
+
+test('a stale stored counter never mints a duplicate line id', () => {
+  const saved = parseScript('One. Two. Three.');
+  const stale = JSON.parse(serializeScriptDocument(saved));
+  stale.nextLineNumber = 1;
+  const restored = restoreScriptDocument(`${saved.text} Four.`, JSON.stringify(stale));
+
+  assert.equal(restored.lines.length, 4);
+  assert.equal(new Set(restored.lines.map(line => line.id)).size, 4);
+  assert.deepEqual(restored.lines.slice(0, 3).map(line => line.id), saved.lines.map(line => line.id));
 });
