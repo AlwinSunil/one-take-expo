@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { CoverageStrip } from '@/components/prompter/coverage-strip';
@@ -22,6 +22,9 @@ export function PrompterHarness() {
   const [offsetMs, setOffsetMs] = useState(0);
   const [midLine, setMidLine] = useState(false);
   const [forceDelayed, setForceDelayed] = useState(false);
+  const [takeEnded, setTakeEnded] = useState(false);
+  const [currentLineId, setCurrentLineId] = useState<string>(() => createPrompterSession('flub').currentLineId);
+  const titles = useMemo(() => prompterSessionIds.map(id => createPrompterSession(id).title), []);
   if (!__DEV__) return null;
 
   const engineState = forceDelayed ? 'delayed' : session.engineState;
@@ -32,6 +35,7 @@ export function PrompterHarness() {
     verdicts: session.verdicts,
     now,
     midLine: midLine || session.midLine,
+    takeEnded,
     engineState,
   });
   const report = evaluatePromptTiming({
@@ -40,7 +44,7 @@ export function PrompterHarness() {
     verdicts: session.verdicts,
     engineState,
   });
-  const currentIndex = Math.max(0, session.lines.findIndex(line => line.id === session.currentLineId));
+  const currentIndex = Math.max(0, session.lines.findIndex(line => line.id === currentLineId));
   const current = session.lines[currentIndex] ?? null;
   const next = session.lines[currentIndex + 1] ?? null;
 
@@ -50,6 +54,8 @@ export function PrompterHarness() {
     setOffsetMs(0);
     setMidLine(false);
     setForceDelayed(false);
+    setTakeEnded(false);
+    setCurrentLineId(createPrompterSession(id).currentLineId);
   }
 
   function markCueDone(cueId: string) {
@@ -68,7 +74,7 @@ export function PrompterHarness() {
     <Text className="text-neutral-400 text-sm mt-2 leading-5">{session.description}</Text>
 
     <View className="flex-row flex-wrap gap-2 mt-4">
-      {prompterSessionIds.map(id => <Chip key={id} label={createPrompterSession(id).title}
+      {prompterSessionIds.map((id, index) => <Chip key={id} label={titles[index]}
         selected={id === sessionId} onPress={() => select(id)} />)}
     </View>
 
@@ -82,12 +88,15 @@ export function PrompterHarness() {
       <Chip label="Reset clock" onPress={() => setOffsetMs(0)} />
       <Chip label="Creator speaking" selected={midLine} onPress={() => setMidLine(value => !value)} />
       <Chip label="Engine delayed" selected={forceDelayed} onPress={() => setForceDelayed(value => !value)} />
+      <Chip label="Take ended" selected={takeEnded} onPress={() => setTakeEnded(value => !value)} />
+      <Chip label="Previous line" onPress={() => setCurrentLineId(session.lines[Math.max(0, currentIndex - 1)].id)} />
+      <Chip label="Next line" onPress={() => setCurrentLineId(session.lines[Math.min(session.lines.length - 1, currentIndex + 1)].id)} />
     </View>
 
     <View className="mt-5 rounded-xl border border-neutral-800 bg-neutral-900 p-4">
       <Text className="text-neutral-50 text-sm font-semibold">Replayed timing</Text>
       <Text className="text-neutral-300 text-xs mt-2 leading-5">
-        Clock {(now / 1000).toFixed(1)} s · engine {engineState} · decision {decision ? decision.kind : 'none'}
+        Clock {(now / 1000).toFixed(1)} s · engine {engineState} · take {takeEnded ? 'ended' : 'running'} · decision {decision ? decision.kind : 'none'}
       </Text>
       <Text className="text-neutral-300 text-xs mt-1 leading-5">
         {report.promptedBeforeNextLine} of {report.eligible} line ends needing a prompt got one before the next line
@@ -103,6 +112,10 @@ export function PrompterHarness() {
       </Text>
     </View>
 
+    <Text className="text-neutral-400 text-xs mt-4 leading-5">
+      Manual checks this harness is for: press More on a long line, then switch the current line and confirm the next line
+      comes back clamped; raise the system text size and confirm the strip, the lines and the prompt stay readable.
+    </Text>
     <Text className="text-neutral-500 text-xs mt-4 leading-5">
       Fixture timings only. This harness runs no camera, recognizer or recording, so it cannot establish device latency,
       speech accuracy or the recorded quiet and noisy 18/20 measurement.

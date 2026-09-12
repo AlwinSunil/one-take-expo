@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { PixelRatio, Pressable, Text, View, useWindowDimensions, type TextLayoutEventData, type NativeSyntheticEvent } from 'react-native';
 
 import {
@@ -30,6 +30,13 @@ export function PrompterLines({ current, next, onCueDone, showStatus = true }: {
   const clamp = lineClamp({ fontScale, expanded });
   const currentSize = readableFontSize(24, { width: window.width, fontScale });
   const nextSize = readableFontSize(17, { width: window.width, fontScale });
+
+  // A new line must never inherit the previous line's expansion, or it would
+  // cover the camera preview with text the creator never asked to unfold.
+  useEffect(() => {
+    setExpanded(false);
+    setTruncated(false);
+  }, [current?.id]);
 
   function onTextLayout(event: NativeSyntheticEvent<TextLayoutEventData>) {
     if (clamp > 0) setTruncated(event.nativeEvent.lines.length >= clamp);

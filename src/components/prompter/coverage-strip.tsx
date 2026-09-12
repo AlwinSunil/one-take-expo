@@ -13,6 +13,9 @@ import {
  * One cell per spoken line.  Status is a glyph and a word first and a colour
  * second, so the strip stays readable without colour perception.  The component
  * is props-only: it reads no store, no hook state and no coverage engine.
+ *
+ * A missing `currentLineId` keeps the window at the start of the script and
+ * emphasises no cell, which is what a take that has not started looks like.
  */
 export function CoverageStrip({ lines, currentLineId, nextLineId }: {
   lines: readonly PrompterLine[];
@@ -21,7 +24,7 @@ export function CoverageStrip({ lines, currentLineId, nextLineId }: {
 }) {
   const window = useWindowDimensions();
   const fontScale = window.fontScale || PixelRatio.getFontScale();
-  const currentIndex = Math.max(0, lines.findIndex(line => line.id === currentLineId));
+  const currentIndex = Math.max(0, lines.findIndex(line => line.id === currentLineId));  // -1 (no current line) anchors the window at the start
   const slice = stripWindow(lines.length, currentIndex, stripCapacity(window.width, fontScale));
   const visible = lines.slice(slice.start, slice.end);
 
