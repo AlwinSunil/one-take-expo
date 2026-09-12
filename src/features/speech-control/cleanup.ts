@@ -181,16 +181,19 @@ const DEFAULTS: Required<CleanupOptions> = {
  */
 export function generateCleanupSuggestions(input: CleanupInput): CleanupSuggestion[] {
   const options = resolveOptions(input);
-  const segments = validateSegments(input.segments, input.recordingId);
+  const recordingId = validateRecordingId(input.recordingId, 'cleanup recordingId');
+  const segments = validateSegments(input.segments, recordingId);
   const suggestions: CleanupSuggestion[] = [];
 
   for (const silence of input.silences ?? []) {
+    validateObservationId(silence.id, 'silence id');
+    const silenceRecordingId = resolveObservationRecordingId(silence.recordingId, recordingId, `silence ${silence.id}`);
     validateInterval(silence, `silence ${silence.id}`);
     if (silence.deliberate || silence.t1 - silence.t0 < options.minSilenceSeconds) continue;
     const boundaries = assessBoundaries(silence);
     suggestions.push(makeSuggestion({
       id: `silence:${silence.id}`,
-      recordingId: silence.recordingId ?? input.recordingId,
+      recordingId: silenceRecordingId,
       kind: 'long-silence',
       t0: silence.t0,
       t1: silence.t1,
@@ -309,10 +312,11 @@ export function generateCleanupSuggestions(input: CleanupInput): CleanupSuggesti
   }
 
   for (const mark of collectMarks(input)) {
+    validateObservationId(mark.id, `${mark.kind ?? 'speech'} mark id`);
+    const markRecordingId = resolveObservationRecordingId(mark.recordingId, recordingId, `${mark.kind ?? 'speech'} mark ${mark.id}`);
     validateInterval(mark, `${mark.kind} mark ${mark.id}`);
-    if (mark.recordingId !== undefined && (typeof mark.recordingId !== 'string' || !mark.recordingId.trim())) {
-      throw new TypeError(`${mark.kind} mark ${mark.id} recordingId must be a non-empty string`);
-    }
+    if (typeof mark.text !== 'string') throw new TypeError(`${mark.kind} mark ${mark.id} text must be a string`);
+    if (mark.segmentId !== undefined) validateObservationId(mark.segmentId, `${mark.kind} mark ${mark.id} segmentId`);
     const boundaries = assessBoundaries(mark);
     const isMidSentence = mark.isMidSentence === true;
     const placementConfirmed = mark.isMidSentence === false;
@@ -333,7 +337,7 @@ export function generateCleanupSuggestions(input: CleanupInput): CleanupSuggesti
           : `The marked ${mark.kind} needs boundary review. Recognition timestamps alone cannot define a safe splice.`;
     suggestions.push(makeSuggestion({
       id: `${mark.kind}:${mark.id}`,
-      recordingId: mark.recordingId ?? input.recordingId,
+      recordingId: markRecordingId,
       kind: mark.kind,
       t0: mark.t0,
       t1: mark.t1,
@@ -357,7 +361,7 @@ export function generateCleanupSuggestions(input: CleanupInput): CleanupSuggesti
 /** Build a plan that can be serialized without losing original observations. */
 export function createCleanupPlan(input: CleanupInput & { decisions?: readonly CleanupDecision[] }): CleanupPlan {
   return {
-    originalSegments: validateSegments(input.segments, input.recordingId),
+    originalSegments: validateSegments(input.segments, validateRecordingId(input.recordingId, 'cleanup recordingId')),
     suggestions: generateCleanupSuggestions(input),
     decisions: [...(input.decisions ?? [])],
   };
@@ -551,25 +555,44 @@ function resolveOptions(input: CleanupOptions): Required<CleanupOptions> {
 
 function validateSegments(input: readonly CleanupTranscriptSegment[], defaultRecordingId?: string): CleanupTranscriptSegment[] {
   if (!Array.isArray(input)) throw new TypeError('cleanup segments must be an array');
-  if (defaultRecordingId !== undefined && (typeof defaultRecordingId !== 'string' || !defaultRecordingId.trim())) {
-    throw new TypeError('cleanup recordingId must be a non-empty string');
-  }
+  const recordingId = validateRecordingId(defaultRecordingId, 'cleanup recordingId');
   const ids = new Set<string>();
   return input.map((segment) => {
-    if (!segment || typeof segment.id !== 'string' || !segment.id.trim()) throw new TypeError('cleanup segment id is required');
-    if (ids.has(segment.id)) throw new Error(`duplicate cleanup segment id: ${segment.id}`);
-    ids.add(segment.id);
-    validateInterval(segment, `segment ${segment.id}`);
-    if (typeof segment.text !== 'string') throw new TypeError(`segment ${segment.id} text must be a string`);
-    if (segment.recordingId !== undefined && (typeof segment.recordingId !== 'string' || !segment.recordingId.trim())) {
-      throw new TypeError(`segment ${segment.id} recordingId must be a non-empty string`);
-    }
-    if (segment.isFinal !== undefined && typeof segment.isFinal !== 'boolean') throw new TypeError(`segment ${segment.id} isFinal must be boolean`);
+    if (!segment) throw new TypeError('cleanup segment is required');
+    const id = validateObservationId(segment.id, 'cleanup segment id');
+    if (ids.has(id)) throw new Error(`duplicate cleanup segment id: ${id}`);
+    ids.add(id);
+    validateInterval(segment, `segment ${id}`);
+    if (typeof segment.text !== 'string') throw new TypeError(`segment ${id} text must be a string`);
+    const segmentRecordingId = resolveObservationRecordingId(segment.recordingId, recordingId, `segment ${id}`);
+    if (segment.isFinal !== undefined && typeof segment.isFinal !== 'boolean') throw new TypeError(`segment ${id} isFinal must be boolean`);
     if (segment.confidence !== undefined && (!Number.isFinite(segment.confidence) || segment.confidence < 0 || segment.confidence > 1)) {
-      throw new RangeError(`segment ${segment.id} confidence must be between zero and one`);
+      throw new RangeError(`segment ${id} confidence must be between zero and one`);
     }
-    return { ...segment, recordingId: segment.recordingId ?? defaultRecordingId };
+    return { ...segment, id, recordingId: segmentRecordingId };
   });
+}
+
+function validateRecordingId(value: unknown, label: string): string | undefined {
+  if (value === undefined) return undefined;
+  return validateObservationId(value, label);
+}
+
+function validateObservationId(value: unknown, label: string): string {
+  if (typeof value !== 'string' || !value.trim()) throw new TypeError(`${label} must be a non-empty string`);
+  return value;
+}
+
+function resolveObservationRecordingId(
+  observationRecordingId: unknown,
+  inputRecordingId: string | undefined,
+  label: string,
+): string | undefined {
+  const observationId = validateRecordingId(observationRecordingId, `${label} recordingId`);
+  if (inputRecordingId !== undefined && observationId !== undefined && observationId !== inputRecordingId) {
+    throw new Error(`${label} recordingId does not match cleanup input recordingId`);
+  }
+  return observationId ?? inputRecordingId;
 }
 
 function validateInterval(interval: CleanupInterval, label: string) {

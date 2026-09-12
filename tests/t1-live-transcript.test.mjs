@@ -59,6 +59,19 @@ test('large text and long sessions stay bounded for the live surface', () => {
   assert.deepEqual(visibleLiveTranscriptText({ text: 'too long', segments: [] }, 1), { text: '…', truncated: true });
 });
 
+test('reducer bounds megabyte event and segment text while preserving truncation metadata', () => {
+  const huge = 'x'.repeat(1_000_000);
+  let state = createLiveTranscriptState('take-1', { maxSegments: 4, maxCharacters: 64 });
+  state = reduceLiveTranscript(state, event(1, {
+    status: 'listening', text: huge, isFinal: false,
+    segments: [{ id: 'huge', t0: 0, t1: 1, text: huge, isFinal: false }],
+  }), { maxSegments: 4, maxCharacters: 64 });
+  assert.ok(state.text.length <= 64);
+  assert.ok(state.segments.every((segment) => segment.text.length <= 64));
+  assert.equal(state.truncated, true);
+  assert.equal(buildLiveTranscriptView(state, 64).truncated, true);
+});
+
 test('final segment state stays final if a later provisional update arrives', () => {
   let state = createLiveTranscriptState('take-1');
   state = reduceLiveTranscript(state, event(1, {

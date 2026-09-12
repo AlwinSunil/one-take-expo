@@ -46,6 +46,35 @@ test('only explicit independent boundary records can prepare a silence removal',
   assert.equal(savedAudio.canPrepareRemoval, false);
 });
 
+test('cleanup rejects empty observation ids and recording identities outside the input scope', () => {
+  assert.throws(() => generateCleanupSuggestions({
+    recordingId: 'recording-a',
+    segments: [segment('segment', 0, 1, 'hello', { recordingId: 'recording-b' })],
+  }), /does not match cleanup input recordingId/);
+  assert.throws(() => generateCleanupSuggestions({
+    recordingId: 'recording-a',
+    segments: [],
+    silences: [{ id: 'quiet', recordingId: 'recording-b', t0: 1, t1: 3 }],
+  }), /does not match cleanup input recordingId/);
+  assert.throws(() => generateCleanupSuggestions({
+    recordingId: 'recording-a',
+    segments: [],
+    marks: [{ id: 'filler', kind: 'filler', recordingId: 'recording-b', text: 'um', t0: 1, t1: 1.2 }],
+  }), /does not match cleanup input recordingId/);
+  assert.throws(() => generateCleanupSuggestions({
+    segments: [],
+    silences: [{ id: '', t0: 1, t1: 3 }],
+  }), /silence id must be a non-empty string/);
+  assert.throws(() => generateCleanupSuggestions({
+    segments: [],
+    marks: [{ id: '', kind: 'filler', text: 'um', t0: 1, t1: 1.2 }],
+  }), /mark id must be a non-empty string/);
+  assert.throws(() => generateCleanupSuggestions({
+    segments: [],
+    marks: [{ id: 'filler', kind: 'filler', text: 'um', segmentId: '', t0: 1, t1: 1.2 }],
+  }), /segmentId must be a non-empty string/);
+});
+
 test('restart and suitable repeat candidates use concrete transcript evidence but never claim safe ASR boundaries', () => {
   const suggestions = generateCleanupSuggestions({
     segments: [
