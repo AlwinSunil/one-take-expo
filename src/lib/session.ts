@@ -39,6 +39,8 @@ export interface Clip {
 }
 
 export interface Project {
+  tier1Evidence?: import('./t1-contracts').Tier1Evidence;
+  wrapAcknowledgement?: import('./t1-contracts').WrapAcknowledgement;
   schemaVersion?: number;
   recordingStatus?: 'complete' | 'interrupted';
   duration?: number;
