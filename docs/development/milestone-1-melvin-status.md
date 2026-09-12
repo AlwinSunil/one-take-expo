@@ -1,36 +1,52 @@
 # Melvin's Milestone 1 implementation
 
-Branch: `feat/melvin-milestone-1`. Issues: #14, #17, #20, #21 and #27 in **01 · Tier 0**. These issues remain open; this is implementation progress, not integrated milestone acceptance.
+Branch: `feat/melvin-milestone-1`; draft PR #49. Issues #14, #17, #20, #21 and #27 in **01 · Tier 0** remain open for integration, device acceptance and named review. Alwin's capture work is separate from the receiving functionality implemented here.
 
-## Implemented
+## Implemented in this lane
 
-- **#14:** Optional persisted take evidence and pickup requests preserve legacy project JSON. Original audio boundaries survive reopening. Missing take files cannot establish coverage, and restoring a file restores its availability. Saved take URIs follow the durable original. Project rows show coverage and recovery actions.
-- **#17:** The review screen derives latest suitable single-recording takes in script order and starts playback without rendering. Whole takes are deduplicated; conflicting multi-line selections and multiple source recordings produce an explicit fallback. Cut updates wait for a playback pause. Original and manual trim preview remain available.
-- **#20:** Review shows selected, alternative and scratched attempts, separate action confirmation, pending coverage and a durable needed-line pickup list. The UI explicitly states that recording into the same project still needs the capture handoff.
-- **#21:** Export can open its output, recover interrupted queued jobs and detect missing completed files. Preview mode determines the export request; automatic cuts require explicit preparation and acceptance. Action cues and standalone scratch commands are filtered consistently from preview/export captions. Export history is associated with its project.
-- **#27:** Projects offers confirmation and retryable deletion. Durable tombstones prevent late saves; deletion waits for in-flight saves/exports before removing app-private files. Other projects' referenced files are protected. Gallery and externally shared copies explicitly remain.
+- **#14 — persistence:** Optional take/recording ledgers retain legacy JSON. Source-relative take boundaries and namespaced pickup captions survive reopening. SQLite journals distinguish copying from validated, ready media and recover interrupted saves. Restored files regain availability. Concurrent stale editor saves cannot discard a newly attached recording.
+- **#17 — immediate review:** Production native `CompositionPlayer` uses the same multi-source composition as export, without rendering first. Latest suitable takes play in script order, indivisible multi-line takes are deduplicated and conflicting selections are flagged. Playback requests remain stable while playing. Original/manual-trim access and corrupt-media fallback remain available.
+- **#20 — coverage and pickups:** Review shows selected/alternative/scratched takes and separate action status. It saves needed-line requests and can attach an explicitly selected saved pickup recording to the same project, preserving both originals and putting takes in script order. Storage exposes begin/complete/cancel pickup APIs for the capture owner; editor refreshes on return. Single-source audio rechecks are gated after multi-source attachment to prevent erasing pickup captions.
+- **#21 — export:** Reviewed source segments and their source-local captions feed the shared native composition. Output is 720×1280 SDR H.264/AAC with aspect-ratio fitting and readable captions. Raw/manual/cut export matches the selected review mode. Progress, cancellation, interrupted-job recovery, missing-output retry, open, gallery and share paths are implemented. All Media3 requests now use the existing Expo video/research 1.9.0 version.
+- **#27 — deletion:** Confirmation offers app-only deletion or deletion including app-created gallery copies. The choice survives interruption. Tombstones reject late work; cancellation waits for file writers. Private originals, pickup media, registered attachments, cache-source files, export history, drafts and journals are removed while other projects' referenced files are protected. Native gallery copy/delete operations preserve associations on failure for retry. Externally shared copies remain outside app control.
+
+## Capture and review handoffs
+
+- [Storage/pickup receiving API](handoffs/melvin-tier0-storage.md): exact lifecycle calls, cancellation barrier, durable saves, namespace rules and deletion semantics.
+- [Review return and native preview](handoffs/melvin-tier0-review.md): project fields, navigation and review behavior.
+
+Alwin still owns camera permissions, interruptions, recorder cancellation and calling these receiving APIs with real take evidence. No camera/script route was edited or duplicate recorder introduced. Sabari's available script/coverage handoff shapes were inspected; his unmerged branch changes were not silently merged into this PR.
 
 ## Actual validation
 
-Run from the repository root:
-
 | Command/check | Result |
 | --- | --- |
-| `npm test` | 53 passed |
+| `npm test` | 69 passed |
 | `npm run typecheck` | Passed |
 | `npm run test:samples` | 19 passed |
-| `EXPO_NO_DOTENV=1 npx expo export --platform android --output-dir /tmp/one-take-m1-bundle` | Passed |
-| `JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home' ANDROID_HOME='/Users/melvin/Library/Android/sdk' ./android/gradlew -p android :one-take-media:testDebugUnitTest --console=plain` | Media Kotlin compiled; 5 JVM tests passed |
-| Home → Sample sessions · Dev → Run on-device storage checks | 14/14 passed on iQOO I2501, Android 16, serial `10BFAT1U1Q000XP` |
+| `EXPO_NO_DOTENV=1 npx expo export --platform android --output-dir /tmp/one-take-tier0-bundle` | Passed |
+| `JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home' ANDROID_HOME='/Users/melvin/Library/Android/sdk' ./android/gradlew -p android :one-take-media:testDebugUnitTest --console=plain` | Native production code compiled; 6 JVM tests passed |
+| Home → Sample sessions · Dev → Run on-device storage checks | 17/17 passed on iQOO I2501, Android 16, serial `10BFAT1U1Q000XP` |
 
-The storage checks use dedicated fixture projects and real SQLite/filesystem operations. They cover legacy reopen, missing-source failure, missing-media coverage, cancellation failure/retry, registered file removal, late-save rejection, concurrent save/deletion and preservation of another project. The first device pass caught missing `await` on SDK 57's asynchronous file copy/move; the fix and cancellation barrier passed the rerun. [Screenshot](evidence/milestone-1/storage.png) and [visible device results](evidence/milestone-1/storage-results.json).
+The 17 storage checks use dedicated fixture projects with real SQLite/filesystem operations: legacy reopen, missing-source failure, coverage invalidation, independent pickup copy, idempotent completion, failed-cancellation retry, concurrent save/deletion, replay of an interrupted copy journal and preservation of another project/source. They use the existing installed debug APK with current Metro JavaScript. [Summary screenshot](evidence/milestone-1/storage.png), [detail screenshot](evidence/milestone-1/storage-detail.png), [captured results](evidence/milestone-1/storage-results.json).
 
-The device used its existing installed debug APK with updated JavaScript from Metro. It did **not** run the new native export bridge. Full `:app:assembleDebug` failed because the speech lane's pinned Moonshine AAR/model/native files are not staged (`modules/one-take-captions/android/build.gradle`). No build guard was bypassed and no speech runtime was substituted.
+The new development-only **Tier 0 media checks** panel exercises production multi-source native preview, eight-second export, cancellation, missing-source rejection, gallery copy/deletion and a 120-second export. It writes `files/research/tier0-media-report.json`. Its code is bundled/typechecked, but it has **not** run against the new native module in a rebuilt APK.
 
-## Remaining acceptance and handoffs
+## Native build prerequisite
 
-- Alwin/Sabari integration: route stop-to-review with final take evidence, consume `pickupRequest`, merge pickups into the same project without replacing existing media, and register active capture work for deletion. Optional `Project.takes` reuses the existing `TakeEvidence` type; `unavailableTakeIds` is derived availability, not a take verdict.
-- Multi-source pickup playback/export needs its production composition handoff. Single-source JSX seek playback has no new stop-to-first-frame or seamless A/V device measurement.
-- Stage the verified speech artifacts, rebuild the integrated APK and validate new native export open/delete methods. Existing Media3 requests differ between production export (1.11.0) and Expo video/research (1.9.0); integrated runtime compatibility remains unverified.
-- Two-minute A/V sync, background/foreground, permission denial, low storage, force-stop recovery and native active-export deletion need the rebuilt phone app. Gallery-copy deletion is not implemented; the confirmation accurately says those copies remain.
-- Sabari's named review, both peers' shared-handoff/deletion review and the five-session #34 acceptance gate remain required. No issue was closed or external message sent.
+All eight Tiny Streaming English `quantized_26_08_21` model files are downloaded to the ignored staging cache and match the pinned manifest. Models are not native libraries.
+
+`tools/rebuild_moonshine.py --execute --strict-output` successfully compiled the pinned Moonshine source against ORT 1.28.0 with the specified NDK/CMake, but failed output hash verification. ORT matches; the two Moonshine binaries do not:
+
+| File | Rebuilt SHA-256 |
+| --- | --- |
+| `libmoonshine.so` | `0da3046c46f7792c35e7f92860eb11a5f951fcad7a2571ae67c2e32af280fdb4` |
+| `libmoonshine-jni.so` | `34516cb474e76da98370e64c8d1ca7a80463c588133490627dd7cb2ec37a3bc0` |
+
+`prepare_moonshine.py` consequently refuses staging. No pinned hashes or guards were changed. The recorded verified libraries are machine-local to Sabari at `/tmp/moonshine-benchmark/android-harness/app/src/main/jniLibs/arm64-v8a`, per `docs/live-captions.md`. Those binaries, or a speech-owner-reviewed reproducible artifact update, are needed for the integrated APK build.
+
+## Remaining acceptance
+
+A fresh APK must exercise native multi-source playback/export, first-frame timing, two-minute A/V sync, background/foreground, force-stop recovery, permission denial, low storage and native active-export/gallery deletion. Current JVM and storage results do not prove these behaviors. The new composition has not yet been visually verified on device.
+
+Alwin's direct record → pickup → same-project return, Sabari's named reproduction, both peers' shared-handoff/deletion review and the five-session #34 gate remain separate requirements. This implementation must not be described as closing all acceptance boxes or completing the milestone.

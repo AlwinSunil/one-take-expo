@@ -13,15 +13,19 @@ export default function Projects() {
   const [loading, setLoading] = useState(true);
   const [refresh, setRefresh] = useState(0);
   const [deleting, setDeleting] = useState<string | null>(null);
-  const confirmDelete = (item: Project) => Alert.alert('Delete this project?', 'Remove this recording, saved text, edits and app-owned exports. Copies saved to your gallery or shared elsewhere remain.', [
-    { text: 'Cancel', style: 'cancel' },
-    { text: 'Delete project', style: 'destructive', onPress: async () => {
-      setDeleting(item.id);
-      try { await deleteProject(item.id); setItems(rows => rows.filter(row => row.id !== item.id)); }
-      catch (e) { setError(e instanceof Error ? e.message : 'Deletion could not finish. Please retry.'); }
-      finally { setDeleting(null); }
-    } },
-  ]);
+  const performDelete = async (item: Project, deleteGallery: boolean) => {
+    setDeleting(item.id);
+    try { await deleteProject(item.id, { deleteGallery }); setItems(rows => rows.filter(row => row.id !== item.id)); }
+    catch (e) { setError(e instanceof Error ? e.message : 'Deletion could not finish. Please retry.'); }
+    finally { setDeleting(null); }
+  };
+  const confirmDelete = (item: Project) => Alert.alert('Delete this project?',
+    'Remove its recordings, saved text, edits and app exports. You can also remove gallery copies made by One Take. Copies shared elsewhere remain.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Keep gallery copies', style: 'destructive', onPress: () => { void performDelete(item, false); } },
+      { text: 'Delete gallery copies too', style: 'destructive', onPress: () => { void performDelete(item, true); } },
+    ]);
+
 
   useFocusEffect(useCallback(() => {
     let active = true;

@@ -4,7 +4,7 @@
     "Back to samples",
     "Sample sessions",
     "DEVELOPMENT ONLY",
-    "14 / 14 checks passed",
+    "17 / 17 checks passed",
     "Shared-data behavior checks executed by the app\u2019s JavaScript runtime. These do not verify camera, audio sync, NPU or rendered media.",
     "Pass \u00b7 Legacy-shaped project saves a separate durable original",
     "Pass \u00b7 Saved trim and script survive a fresh database read",
@@ -13,6 +13,16 @@
     "Pass \u00b7 Missing-source save fails without adding a project",
     "Pass \u00b7 Failed save preserves both existing fixture originals",
     "Pass \u00b7 Existing draft and source fixture stay unchanged",
-    "Pass \u00b7 Persisted take retains its original audio boundaries after reopen"
+    "Pass \u00b7 Persisted take retains its original audio boundaries after reopen",
+    "Pass \u00b7 A missing take cannot establish coverage",
+    "Pass \u00b7 Pickup merge preserves the original and copies independent pickup media",
+    "Pass \u00b7 Repeated pickup completion is idempotent after reopen",
+    "Pass \u00b7 Failed job cancellation retains the project and original for retry",
+    "Pass \u00b7 Deletion tombstone rejects a late background save",
+    "Pass \u00b7 Deletion retry removes project original and registered app files",
+    "Pass \u00b7 Deleting one project preserves the other project and fixture source",
+    "Pass \u00b7 Deletion waits for concurrent save and leaves no recreated media",
+    "Pass \u00b7 Reopen replays an interrupted copy journal without losing the source",
+    "Run again"
   ]
 }

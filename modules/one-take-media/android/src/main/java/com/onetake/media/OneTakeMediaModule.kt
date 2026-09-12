@@ -17,6 +17,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /** Expo bridge for app-private Media3 captioned video exports. */
 class OneTakeMediaModule : Module() {
@@ -24,6 +26,13 @@ class OneTakeMediaModule : Module() {
 
   override fun definition() = ModuleDefinition {
     Name("OneTakeMedia")
+
+    View(MediaCutPreviewView::class) {
+      Events("onState")
+      Prop("request") { view: MediaCutPreviewView, value: String -> view.setSegments(value) }
+      Prop("playing") { view: MediaCutPreviewView, value: Boolean -> view.setPlaying(value) }
+      Prop("seek") { view: MediaCutPreviewView, value: Double -> view.seek(value) }
+    }
 
     OnCreate {
       store = MediaExportStore(applicationContext())
@@ -73,10 +82,13 @@ class OneTakeMediaModule : Module() {
         if (exportStore.markCancelled(id)) {
           MediaExportRuntime.cancel(id)
         }
+        withTimeout(15_000) {
+          while (MediaExportRuntime.isActive(id)) delay(50)
+        }
       }
     }
 
-    AsyncFunction("deleteExport") Coroutine { id: String ->
+    AsyncFunction("deleteExport") Coroutine { id: String, deleteGallery: Boolean? ->
       requireExportId(id)
       withContext(Dispatchers.IO) {
         val exportStore = requireStore()
@@ -85,7 +97,17 @@ class OneTakeMediaModule : Module() {
         withTimeout(15_000) {
           while (MediaExportRuntime.isActive(id)) delay(50)
         }
-        exportStore.delete(id)
+        deliveryLock.withLock {
+          if (deleteGallery == true) {
+            exportStore.get(id)?.galleryUri?.let { value ->
+              try { applicationContext().contentResolver.delete(android.net.Uri.parse(value), null, null) }
+              catch (failure: SecurityException) {
+                throw IllegalStateException("Android did not allow removal of the gallery copy. Remove it in Gallery, then retry project deletion.", failure)
+              }
+            }
+          }
+          exportStore.delete(id)
+        }
       }
     }
 
@@ -96,7 +118,7 @@ class OneTakeMediaModule : Module() {
 
     AsyncFunction("saveToGallery") Coroutine { id: String ->
       requireExportId(id)
-      saveToGallery(requireStore(), id)
+      deliveryLock.withLock { saveToGallery(requireStore(), id) }
     }
 
     AsyncFunction("shareExport") Coroutine { id: String ->
@@ -118,11 +140,20 @@ class OneTakeMediaModule : Module() {
       require(job.status == MediaExportStatus.COMPLETED) {
         "Export is not complete: ${job.status.name.lowercase()}"
       }
-      job.galleryUri?.let { return@withContext it }
       val source = exportStore.outputFile(id)
       require(source.isFile && source.length() > 0L) { "Export output is missing" }
       val context = applicationContext()
       val resolver = context.contentResolver
+      job.galleryUri?.let { previous ->
+        val previousUri = android.net.Uri.parse(previous)
+        if (job.galleryPending) {
+          resolver.delete(previousUri, null, null)
+        } else {
+          try {
+            resolver.openFileDescriptor(previousUri, "r")?.use { if (it.statSize > 0) return@withContext previous }
+          } catch (_: java.io.FileNotFoundException) { /* A manually removed gallery copy can be saved again. */ }
+        }
+      }
       val values = ContentValues().apply {
         put(MediaStore.Video.Media.DISPLAY_NAME, "one-take-$id.mp4")
         put(MediaStore.Video.Media.MIME_TYPE, "video/mp4")
@@ -141,6 +172,7 @@ class OneTakeMediaModule : Module() {
       val uri = resolver.insert(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, values)
         ?: throw IOException("MediaStore did not create a gallery item")
       try {
+        check(exportStore.setGalleryUri(id, uri.toString(), true)) { "Export disappeared while saving" }
         resolver.openOutputStream(uri, "w")?.use { output ->
           source.inputStream().use { input -> input.copyTo(output) }
         } ?: throw IOException("Could not open gallery output")
@@ -157,6 +189,7 @@ class OneTakeMediaModule : Module() {
         value
       } catch (failure: Throwable) {
         resolver.delete(uri, null, null)
+        exportStore.setGalleryUri(id, null)
         throw failure
       }
     }
@@ -191,6 +224,8 @@ class OneTakeMediaModule : Module() {
       })
     }
   }
+
+  companion object { private val deliveryLock = Mutex() }
 
   private fun applicationContext(): android.content.Context =
     appContext.reactContext?.applicationContext ?: throw Exceptions.AppContextLost()

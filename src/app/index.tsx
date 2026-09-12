@@ -6,6 +6,7 @@ import { ChevronRight, Clapperboard, Mic, Images } from 'lucide-react-native';
 const DevelopmentSessions = __DEV__ ? require('../development/sessions/session-runner').default : null;
 
 const MediaResearch = __DEV__ ? require('../development/sessions/media-research').default : null;
+const Tier0MediaChecks = __DEV__ ? require('../development/sessions/tier0-media-checks').default : null;
 
 function ModeRow({ title, sub, icon: Icon }: { title: string; sub: string; icon: typeof Mic }) {
   return (
@@ -58,6 +59,7 @@ export default function Home() {
         </Link>
         {DevelopmentSessions && <DevelopmentSessions />}
         {MediaResearch && <MediaResearch />}
+        {Tier0MediaChecks && <Tier0MediaChecks />}
       </View>
     </SafeAreaView>
   );

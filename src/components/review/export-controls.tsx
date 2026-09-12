@@ -107,15 +107,15 @@ export function ExportControls({ project, start, end, onMessage }: {
   }, [announce, clearPoll, currentKey, refresh]);
 
   const selection = useMemo(() => {
-    const cuts = project.cuts?.length === 0 ? [{ t0: 0, t1: project.duration ?? end }] : project.cuts ?? [{ t0: start, t1: end }];
+    const cuts = project.reviewSegments ?? (project.cuts?.length === 0 ? [{ t0: 0, t1: project.duration ?? end }] : project.cuts ?? [{ t0: start, t1: end }]);
     const duration = Array.isArray(cuts)
       ? cuts.reduce((total, cut) => total + (Number.isFinite(cut?.t0) && Number.isFinite(cut?.t1) ? Math.max(0, cut.t1 - cut.t0) : 0), 0)
       : 0;
-    const label = project.cuts?.length === 0 ? 'complete source' : project.cuts !== undefined ? 'saved cuts' : `${formatSeconds(start)}–${formatSeconds(end)}`;
+    const label = project.reviewSegments ? 'reviewed sequence' : project.cuts?.length === 0 ? 'complete source' : project.cuts !== undefined ? 'saved cuts' : `${formatSeconds(start)}–${formatSeconds(end)}`;
     return { duration, label };
-  }, [end, project.cuts, project.duration, start]);
-  const cutsNeedReview = Array.isArray(project.cuts)
-    && project.cuts.length > 0
+  }, [end, project.cuts, project.reviewSegments, project.duration, start]);
+  const cutsNeedReview = (Array.isArray(project.reviewSegments) || (Array.isArray(project.cuts)
+    && project.cuts.length > 0))
     && !(project as Project & { cutsReviewed?: boolean }).cutsReviewed;
 
   function planForExport(): ExportPlan | null {
@@ -199,7 +199,7 @@ export function ExportControls({ project, start, end, onMessage }: {
       unregister = registerProjectWork(projectId, async () => {
         deleted = true;
         await started;
-        await media!.deleteExport(id);
+        await media!.cancelExport(id);
       });
       await assertProjectExists(projectId);
       // Persist before starting the service so a process death after the
@@ -209,7 +209,7 @@ export function ExportControls({ project, start, end, onMessage }: {
       const history = JSON.parse(await getSetting(historyKey) || '[]') as string[];
       await saveSetting(historyKey, JSON.stringify([...new Set([...history, id])]));
       if (deleted) throw new Error('This project is being deleted.');
-      await media.startExport({ id, sourceUri: plan.sourceUri, cuts: plan.cuts, captions: plan.captions });
+      await media.startExport({ id, sourceUri: plan.sourceUri, cuts: plan.cuts, captions: plan.captions, segments: plan.segments });
       finishStart();
       if (deleted || !mounted.current || jobId.current !== id) return;
       announce('Export queued. You can leave this screen while it runs.');
@@ -304,13 +304,13 @@ export function ExportControls({ project, start, end, onMessage }: {
     <Text className="text-neutral-500 text-xs mt-2">
       {selection.label} · {formatSeconds(selection.duration)} output · original video is preserved
     </Text>
-    <Text className="text-neutral-500 text-xs mt-2">Android · source-size MP4; device encoder may adjust quality. White captions on a dark background.</Text>
+    <Text className="text-neutral-500 text-xs mt-2">Android · 720 × 1280 SDR MP4; source fits inside the frame. White captions on a dark background.</Text>
     {project.refinement?.status === 'running' && !active && <Text className="text-amber-200 text-xs mt-2">Saved-audio caption recheck is running. Export can wait or use current captions.</Text>}
     <View className="flex-row flex-wrap gap-2 mt-3">
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={canRetry ? 'Retry video export' : 'Export video'}
-        disabled={loading || busy || active || !project.videoUri || cutsNeedReview}
+        disabled={loading || busy || active || (!project.videoUri && !project.reviewSegments?.length) || cutsNeedReview}
         onPress={requestExport}
         className="bg-white rounded-lg px-4 py-3 disabled:opacity-40"
       >

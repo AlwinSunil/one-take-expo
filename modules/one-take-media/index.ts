@@ -1,5 +1,6 @@
-import { NativeModule, requireNativeModule } from 'expo-modules-core';
-import { Platform } from 'react-native';
+import { NativeModule, requireNativeModule, requireNativeViewManager } from 'expo-modules-core';
+import type { ComponentType } from 'react';
+import { Platform, type ViewProps } from 'react-native';
 
 export type MediaCut = {
   /** Start in seconds relative to the original source. */
@@ -12,11 +13,14 @@ export type MediaCaption = MediaCut & {
   text: string;
 };
 
+export type MediaSourceSegment = { uri: string; t0: number; t1: number; captions?: MediaCaption[]; takeId?: string };
+
 export type MediaExportRequest = {
   id: string;
   sourceUri: string;
   cuts: MediaCut[];
   captions: MediaCaption[];
+  segments?: MediaSourceSegment[];
 };
 
 export type MediaExportStatus =
@@ -32,6 +36,7 @@ export type MediaExport = {
   status: MediaExportStatus;
   progress: number;
   uri?: string;
+  galleryUri?: string;
   error?: string;
 };
 
@@ -39,7 +44,7 @@ export declare class OneTakeMediaModule extends NativeModule {
   startExport(request: MediaExportRequest): Promise<{ id: string }>;
   getExport(id: string): Promise<MediaExport>;
   cancelExport(id: string): Promise<void>;
-  deleteExport(id: string): Promise<void>;
+  deleteExport(id: string, deleteGallery: boolean): Promise<void>;
   openExport(id: string): Promise<void>;
   saveToGallery(id: string): Promise<string>;
   shareExport(id: string): Promise<void>;
@@ -62,3 +67,10 @@ const OneTakeMedia: OneTakeMediaModule | null =
     : null;
 
 export default OneTakeMedia;
+
+export const NativeCutPreview = OneTakeMedia ? requireNativeViewManager('OneTakeMedia') as ComponentType<ViewProps & {
+  request: string;
+  playing: boolean;
+  seek: number;
+  onState: (event: { nativeEvent: { ready?: boolean; ended?: boolean; playing?: boolean; position?: number; duration?: number; firstFrameMs?: number; error?: string } }) => void;
+}> : null;

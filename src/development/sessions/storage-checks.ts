@@ -1,7 +1,7 @@
 import { Directory, File, Paths } from 'expo-file-system';
 import * as SQLite from 'expo-sqlite';
-import { deleteProject, getDraft, getProject, listProjects, registerProjectFile, registerProjectWork, saveProject, saveProjectMetadata } from '@/lib/store';
-import { projectReview } from '@/lib/project-workflow';
+import { beginProjectPickup, completeProjectPickup, deleteProject, getDraft, getProject, listProjects, registerProjectFile, registerProjectWork, saveProject, saveProjectMetadata } from '@/lib/store';
+import { projectReview, projectScriptLines } from '@/lib/project-workflow';
 import type { Project } from '@/lib/session';
 
 export async function runStorageChecks(): Promise<{ name: string; passed: boolean; error?: string }[]> {
@@ -9,7 +9,7 @@ export async function runStorageChecks(): Promise<{ name: string; passed: boolea
   const source = new File(new Directory(Paths.document, 'research'), 'media-sample.mp4');
   if (!source.exists) return [{ name: 'Stage the dedicated media research fixture before storage checks', passed: false }];
   const prefix = `research-regression-${Date.now()}`;
-  const ids = [`${prefix}-a`, `${prefix}-b`, `${prefix}-failed`, `${prefix}-concurrent`];
+  const ids = [`${prefix}-a`, `${prefix}-b`, `${prefix}-failed`, `${prefix}-concurrent`, `${prefix}-recovery`];
   const savedFiles: string[] = [];
   const draft = await getDraft();
   const record = (name: string, passed: boolean) => results.push({ name, passed });
@@ -46,6 +46,17 @@ export async function runStorageChecks(): Promise<{ name: string; passed: boolea
       const missing = await getProject(saved.id);
       record('A missing take cannot establish coverage', !!missing && projectReview(missing).lines.every(line => line.status !== 'covered'));
     } finally { await new File(new Directory(Paths.document, 'research'), `${prefix}-parked.mp4`).move(new File(originalUri)); }
+    const pickupId = `${prefix}:pickup`;
+    await beginProjectPickup(saved.id, pickupId, projectScriptLines(saved).map(line => line.id));
+    const pickupInput = { videoUri: source.uri, duration: 12, transcript,
+      takes: [{ id: 'pickup-take', t0: 0.5, t1: 3.5, mediaUri: source.uri, playable: true, quality: 'clean' as const, inFrame: true, transcriptSegmentIds: [transcript[0].id] }] };
+    const merged = await completeProjectPickup(saved.id, pickupId, pickupInput);
+    const pickupUri = merged.recordings?.find(recording => recording.id === pickupId)?.mediaUri;
+    if (pickupUri) savedFiles.push(pickupUri);
+    record('Pickup merge preserves the original and copies independent pickup media', merged.videoUri === originalUri
+      && !!pickupUri && pickupUri !== originalUri && new File(pickupUri).exists && merged.transcript.length === 2);
+    const repeated = await completeProjectPickup(saved.id, pickupId, pickupInput);
+    record('Repeated pickup completion is idempotent after reopen', repeated.transcript.length === 2 && repeated.takes?.length === 2);
     const attachment = new File(Paths.document, 'videos', `${prefix}-attachment.txt`);
     attachment.write('Dedicated deletion fixture');
     savedFiles.push(attachment.uri);
@@ -67,7 +78,18 @@ export async function runStorageChecks(): Promise<{ name: string; passed: boolea
     await concurrentSave;
     record('Deletion waits for concurrent save and leaves no recreated media', await getProject(ids[3]) === null
       && !new File(Paths.document, 'videos', `${encodeURIComponent(ids[3])}.mp4`).exists
-      && !new File(Paths.document, 'videos', `${encodeURIComponent(ids[3])}.part`).exists);
+      && !new File(Paths.document, 'videos', `${encodeURIComponent(ids[3])}.part`).exists
+      && !new File(Paths.document, 'videos', `${encodeURIComponent(ids[3])}.mp4.part`).exists);
+    const recoveryFile = new File(Paths.document, 'videos', `${ids[4]}.mp4`);
+    savedFiles.push(recoveryFile.uri);
+    const connection = await SQLite.openDatabaseAsync('onetake.db', { useNewConnection: true });
+    try {
+      await connection.runAsync('INSERT INTO project_operations (id, project_id, data) VALUES (?, ?, ?)', `original:${ids[4]}`, ids[4],
+        JSON.stringify({ id: `original:${ids[4]}`, projectId: ids[4], kind: 'original', sourceUri: source.uri,
+          destinationUri: recoveryFile.uri, expectedSize: source.size, phase: 'copying', createdAt: Date.now(),
+          project: { ...first, id: ids[4], videoUri: recoveryFile.uri } }));
+    } finally { await connection.closeAsync(); }
+    record('Reopen replays an interrupted copy journal without losing the source', (await getProject(ids[4]))?.videoUri === recoveryFile.uri && recoveryFile.exists && source.exists);
   } catch (error) { results.push({ name: 'Storage regression execution', passed: false, error: String(error) }); }
   finally {
     const db = await SQLite.openDatabaseAsync('onetake.db', { useNewConnection: true });
@@ -75,6 +97,8 @@ export async function runStorageChecks(): Promise<{ name: string; passed: boolea
       for (const id of ids) await db.runAsync('DELETE FROM projects WHERE id = ?', id);
       for (const id of ids) await db.runAsync('DELETE FROM project_files WHERE project_id = ?', id);
       for (const id of ids) await db.runAsync('DELETE FROM deleted_projects WHERE id = ?', id);
+      for (const id of ids) await db.runAsync('DELETE FROM project_operations WHERE project_id = ?', id);
+      for (const id of ids) await db.runAsync('DELETE FROM deletion_options WHERE project_id = ?', id);
       for (const uri of savedFiles) { const fresh = new File(uri); if (fresh.exists) fresh.delete(); }
     } catch (error) { results.push({ name: 'Dedicated fixture cleanup', passed: false, error: String(error) }); }
     finally { await db.closeAsync(); }

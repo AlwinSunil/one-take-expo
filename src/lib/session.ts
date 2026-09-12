@@ -5,6 +5,7 @@ export type Mode = 'script' | 'assisted';
 export type GazeLabel = 'camera' | 'left' | 'right' | 'up' | 'down' | 'away';
 
 export interface TranscriptSeg {
+  recordingId?: string;
   id?: string;
   t0: number;
   t1: number;
@@ -46,7 +47,9 @@ export interface Project {
   recoveryMessage?: string;
   captionRevision?: number;
   scriptLines?: ScriptLine[];
-  takes?: TakeEvidence[];
+  takes?: (TakeEvidence & { recordedAt?: number; eligibleLineIds?: string[] })[];
+  recordings?: { id: string; mediaUri: string; duration: number; createdAt: number }[];
+  reviewSegments?: { uri: string; t0: number; t1: number; takeId?: string; captions?: { t0: number; t1: number; text: string }[] }[];
   unavailableTakeIds?: string[];
   pickupRequest?: { lineIds: string[]; requestedAt: number };
   reviewDecisions?: ReviewDecision[];
