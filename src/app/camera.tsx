@@ -809,7 +809,7 @@ export default function CameraScreen() {
           {[1, 2].map(n => <View key={`h${n}`} style={{ position: 'absolute', top: `${n * 100 / 3}%`, left: 0, right: 0, borderTopWidth: StyleSheet.hairlineWidth, borderColor: '#ffffff55' }} />)}
         </View>}
         <View className="self-center mt-4 bg-white rounded px-3 py-1.5">
-          <Text className="text-black text-xs font-bold">{preparing ? 'PREPARING CAPTIONS' : recording ? `${captureMode === 'record-only' ? 'RECORD-ONLY · ' : ''}${saving ? 'SAVING' : 'REC'}  ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}` : `VIDEO · ${videoQuality}`}</Text>
+          <Text className="text-black text-xs font-bold">{preparing ? 'PREPARING CAPTIONS' : recording ? `${captureMode === 'record-only' ? 'RECORD-ONLY · ' : ''}${saving ? 'SAVING' : 'REC'}  ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}` : `VIDEO · UP TO ${videoQuality}`}</Text>
         </View>
         {(preparing || recording) && <LiveCaptions text={captions.text} isFinal={captions.isFinal} status={captions.status} />}
         {(preparing || recording) && captureMode === 'record-only' && <Text accessibilityRole="alert" className="self-center mt-2 rounded bg-amber-950/90 px-3 py-1.5 text-center text-amber-200 text-xs">RECORD-ONLY · Live analysis unavailable. Video and camera audio will still be saved.</Text>}
@@ -908,7 +908,7 @@ export default function CameraScreen() {
       <SafeAreaView className="flex-1 bg-black">
         <StatusBar style="light" />
         <View className="flex-row items-center justify-between px-4 h-16">
-          <Text className="text-white text-xs tracking-widest">{recordedProject?.recordingStatus === 'interrupted' ? 'REVIEW INTERRUPTED TAKE' : 'PREVIEW'} · {videoQuality}</Text>
+          <Text className="text-white text-xs tracking-widest">{recordedProject?.recordingStatus === 'interrupted' ? 'REVIEW INTERRUPTED TAKE' : 'PREVIEW'}</Text>
           <IconButton icon="close" label="Close saved preview" disabled={saving || !!pendingSave.current} onPress={() => setPreviewUri(null)} />
         </View>
         <View className="flex-1 px-4">

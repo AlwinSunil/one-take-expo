@@ -1,5 +1,5 @@
 {
-  "apk_sha256": "08214ae6541c887a96bebbb893c51c09f5b3571bce954ab47122040e74dcb565",
+  "apk_sha256": "4929d634a510e4a6a5ff65d3633bb6274e03f07523dc62e37590c4de872ec675",
   "package": "com.anonymous.onetake",
   "variant": "debug",
   "abi": "arm64-v8a",
@@ -9,6 +9,6 @@
   "device": "iQOO I2501",
   "android": "16",
   "runtime": "Moonshine0.1.5 / ONNX Runtime1.28.0",
-  "javascript": "Metro development bundle from integration/milestone-1-review; source commit recorded in final report",
+  "javascript": "Final integrated Metro source; includes native duration inspection and pickup preview fixes.",
   "scope": "Native build identity; JavaScript may advance without rebuilding this debug APK."
 }
