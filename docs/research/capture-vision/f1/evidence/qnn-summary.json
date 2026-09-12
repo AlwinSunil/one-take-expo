@@ -1,0 +1,68 @@
+{
+  "pose_detector": {
+    "selection": "last 600 events per identifier; CSV appends across sessions",
+    "events": {
+      "Number of HVX threads used": {
+        "n": 600,
+        "unit": "COUNT",
+        "min": 8.0,
+        "median": 8.0,
+        "max": 8.0
+      },
+      "RPC (execute) time": {
+        "n": 600,
+        "unit": "US",
+        "min": 14184.0,
+        "median": 14690.0,
+        "max": 21663.0
+      },
+      "QNN accelerator (execute) time": {
+        "n": 600,
+        "unit": "US",
+        "min": 13098.0,
+        "median": 13679.5,
+        "max": 20682.0
+      },
+      "Accelerator (execute) time": {
+        "n": 600,
+        "unit": "US",
+        "min": 2499.0,
+        "median": 2606.0,
+        "max": 9309.0
+      }
+    }
+  },
+  "pose_landmark_detector": {
+    "selection": "last 35 events per identifier; CSV appends across sessions",
+    "events": {
+      "Number of HVX threads used": {
+        "n": 35,
+        "unit": "COUNT",
+        "min": 8.0,
+        "median": 8.0,
+        "max": 8.0
+      },
+      "RPC (execute) time": {
+        "n": 35,
+        "unit": "US",
+        "min": 23588.0,
+        "median": 24412.0,
+        "max": 34652.0
+      },
+      "QNN accelerator (execute) time": {
+        "n": 35,
+        "unit": "US",
+        "min": 22599.0,
+        "median": 23232.0,
+        "max": 33540.0
+      },
+      "Accelerator (execute) time": {
+        "n": 35,
+        "unit": "US",
+        "min": 2333.0,
+        "median": 2419.0,
+        "max": 7027.0
+      }
+    }
+  }
+}

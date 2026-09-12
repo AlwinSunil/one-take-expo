@@ -1,0 +1,54 @@
+{
+  "qnn250.aar": {
+    "bytes": 71270746,
+    "sha256": "b507656e4031d8aa6a7ab0fecf725b941096737ad7440ad7ea288f7c9cc9d743"
+  },
+  "ep.aar": {
+    "bytes": 1229451,
+    "sha256": "d63f45a10e7137dcfc06f240b8477d52813401cafc9eda4ff202610727737cbb"
+  },
+  "ort.aar": {
+    "bytes": 44532227,
+    "sha256": "077dec5e2d821234c7dc0aba584bec8f999854b546c754cab93a90741c56fbeb"
+  },
+  "qnn.aar": {
+    "bytes": 65891759,
+    "sha256": "4cc58d8b303bf157e8706aa53912c2ef548175b76ece5a5b38a7e1b45974cea4"
+  },
+  "pose.zip": {
+    "bytes": 4135273,
+    "sha256": "e258785e3bf57aae7261ee19d9bc25a781c33a45c5a10cfb75cbb70a73db9ed6"
+  },
+  "pose-photo.jpg": {
+    "bytes": 690875,
+    "sha256": "c8c032a3c9376c2b82f84388546253172ba9644b36544bf3d0cf2dbae1acc3e1"
+  },
+  "combined_apk": {
+    "bytes": 93730860,
+    "sha256": "db2a0977b724bdf5bea7e2e9a493d71d7115fb051f645e0c4abb45fba7e03660"
+  },
+  "final_verification_apk": {
+    "bytes": 93730860,
+    "sha256": "d59819757aef8b6da6fb92beb4db6edcc3d1eb88646639f4c9c3bb0c555004e0"
+  },
+  "pose_landmark_detector.onnx": {
+    "bytes": 1217,
+    "sha256": "d33f2da56f69fae17280f5248cfc85fa18c7b1bcf8b5da4d65eb7b9c9cffde2d"
+  },
+  "pose_detector.onnx": {
+    "bytes": 2263,
+    "sha256": "08428084c01c9cb940f574b2343bb2296e15cb0ec1c706d429f6ac713f2ba940"
+  },
+  "metadata.json": {
+    "bytes": 4564,
+    "sha256": "43520b2e1724544703f3ae3be41092e8a1c15b0a6e6f02023d21e2de94e6a6ea"
+  },
+  "pose_detector_qairt_context.bin": {
+    "bytes": 1339392,
+    "sha256": "9d8e707b181f9c442e426a85e29e1e1fc73c3897d26fe7c7170f519ef2cd42a2"
+  },
+  "pose_landmark_detector_qairt_context.bin": {
+    "bytes": 4239360,
+    "sha256": "bcfe3ecc2f530de0467642cfed3e1e7d19590a2fab914cc775ff9b5eb0371146"
+  }
+}

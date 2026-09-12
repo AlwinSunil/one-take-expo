@@ -1,0 +1,13 @@
+media-source.mp4 decoded={sample-rate=22050, aac-drc-boost-level=127, mime=audio/raw, aac-drc-cut-level=127, max-output-channel-count=8, aac-max-output-channel_count=8, aac-target-ref-level=64, aac-drc-album-mode=0, channel-mask=4, encoder-delay=1024, buffer-batch-max-output-size=0, buffer-batch-threshold-output-size=0, aac-drc-output-loudness=-1, channel-count=1, aac-drc-effect-type=3, aac-encoded-target-level=-1, encoder-padding=0}
+media-source.mp4 decoded_timeline_samples=265216 sample_rate=22050 timestamp_origin=container_zero,negative_priming_discarded
+media-export.mp4 decoded={sample-rate=22050, aac-drc-boost-level=127, mime=audio/raw, aac-drc-cut-level=127, max-output-channel-count=8, aac-max-output-channel_count=8, aac-target-ref-level=64, aac-drc-album-mode=0, channel-mask=4, encoder-delay=1600, buffer-batch-max-output-size=0, buffer-batch-threshold-output-size=0, aac-drc-output-loudness=-1, channel-count=1, aac-drc-effect-type=3, aac-encoded-target-level=-1, encoder-padding=0}
+media-export.mp4 decoded_timeline_samples=177600 sample_rate=22050 timestamp_origin=container_zero,negative_priming_discarded
+scope=decoded padded synthetic speech; not perceptual human lip sync; cuts=[0,4),[8,12)
+segment=0 source_voice_s=0.508843537414966,1.965532879818594 output_voice_s=0.5287981859410431,1.9854875283446711 onset_error_ms=19.954648526077097 offset_error_ms=19.954648526077097
+segment0_first_voice source_s=0.508843537414966 expected_output_s=0.508843537414966 duration_s=0.35 correlation=0.9081823610964934 output_lag_ms=20.453514739229025
+segment0_last_voice source_s=1.615532879818594 expected_output_s=1.615532879818594 duration_s=0.35 correlation=0.9374902603348674 output_lag_ms=20.272108843537413
+segment=1 source_voice_s=8.508843537414966,10.035374149659864 output_voice_s=4.54875283446712,6.0653061224489795 onset_error_ms=39.90929705215418 offset_error_ms=29.931972789115857
+segment1_first_voice source_s=8.508843537414966 expected_output_s=4.5088435374149665 duration_s=0.35 correlation=0.9994101948495606 output_lag_ms=32.698412698412696
+segment1_last_voice source_s=9.685374149659864 expected_output_s=5.685374149659864 duration_s=0.35 correlation=0.9995772578493118 output_lag_ms=32.698412698412696
+join_output_rms=0.0 source_pre_cut_rms=0.0 source_post_cut_rms=0.0
+PCM_FIXTURE_RESULT=PASS gates=voice_onset_offset_within100ms,each_boundary_correlation>=0.8,each_lag_within100ms,quiet_join

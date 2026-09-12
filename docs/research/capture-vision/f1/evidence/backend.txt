@@ -1,0 +1,3 @@
+09-13 02:27:30.518 15546 15588 I onnxruntime:  [I:onnxruntime:, qnn_backend_manager.cc:347 LoadBackend] Found valid interface, version: 2.39.0 backend provider name: HTP_QTI_AISW backend id: 6
+09-13 02:27:31.486 15546 15588 I onnxruntime:  [I:onnxruntime:, qnn_backend_manager.cc:347 LoadBackend] Found valid interface, version: 2.39.0 backend provider name: HTP_QTI_AISW backend id: 6
+09-13 02:29:58.298 15845 15879 I onnxruntime:  [I:onnxruntime:, qnn_backend_manager.cc:347 LoadBackend] Found valid interface, version: 2.39.0 backend provider name: HTP_QTI_AISW backend id: 6

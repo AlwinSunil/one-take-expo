@@ -1,0 +1,10 @@
+track={track-id=1, level=512, vendor.v-float-fps.value=30.495993, mime=video/avc, frame-count=3668, profile=8, v-float-fps=30.495993, language=```, color-standard=2, display-width=1280, csd-1=java.nio.HeapByteBuffer[pos=0 lim=9 cap=9], color-transfer=3, durationUs=122283000, display-height=720, width=1280, color-range=1, max-input-size=4728, frame-rate=30, height=720, csd-0=java.nio.HeapByteBuffer[pos=0 lim=24 cap=24]}
+track={max-bitrate=128000, sample-rate=48000, track-id=2, durationUs=122240000, mime=audio/mp4a-latm, profile=2, channel-count=1, bitrate=128000, language=```, aac-profile=2, max-input-size=463, csd-0=java.nio.HeapByteBuffer[pos=0 lim=2 cap=2]}
+decoded_format={sample-rate=48000, aac-drc-boost-level=127, mime=audio/raw, aac-drc-cut-level=127, max-output-channel-count=8, aac-max-output-channel_count=8, aac-target-ref-level=64, aac-drc-album-mode=0, channel-mask=4, buffer-batch-max-output-size=0, buffer-batch-threshold-output-size=0, aac-drc-output-loudness=-1, channel-count=1, aac-drc-effect-type=3, aac-encoded-target-level=-1}
+audio_compare video_samples16k=1955840 consumer_samples=1956478
+audio_correlation consumer_s=2.0 video_minus_consumer_ms=21.75 correlation=0.976698690900833 video_rms=5886.45094144171
+audio_correlation consumer_s=119.24 video_minus_consumer_ms=21.75 correlation=0.979786015413382 video_rms=3498.2523103687076
+playback_duration_ms=122283
+playback_info=3,0
+playback_seek_end_ms=119283
+playback_complete

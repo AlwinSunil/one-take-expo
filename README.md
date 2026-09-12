@@ -84,3 +84,7 @@ Join our community of developers creating universal apps.
 
 - [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
 - [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+
+### Development sample sessions
+
+Debug builds expose **Sample sessions · Dev** on Home, with seven in-memory examples and device-run handoff, storage and coaching checks. Samples never enter Projects; the separate storage checks create and clean up dedicated fixture projects. **Playback & export research · Dev** runs the native media experiment. See [setup and expected states](docs/development/sample-sessions.md), [research status](docs/development/milestone-0-status.md) and the [Milestone 1 handoff](docs/development/milestone-1-handoff.md).

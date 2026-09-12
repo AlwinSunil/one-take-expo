@@ -1,0 +1,8 @@
+forced_model_initialization_failure; optional vision disabled
+recording_start_elapsed_ns=190534425939558
+audio samples=79998 nonzero=78719 rms=1978.075648310815 timestamp_status=0 position=80318 ns=51128600038879
+recording_end_elapsed_ns=190539645823566 frames=149 pcm_samples=79998 nonzero_samples=78719
+fallback_duration_ms=5000
+fallback_has_video=yes
+fallback_has_audio=yes
+FALLBACK_COMPLETE

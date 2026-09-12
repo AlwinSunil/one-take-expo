@@ -1,0 +1,148 @@
+{
+  "version": 1,
+  "retrieved": "2026-09-13",
+  "purpose": "Tiny real-photo crop feasibility corpus; no trained model or video evaluation",
+  "coordinates": "normalized x,y,width,height; manually approximate selected region; not detector output",
+  "sources": [
+    {
+      "id": "outdoor",
+      "source": "https://commons.wikimedia.org/wiki/File:Outdoors-man-portrait.jpg",
+      "url": "https://upload.wikimedia.org/wikipedia/commons/1/1e/Outdoors-man-portrait.jpg",
+      "sha256": "9efa1809e45e462dee58d9b9d22eb1ffed7f555b2b9da6a7b397336f1f46dfd6",
+      "bytes": 3971919,
+      "author": "Abhi Puthenpurackal",
+      "split": "development",
+      "scene": "Single person outdoors; softly blurred background; centered face",
+      "region": [
+        0.425,
+        0.25,
+        0.15,
+        0.29
+      ],
+      "cue": "face-clipping",
+      "crop": [
+        0.5,
+        0,
+        0.5,
+        1
+      ],
+      "license": "CC0-1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "consent": "Public copyright permission; no separate model release or research consent recorded",
+      "localFile": "outdoor.jpg",
+      "skinToneLabel": null,
+      "dimensions": [
+        5385,
+        3284
+      ]
+    },
+    {
+      "id": "product",
+      "source": "https://commons.wikimedia.org/wiki/File:Coffeecup.jpg",
+      "url": "https://upload.wikimedia.org/wikipedia/commons/6/63/Coffeecup.jpg",
+      "sha256": "e4a5dc848baac414f12b08ad01207ff0feddad4bfd81513f7e50fec0985671d7",
+      "bytes": 40574,
+      "author": "Sprinno",
+      "split": "development",
+      "scene": "Travel mug only; white surround; reflective body; no face",
+      "region": [
+        0.09,
+        0.014,
+        0.835,
+        0.93
+      ],
+      "cue": "product-clipping",
+      "crop": [
+        0.5,
+        0,
+        0.5,
+        1
+      ],
+      "license": "CC0-1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "consent": "Public copyright permission; no separate model release or research consent recorded",
+      "localFile": "product.jpg",
+      "skinToneLabel": null,
+      "dimensions": [
+        273,
+        500
+      ]
+    },
+    {
+      "id": "workspace",
+      "source": "https://commons.wikimedia.org/wiki/File:Mae_Jemison_in_Space.jpg",
+      "url": "https://upload.wikimedia.org/wikipedia/commons/1/1f/Mae_Jemison_in_Space.jpg",
+      "sha256": "e4909d69f36018374244c1b6d1a8b043239c84042c4a3ce1beb0cc740afcc542",
+      "bytes": 1590033,
+      "author": "NASA",
+      "split": "development",
+      "scene": "Person with hands and equipment in spacecraft interior; meaningful busy background",
+      "region": [
+        0.497,
+        0.171,
+        0.057,
+        0.111
+      ],
+      "cue": "face-clipping",
+      "crop": [
+        0.53,
+        0,
+        0.47,
+        1
+      ],
+      "license": "PD-USGov-NASA",
+      "licenseUrl": "https://www.nasa.gov/nasa-brand-center/images-and-media/",
+      "consent": "Public copyright permission; no separate model release or research consent recorded",
+      "localFile": "workspace.jpg",
+      "skinToneLabel": null,
+      "dimensions": [
+        3500,
+        2326
+      ]
+    },
+    {
+      "id": "group",
+      "source": "https://commons.wikimedia.org/wiki/File:Group_photo01.jpg",
+      "url": "https://upload.wikimedia.org/wikipedia/commons/c/cd/Group_photo01.jpg",
+      "sha256": "93ccc3f2002d2d8592da848e028704fb32b2e20df87e8843cfa67599deb179b2",
+      "bytes": 3748359,
+      "author": "Anuary Rajabu",
+      "split": "held-out",
+      "scene": "Group photograph per source; pixels reserved from study",
+      "region": null,
+      "cue": null,
+      "crop": null,
+      "license": "CC0-1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "consent": "Public copyright permission; no separate model release or research consent recorded",
+      "localFile": "group.jpg",
+      "skinToneLabel": null,
+      "dimensions": [
+        5184,
+        3456
+      ]
+    },
+    {
+      "id": "portrait",
+      "source": "https://commons.wikimedia.org/wiki/File:Gazzaniga.jpg",
+      "url": "https://upload.wikimedia.org/wikipedia/commons/8/8e/Gazzaniga.jpg",
+      "sha256": "297dd44c797f1d59becabe2c940001838107f3242f7b9205447c21bab3f8963e",
+      "bytes": 489747,
+      "author": "Serene Zaina",
+      "split": "held-out",
+      "scene": "Portrait per source; pixels reserved from study",
+      "region": null,
+      "cue": null,
+      "crop": null,
+      "license": "CC0-1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "consent": "Public copyright permission; no separate model release or research consent recorded",
+      "localFile": "portrait.jpg",
+      "skinToneLabel": null,
+      "dimensions": [
+        924,
+        1280
+      ]
+    }
+  ]
+}

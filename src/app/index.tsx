@@ -3,6 +3,10 @@ import { Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronRight, Clapperboard, Mic, Images } from 'lucide-react-native';
 
+const DevelopmentSessions = __DEV__ ? require('../development/sessions/session-runner').default : null;
+
+const MediaResearch = __DEV__ ? require('../development/sessions/media-research').default : null;
+
 function ModeRow({ title, sub, icon: Icon }: { title: string; sub: string; icon: typeof Mic }) {
   return (
     <View className="flex-row items-center px-5 py-5">
@@ -52,6 +56,8 @@ export default function Home() {
             </View>
           </Pressable>
         </Link>
+        {DevelopmentSessions && <DevelopmentSessions />}
+        {MediaResearch && <MediaResearch />}
       </View>
     </SafeAreaView>
   );

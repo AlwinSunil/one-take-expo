@@ -1,0 +1,18 @@
+{
+  "device": "iQOO I2501",
+  "serial": "10BFAT1U1Q000XP",
+  "android": "16",
+  "chrome": "140.0.7339.207",
+  "results": [
+    {
+      "mode": "default",
+      "status": "3 / 3 source-pair checks passed",
+      "output": "{\n  \"time\": \"2026-09-12T21:06:15.967Z\",\n  \"userAgent\": \"Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36\",\n  \"intentionalCrop\": false,\n  \"method\": \"manual-region rectangle containment; no inference\",\n  \"independentSources\": 3,\n  \"heldOutSourcesUsed\": 0,\n  \"results\": [\n    {\n      \"source\": \"outdoor\",\n      \"full\": null,\n      \"clipped\": \"face-clipping\",\n      \"expectedClipped\": \"face-clipping\",\n      \"passed\": true\n    },\n    {\n      \"source\": \"product\",\n      \"full\": null,\n      \"clipped\": \"product-clipping\",\n      \"expectedClipped\": \"product-clipping\",\n      \"passed\": true\n    },\n    {\n      \"source\": \"workspace\",\n      \"full\": null,\n      \"clipped\": \"face-clipping\",\n      \"expectedClipped\": \"face-clipping\",\n      \"passed\": true\n    }\n  ]\n}"
+    },
+    {
+      "mode": "intentional",
+      "status": "3 / 3 source-pair checks passed",
+      "output": "{\n  \"time\": \"2026-09-12T21:06:18.915Z\",\n  \"userAgent\": \"Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36\",\n  \"intentionalCrop\": true,\n  \"method\": \"manual-region rectangle containment; no inference\",\n  \"independentSources\": 3,\n  \"heldOutSourcesUsed\": 0,\n  \"results\": [\n    {\n      \"source\": \"outdoor\",\n      \"full\": null,\n      \"clipped\": null,\n      \"expectedClipped\": null,\n      \"passed\": true\n    },\n    {\n      \"source\": \"product\",\n      \"full\": null,\n      \"clipped\": null,\n      \"expectedClipped\": null,\n      \"passed\": true\n    },\n    {\n      \"source\": \"workspace\",\n      \"full\": null,\n      \"clipped\": null,\n      \"expectedClipped\": null,\n      \"passed\": true\n    }\n  ]\n}"
+    }
+  ]
+}

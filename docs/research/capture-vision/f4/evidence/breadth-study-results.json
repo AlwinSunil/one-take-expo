@@ -1,0 +1,18 @@
+{
+  "device": "iQOO I2501",
+  "serial": "10BFAT1U1Q000XP",
+  "android": "16",
+  "chrome": "140.0.7339.207",
+  "results": [
+    {
+      "mode": "default",
+      "status": "4 / 4 source-pair checks passed",
+      "output": "{\n  \"time\": \"2026-09-12T21:14:04.424Z\",\n  \"userAgent\": \"Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36\",\n  \"intentionalCrop\": false,\n  \"method\": \"manual-region rectangle containment; no inference\",\n  \"independentSources\": 4,\n  \"heldOutSourcesUsed\": 0,\n  \"results\": [\n    {\n      \"source\": \"hands\",\n      \"full\": null,\n      \"clipped\": \"product-clipping\",\n      \"expectedClipped\": \"product-clipping\",\n      \"passed\": true\n    },\n    {\n      \"source\": \"low-light\",\n      \"full\": null,\n      \"clipped\": \"product-clipping\",\n      \"expectedClipped\": \"product-clipping\",\n      \"passed\": true\n    },\n    {\n      \"source\": \"handheld\",\n      \"full\": null,\n      \"clipped\": \"product-clipping\",\n      \"expectedClipped\": \"product-clipping\",\n      \"passed\": true\n    },\n    {\n      \"source\": \"backlight\",\n      \"full\": null,\n      \"clipped\": \"face-clipping\",\n      \"expectedClipped\": \"face-clipping\",\n      \"passed\": true\n    }\n  ]\n}"
+    },
+    {
+      "mode": "intentional",
+      "status": "4 / 4 source-pair checks passed",
+      "output": "{\n  \"time\": \"2026-09-12T21:14:11.690Z\",\n  \"userAgent\": \"Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36\",\n  \"intentionalCrop\": true,\n  \"method\": \"manual-region rectangle containment; no inference\",\n  \"independentSources\": 4,\n  \"heldOutSourcesUsed\": 0,\n  \"results\": [\n    {\n      \"source\": \"hands\",\n      \"full\": null,\n      \"clipped\": null,\n      \"expectedClipped\": null,\n      \"passed\": true\n    },\n    {\n      \"source\": \"low-light\",\n      \"full\": null,\n      \"clipped\": null,\n      \"expectedClipped\": null,\n      \"passed\": true\n    },\n    {\n      \"source\": \"handheld\",\n      \"full\": null,\n      \"clipped\": null,\n      \"expectedClipped\": null,\n      \"passed\": true\n    },\n    {\n      \"source\": \"backlight\",\n      \"full\": null,\n      \"clipped\": null,\n      \"expectedClipped\": null,\n      \"passed\": true\n    }\n  ]\n}"
+    }
+  ]
+}

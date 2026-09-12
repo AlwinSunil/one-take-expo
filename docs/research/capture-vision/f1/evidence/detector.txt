@@ -1,0 +1,6 @@
+public_positive
+person_score=0.9921035191926119 group=2 anchor=72 threshold=0.75
+detector_box_normalized=0.3812718512490392,0.006271851249039173,0.7055748542770743,0.33057485427707434; localization candidate, not full-body framing acceptance
+private_camera_negative
+person_score=0.00386167936693354 group=1 anchor=394 threshold=0.75
+person_detection=none

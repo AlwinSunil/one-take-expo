@@ -1,0 +1,141 @@
+{
+  "version": 1,
+  "sources": [
+    {
+      "id": "hands",
+      "source": "https://commons.wikimedia.org/wiki/File:Hands-coffee-smartphone-technology_(23698591814).jpg",
+      "url": "https://upload.wikimedia.org/wikipedia/commons/e/e8/Hands-coffee-smartphone-technology_%2823698591814%29.jpg",
+      "sha256": "d5bb8a9d642f9570acfc85ea957a8abf77e2cfd20bf9b2c2b481061efc4a9905",
+      "bytes": 3629564,
+      "author": "www.Pixel.la Free Stock Photos",
+      "license": "CC0-1.0",
+      "dimensions": [
+        5472,
+        3648
+      ],
+      "scene": "Hands hold phone and cup; face excluded; shallow focus and strong warm highlights",
+      "region": [
+        0.25,
+        0.24,
+        0.52,
+        0.4
+      ],
+      "cue": "product-clipping",
+      "crop": [
+        0.5,
+        0,
+        0.5,
+        1
+      ],
+      "intent": "Phone detail rather than face; do not reject blurred hand/background or absent face.",
+      "split": "supplemental-development",
+      "localFile": "hands.jpg",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "changes": "Original JPEG unmodified; paired display applies normalized crop viewport; derivative display licensed same as source.",
+      "skinToneLabel": null,
+      "consent": "Public copyright permission; separate model release/research consent not recorded"
+    },
+    {
+      "id": "low-light",
+      "source": "https://commons.wikimedia.org/wiki/File:Candle_light_in_darkness.jpg",
+      "url": "https://upload.wikimedia.org/wikipedia/commons/b/bc/Candle_light_in_darkness.jpg",
+      "sha256": "b077bdb34507f6527ef2687cb1124868a20aa10dc454b8e1afbfbcdf71d58446",
+      "bytes": 3182453,
+      "author": "Hartmut Schmidt, Heidelberg",
+      "license": "CC-BY-SA-4.0",
+      "dimensions": [
+        3638,
+        2425
+      ],
+      "scene": "Red candle against dark surround; bright flame; no people",
+      "region": [
+        0.6,
+        0.24,
+        0.06,
+        0.34
+      ],
+      "cue": "product-clipping",
+      "crop": [
+        0.63,
+        0,
+        0.37,
+        1
+      ],
+      "intent": "Select flame as the product detail. Black background is compatible with low-key intent; no automatic exposure fix.",
+      "split": "supplemental-development",
+      "localFile": "low-light.jpg",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "changes": "Original JPEG unmodified; paired display applies normalized crop viewport; derivative display licensed same as source.",
+      "skinToneLabel": null,
+      "consent": "Public copyright permission; separate model release/research consent not recorded"
+    },
+    {
+      "id": "handheld",
+      "source": "https://commons.wikimedia.org/wiki/File:What_a_selfie.jpg",
+      "url": "https://upload.wikimedia.org/wikipedia/commons/9/9b/What_a_selfie.jpg",
+      "sha256": "82b5be6eb9ad3b9b0e4df78c44d0bf93d1b5429c58a9a8ac43d24c987523fed8",
+      "bytes": 6389760,
+      "author": "Barbara-Ingeborg",
+      "license": "CC-BY-SA-4.0",
+      "dimensions": [
+        4592,
+        3056
+      ],
+      "scene": "Two people hold a phone for a selfie outdoors with other people behind them; overcast light",
+      "region": [
+        0.26,
+        0.52,
+        0.03,
+        0.04
+      ],
+      "cue": "product-clipping",
+      "crop": [
+        0.275,
+        0,
+        0.725,
+        1
+      ],
+      "intent": "Only selected phone-detail clipping can be illustrated; suppress all single-person or horizon advice in group/handheld mode. Still photograph does not demonstrate handheld motion.",
+      "split": "supplemental-development",
+      "localFile": "handheld.jpg",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "changes": "Original JPEG unmodified; paired display applies normalized crop viewport; derivative display licensed same as source.",
+      "skinToneLabel": null,
+      "consent": "Public copyright permission; separate model release/research consent not recorded"
+    },
+    {
+      "id": "backlight",
+      "source": "https://pixnio.com/people/crowd/sunset-people-sky-silhouette-outdoor-person-nature",
+      "url": "https://pixnio.com/free-images/2018/06/28/2018-06-28-07-34-32-1200x800.jpg",
+      "sha256": "1e836a51592cd43efe93f45369ca3a011a9582da8822604fa5328171779c57ec",
+      "bytes": 88640,
+      "author": "Not individually credited on source page; Pixnio publisher",
+      "license": "CC0-1.0",
+      "dimensions": [
+        1200,
+        800
+      ],
+      "scene": "Three people against bright sunset sky, bodies darker than sky, rim light and outdoor surroundings",
+      "region": [
+        0.6,
+        0.135,
+        0.09,
+        0.31
+      ],
+      "cue": "face-clipping",
+      "crop": [
+        0.65,
+        0,
+        0.35,
+        1
+      ],
+      "intent": "Dark subjects may preserve sunset atmosphere; without selected subject and explicit intent, suppress automatic face/exposure advice. Cropped region only demonstrates lost content.",
+      "split": "supplemental-development",
+      "localFile": "backlight.jpg",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "changes": "Original JPEG unmodified; paired display applies normalized crop viewport; derivative display licensed same as source.",
+      "skinToneLabel": null,
+      "consent": "Public copyright permission; separate model release/research consent not recorded"
+    }
+  ]
+}
