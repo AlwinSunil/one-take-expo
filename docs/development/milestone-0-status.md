@@ -8,7 +8,7 @@ Closed as a research/readiness milestone at Melvin’s explicit request on 2026-
 | #7 | Isolated 122.5-second video/audio/frame run, 600 actual HTP inferences (median 19 ms), memory/thermal traces, decoded audio comparison at both ends, native playback, positive/negative detector output and vision-disabled recording fallback. |
 | #8 | Existing offline speech research already closed; its recorded findings are retained, not independently re-certified here. |
 | #9 | Native cut preview, separate captioned MP4, decoded phrase-boundary checks, cancellation, background completion, interrupted retry, missing source, gallery and share chooser. Actual synthetic output attached. |
-| #10 | Sourced rubric, creative-intent exceptions, model/rules comparison, licensed photo pairs and heldouts, iQOO photo-policy checks and 14/14 device policy checks. See final corpus report for breadth and limits. |
+| #10 | Sourced rubric, creative-intent exceptions, model/rules comparison, licensed photo pairs and heldouts, 14/14 iQOO photo-policy checks and 14/14 device policy checks. See final corpus report for breadth and limits. |
 
 All behavioral evidence in this work comes from the physical iQOO I2501 / Android 16. Host tools compiled artifacts and generated fixtures. CI configuration is not a claimed local test run.
 
@@ -22,3 +22,7 @@ All behavioral evidence in this work comes from the physical iQOO I2501 / Androi
 - Main received production speech/export changes during this research. Preserve those changes and keep the research media module separately named. Earlier device evidence describes its stated research build, not an end-to-end certification of the newly combined main branch.
 
 See the [Milestone 1 handoff](milestone-1-handoff.md), [capture report](../research/capture-vision/f1/device-results.md), [media report](../research/review-export/f3/device-evidence.md), and [coaching report](../research/capture-vision/f4/README.md). These limits are implementation validation work, not checked research assertions.
+
+## Merge validation
+
+Merged current `origin/main` (`94a5f52`) into the research branch, preserving its production speech/export modules and CI checks. Renamed the isolated bridge to `OneTakeMediaResearch` with a separate FileProvider. TypeScript compilation passed after integration; this is a host compiler check, not device behavior evidence. The final combined APK has not been certified by the earlier research runs.

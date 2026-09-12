@@ -1,6 +1,6 @@
 # F3: instant review and captioned export research (#9)
 
-This is an isolated Android experiment, not a production editor or export pipeline. The existing camera, projects, preview and filmstrip remain the product path. Native bridge: `modules/one-take-media`; JavaScript contract: `src/features/media/native.ts`. Actual [iQOO evidence](device-evidence.md) is recorded separately; build success alone does not establish playback, A/V sync or acceptance.
+This is an isolated Android experiment, not a production editor or export pipeline. The existing camera, projects, preview and filmstrip remain the product path. Native bridge: `modules/one-take-media-research`; JavaScript contract: `src/features/media/native.ts`. Actual [iQOO evidence](device-evidence.md) is recorded separately; build success alone does not establish playback, A/V sync or acceptance.
 
 ## Recommendation to A/B
 
@@ -62,3 +62,7 @@ Device preview/export, background, cancellation, interruption/retry, gallery/sha
 ### On-device container inspection
 
 The optional research methods `inspectSource(fileUri)` and `inspectExport(completedJobId)` return JSON from Android `MediaMetadataRetriever` and `MediaExtractor`. Reports include file size, duration, dimensions, rotation and each track's MIME, declared duration, sample count, and minimum/maximum presentation timestamps in microseconds. Run these through the connected app and record their returned values with device evidence. They do not use host media tools. Sample timestamps describe compressed packets; the last timestamp is a packet's start, not its end. AAC priming/padding and video frame duration can make track spans differ. This probe confirms container streams and timing structure only; it does not decode speech, prove lip sync or establish that no syllable was clipped.
+
+### Coexistence with the production module
+
+During integration, the isolated experiment was renamed to `modules/one-take-media-research` / `OneTakeMediaResearch` so it can coexist with the independently shipped production `modules/one-take-media` module. Its Kotlin namespace, Expo registration, FileProvider authority and XML resource name are distinct. Research output/job directories retain their original names, preserving the recorded fixtures; production uses its own `exports` directory. Device evidence above predates this registration-only rename; the integrated APK requires a rebuild and smoke check.

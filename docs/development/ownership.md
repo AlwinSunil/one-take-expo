@@ -37,4 +37,4 @@ The proposed `summarizeSession` and `validateSession` helpers support fixture wo
 
 ## Review still needed
 
-Both peers must reproduce the starter, agree the shared examples and review ownership before their consumers integrate. The named reviewer is Sabari. Issue #6 stays open until this independent review is recorded. Next Melvin issue is #9, the separate real-device playback/export research; the fixture runner does not satisfy it.
+Both peers must reproduce the starter, agree the shared examples and review ownership before their consumers integrate. The named reviewer is Sabari. Melvin explicitly requested Milestone 0 closure; personal reproduction remains a Milestone 1 handoff check and is not claimed here. The separate #9 real-device evidence is linked from the milestone closeout; fixtures do not substitute for it.
