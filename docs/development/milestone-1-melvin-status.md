@@ -69,3 +69,7 @@ Sabari's named reproduction, both peers' shared-handoff/deletion review and the 
 ### Final editor validation
 
 On the fresh Android build, the synthetic original-plus-pickup fixture loaded 2/2 spoken lines and played an eight-second native cut. Fixed the nested Android review scroller that hid lower controls; preparation, acceptance, actual editor export and the system share chooser now work. No share was sent. Output and chooser evidence are in `evidence/milestone-1-native/`. The B-frame correction for [#53](https://github.com/AlwinSunil/one-take-expo/issues/53) is implemented and device-verified in this PR, awaiting review/merge.
+
+## Combined development integration
+
+The capture/vision stack is integrated and its pickup contract gaps are fixed in the combined development branch. Peer sign-off was deferred by the user for development merges. The combined source checks and actual targeted-capture smoke results are recorded in [the Tier 0 report](../validation/T0.md). Development merging does not close the unrun physical acceptance checks.
