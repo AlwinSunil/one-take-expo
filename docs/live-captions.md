@@ -18,21 +18,27 @@ The stock Moonshine Android 0.1.5 runtime is unsuitable for this iQOO 15: its OR
 Replacing ORT alone is insufficient because Moonshine itself links against versioned ORT symbols.
 
 The original local benchmark and reproduction notes are in the Kotlin worktree at `/Users/sabari/.t3/worktrees/OneTake/t3code-4e41e1d3/docs/moonshine-streaming-benchmark.md`.
-The verified native artifacts currently exist at `/tmp/moonshine-benchmark/android-harness/app/src/main/jniLibs/arm64-v8a`.
-Those are machine-local build outputs, not remotely published dependencies.
-A fresh machine needs the matching rebuilt runtime before it can reproduce this build.
+The verified native libraries are committed in `tools/vendor/onetake-moonshine-0.1.5-ort-1.28.0-arm64-v8a.tar.gz`.
+The archive contains `libmoonshine.so`, `libmoonshine-jni.so`, `libonnxruntime.so`, and `SHA256SUMS`.
+A fresh clone can extract this archive without rebuilding the native runtime.
 See [runtime reproduction](research/moonshine-runtime.md) and `tools/rebuild_moonshine.py` for the pinned source build.
 The optional `--with-small` flag stages the larger streaming comparison model; live captions still use Tiny.
 
-Stage the verified artifacts before building:
+From the repository root, extract and stage the verified artifacts before Gradle sync or building.
+Python 3, `tar`, and internet access are required; the setup script downloads model files and the Java AAR and checks their pinned hashes:
 
 ```sh
+mkdir -p tools/.cache/moonshine-runtime
+tar -xzf tools/vendor/onetake-moonshine-0.1.5-ort-1.28.0-arm64-v8a.tar.gz \
+  -C tools/.cache/moonshine-runtime
 python3 tools/prepare_moonshine.py \
-  --native-dir /tmp/moonshine-benchmark/android-harness/app/src/main/jniLibs/arm64-v8a --with-small
+  --native-dir tools/.cache/moonshine-runtime/arm64-v8a --with-small
 ```
 
 The script downloads the pinned model files, verifies every hash, and generates a Java-only Moonshine AAR with the incompatible stock native libraries removed.
-Downloaded models, generated AARs, and native binaries stay ignored by Git.
+Downloaded models, generated AARs, and extracted native binaries stay ignored by Git.
+The compressed native runtime archive is tracked in Git.
+The setup script verifies every extracted library against `tools/moonshine-artifacts.json` before staging it.
 
 ## Behavior
 
