@@ -153,3 +153,15 @@ export function preserveNewRecordings(current: Project, incoming: Project): Proj
     captionRevision: Math.max(current.captionRevision ?? 0, incoming.captionRevision ?? 0),
   };
 }
+
+
+/** A durable file copy does not mean capture or recognition finished successfully. */
+export function projectWithDurableOriginal(project: Project, videoUri: string): Project {
+  return { ...project, videoUri,
+    takes: project.takes?.map(take => take.mediaUri === project.videoUri ? { ...take, mediaUri: videoUri } : take),
+    recordingStatus: project.recordingStatus === 'interrupted' ? 'interrupted' : 'complete',
+    recoveryMessage: project.recordingStatus === 'interrupted'
+      ? project.recoveryMessage || 'Recording did not finish. The available original is safely saved for review.'
+      : undefined,
+  };
+}

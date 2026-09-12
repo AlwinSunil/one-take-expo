@@ -8,7 +8,7 @@ import { projectReview, projectScriptLines, projectSegments } from './project-wo
 import media from '../../modules/one-take-media';
 
 import type { Project } from './session';
-import { PENDING_PICKUP_MESSAGE, mergePickupRecording, normalizeProject, preserveNewRecordings, type PickupRecordingInput } from './project-data';
+import { PENDING_PICKUP_MESSAGE, projectWithDurableOriginal, mergePickupRecording, normalizeProject, preserveNewRecordings, type PickupRecordingInput } from './project-data';
 
 const deletedIds = new Set<string>();
 
@@ -39,8 +39,7 @@ export async function saveProject(p: Project): Promise<Project> {
     await assertProjectAvailable(await getDb(), p.id);
     if (!p.videoUri) throw new Error('No recording is available to save.');
     const destination = new File(Paths.document, 'videos', `${encodeURIComponent(p.id)}.mp4`);
-    const saved = { ...p, takes: p.takes?.map(take => take.mediaUri === p.videoUri ? { ...take, mediaUri: destination.uri } : take),
-      recordingStatus: 'complete' as const, recoveryMessage: undefined, videoUri: destination.uri };
+    const saved = projectWithDurableOriginal(p, destination.uri);
     normalizeProject(saved);
     const operation: RecordingOperation = { id: `original:${p.id}`, projectId: p.id, kind: 'original',
       sourceUri: p.videoUri, destinationUri: destination.uri, expectedSize: 0, phase: 'copying', project: saved, createdAt: Date.now() };
