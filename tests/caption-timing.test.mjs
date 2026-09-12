@@ -6,6 +6,8 @@ import {
   captionTimingReport,
   captionTimingState,
   reduceCaptionTiming,
+  selectNewTimingLines,
+  streamElapsedMs,
   summarizeCaptionTiming,
   timingAdjustedStatus,
 } from '../src/lib/caption-timing.ts';
@@ -24,6 +26,7 @@ test('the three stage durations are reported separately', () => {
     pauseDetectionMs: 320,
     finalizationMs: 780,
     coverageMs: 160,
+    recognizedMs: 1_100,
     complete: true,
     delayed: false,
   }]);
@@ -37,6 +40,7 @@ test('an incomplete utterance reports only the durations it can measure', () => 
     pauseDetectionMs: 200,
     finalizationMs: null,
     coverageMs: null,
+    recognizedMs: null,
     complete: false,
     delayed: false,
   }]);
@@ -83,10 +87,11 @@ test('each completed utterance produces one caption-timing log line', () => {
     ...utterance('u1', 0, 320, 1_100, 1_200),
     ...utterance('u2', 2_000, 2_100, 4_000, 4_100),
   ]);
-  assert.deepEqual(report.lines, [
-    'caption-timing: utterance=u1 pause_detection_ms=320 finalization_ms=780 coverage_processing_ms=100 state=live',
-    'caption-timing: utterance=u2 pause_detection_ms=100 finalization_ms=1900 coverage_processing_ms=100 state=delayed',
+  assert.deepEqual(report.lines.map(entry => entry.line), [
+    'caption-timing: utterance=u1 pause_detection_ms=320 finalization_ms=780 coverage_processing_ms=100 recognized_ms=1100 state=live',
+    'caption-timing: utterance=u2 pause_detection_ms=100 finalization_ms=1900 coverage_processing_ms=100 recognized_ms=2000 state=delayed',
   ]);
+  assert.deepEqual(report.lines.map(entry => entry.key), ['u1:complete', 'u2:complete']);
 });
 
 test('a repeated stage keeps the first timestamp and the same state object', () => {
@@ -112,6 +117,65 @@ test('malformed timing events are rejected', () => {
   assert.throws(() => summarizeCaptionTiming([{ utteranceId: 'u1', stage: 'guessed', at: 0 }]), TypeError);
   assert.throws(() => summarizeCaptionTiming([{ utteranceId: 'u1', stage: 'speech-end', at: Number.NaN }]), RangeError);
   assert.throws(() => summarizeCaptionTiming([{ utteranceId: 'u1', stage: 'speech-end', at: -1 }]), RangeError);
+});
+
+test('an utterance with no pause source still logs a line with n/a stages', () => {
+  const report = summarizeCaptionTiming([
+    { utteranceId: 'u1', stage: 'speech-end', at: 2_100 },
+    { utteranceId: 'u1', stage: 'final-segment', at: 2_410 },
+  ]);
+  assert.deepEqual(report.lines, [{
+    key: 'u1:partial',
+    utteranceId: 'u1',
+    complete: false,
+    line: 'caption-timing: utterance=u1 pause_detection_ms=n/a finalization_ms=n/a coverage_processing_ms=n/a recognized_ms=310 state=live',
+  }]);
+});
+
+test('each caption-timing line is logged exactly once when utterances complete out of order', () => {
+  // u1 and u2 both finalize, then u2 gets its coverage verdict before u1.
+  const steps = [
+    { utteranceId: 'u1', stage: 'speech-end', at: 1_000 },
+    { utteranceId: 'u1', stage: 'pause-detected', at: 1_200 },
+    { utteranceId: 'u1', stage: 'final-segment', at: 1_400 },
+    { utteranceId: 'u2', stage: 'speech-end', at: 3_000 },
+    { utteranceId: 'u2', stage: 'pause-detected', at: 3_200 },
+    { utteranceId: 'u2', stage: 'final-segment', at: 3_400 },
+    { utteranceId: 'u2', stage: 'coverage-verdict', at: 3_500 },
+    { utteranceId: 'u1', stage: 'coverage-verdict', at: 3_900 },
+  ];
+
+  const logged = new Set();
+  const emitted = [];
+  let state = captionTimingState();
+  for (const step of steps) {
+    state = reduceCaptionTiming(state, step);
+    for (const line of selectNewTimingLines(captionTimingReport(state), logged)) {
+      logged.add(line.key);
+      emitted.push(line.key);
+    }
+  }
+
+  assert.deepEqual(emitted, ['u1:partial', 'u2:partial', 'u2:complete', 'u1:complete']);
+  assert.equal(new Set(emitted).size, emitted.length, 'a line was logged more than once');
+});
+
+test('stage timestamps share the audio-stream clock', () => {
+  assert.equal(streamElapsedMs(10_600, 10_000), 600);
+  assert.equal(streamElapsedMs(9_900, 10_000), 0);
+  assert.equal(streamElapsedMs(10_600, null), null, 'no stream means no observation');
+
+  // Speech end comes from the segment's own t1 on the stream clock; a pause
+  // reported by the coverage lane on the same clock must not be inflated by
+  // the preparation interval that preceded `listening`.
+  const streamStartWallMs = 10_000;
+  const report = summarizeCaptionTiming([
+    { utteranceId: 'u1', stage: 'speech-end', at: 2.1 * 1_000 },
+    { utteranceId: 'u1', stage: 'pause-detected', at: streamElapsedMs(12_340, streamStartWallMs) },
+    { utteranceId: 'u1', stage: 'final-segment', at: streamElapsedMs(12_410, streamStartWallMs) },
+  ]);
+  assert.equal(report.utterances[0].pauseDetectionMs, 240);
+  assert.equal(report.utterances[0].finalizationMs, 70);
 });
 
 test('only a listening session is relabelled as delayed by timing', () => {

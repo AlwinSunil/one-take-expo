@@ -28,7 +28,7 @@ function replay({ url, session }) {
     status: state.status,
     reason: state.reason,
     timing: { delayed: timing.delayed, utterances: timing.utterances },
-    timingLines: timing.lines,
+    timingLines: timing.lines.map(entry => entry.line),
   };
 }
 
