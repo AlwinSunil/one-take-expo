@@ -4,7 +4,7 @@ import { launchProjectPickup } from '@/features/capture/project-handoff';
 import { Alert, Pressable, Text, TextInput, View } from 'react-native';
 import captions from '../../../modules/one-take-captions';
 import type { Project } from '@/lib/session';
-import { projectScriptLines, replaceWithRefined } from '@/lib/project-workflow';
+import { projectScriptLines, replaceWithRefined, toggleCaptionListening } from '@/lib/project-workflow';
 import { cleanReview, selectedReviewSegments, pickupLineIds } from '@/lib/clean-review';
 import { hasMultipleRecordingSources, transcriptForSource } from '@/lib/review-source';
 import { excludeInterval } from '@/lib/review-cuts';
@@ -138,7 +138,7 @@ export function TranscriptReview({ project, onChange, onSeek, onPreviewTake, onP
           <Text className="text-neutral-400 text-xs">{segment.t0.toFixed(1)}s – {segment.t1.toFixed(1)}s · {segment.isFinal === false ? 'Draft' : 'Caption'}</Text>
         </Pressable>
         {/\b(um+|uh+|erm|hmm)\b/i.test(segment.text) && <Text className="text-amber-200 text-xs mb-1">A possible filler appears in the transcript. Listen to confirm; mid-sentence removal stays off.</Text>}
-        <Pressable className="py-2" onPress={() => change({ ...latest.current, transcript: latest.current.transcript.map((s, i) => (segment.id ? s.id === segment.id : i === index) ? { ...s, needsListening: !s.needsListening } : s) })}>
+        <Pressable className="py-2" onPress={() => change(toggleCaptionListening(latest.current, segment.id ?? index))}>
           <Text className="text-neutral-400 text-xs">{segment.needsListening ? 'Marked unclear · listen and unmark' : 'Mark unclear speech for review'}</Text>
         </Pressable>
         <TextInput key={`${segment.id}:${segment.revision ?? 0}`} multiline accessibilityLabel={`Edit caption ${index + 1}`}

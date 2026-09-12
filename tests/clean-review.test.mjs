@@ -1,3 +1,4 @@
+import { toggleCaptionListening } from '../src/lib/project-workflow.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { cleanReview, selectedReviewCuts, selectedReviewSegments, pickupLineIds } from '../src/lib/clean-review.ts';
@@ -83,4 +84,31 @@ test('pickup eligibility never hides repeated words inside a whole take', () => 
   });
   assert.deepEqual(selectedReviewSegments(p).segments, []);
   assert.deepEqual(selectedReviewSegments(p).conflicts, ['pickup']);
+});
+
+test('unclear caption temporarily gates explicit whole-take coverage and restores original quality on unmark', () => {
+  const cleanTake = { id: 'clean', t0: 0, t1: 2, mediaUri: 'file:///raw.mp4', playable: true, quality: 'clean', inFrame: true, transcriptSegmentIds: ['caption'] };
+  const flub = { ...cleanTake, id: 'flub', quality: 'flub' };
+  const p = project([seg('caption', 'Hello world. Goodbye world.', 0, { needsListening: true })], { takes: [cleanTake, flub] });
+  const marked = cleanReview(p);
+  assert.deepEqual(pickupLineIds(marked), ['p:line:0', 'p:line:1']);
+  assert.deepEqual(selectedReviewSegments(p).segments, []);
+  assert.equal(marked.takes[0].quality, 'scratched');
+  assert.equal(marked.takes[1].quality, 'flub');
+  assert.equal(p.takes[0].quality, 'clean');
+  const unmarked = cleanReview({ ...p, transcript: p.transcript.map(segment => ({ ...segment, needsListening: false })) });
+  assert.equal(unmarked.lines[0].selectedTakeId, 'clean');
+  assert.equal(unmarked.lines[1].selectedTakeId, 'clean');
+  assert.equal(unmarked.takes[1].quality, 'flub');
+});
+
+test('listening annotation invalidates accepted exports without mutating recorded evidence', () => {
+  const p = project([seg('caption', 'Hello world.', 0)], { cuts: [{ t0: 0, t1: 2 }], reviewSegments: [{ uri: 'file:///raw.mp4', t0: 0, t1: 2 }], cutsReviewed: true });
+  const marked = toggleCaptionListening(p, 'caption');
+  assert.equal(marked.cuts, undefined);
+  assert.equal(marked.reviewSegments, undefined);
+  assert.equal(marked.cutsReviewed, false);
+  assert.equal(marked.transcript[0].needsListening, true);
+  assert.equal(toggleCaptionListening(marked, 'caption').transcript[0].needsListening, false);
+  assert.equal(p.cutsReviewed, true);
 });

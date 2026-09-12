@@ -16,11 +16,13 @@ export function projectScriptLines(project: Project) {
 export function projectReview(project: Project) {
   const segments = projectSegments(project);
   const lines = projectScriptLines(project);
+  const unclearIds = new Set(project.transcript.filter(segment => segment.t1 > segment.t0)
+    .flatMap((segment, index) => segment.needsListening ? [segment.id || `${project.id}:${index}`] : []));
   const pendingUris = new Set(project.recordings?.filter(recording => recording.evidenceStatus === 'pending').map(recording => recording.mediaUri));
   return deriveScopedReview({ lines, segments, decisions: project.reviewDecisions,
     silences: project.quietIntervals?.map((s, i) => ({ ...s, id: `${project.id}:quiet:${i}`, verifiedBoundary: false })),
-    takes: project.takes?.map(take => ({ ...take, playable: take.playable && !pendingUris.has(take.mediaUri ?? '') && !project.unavailableTakeIds?.includes(take.id) })) ?? segments.map(s => ({ id: `take:${s.id}`, t0: s.t0, t1: s.t1, mediaUri: project.videoUri,
-      playable: !!project.videoUri && !project.mediaMissing, quality: project.transcript.find(segment => segment.id === s.id)?.needsListening ? 'scratched' as const : 'clean' as const,
+    takes: project.takes?.map(take => ({ ...take, quality: take.quality === 'clean' && take.transcriptSegmentIds.some(id => unclearIds.has(id)) ? 'scratched' as const : take.quality, playable: take.playable && !pendingUris.has(take.mediaUri ?? '') && !project.unavailableTakeIds?.includes(take.id) })) ?? segments.map(s => ({ id: `take:${s.id}`, t0: s.t0, t1: s.t1, mediaUri: project.videoUri,
+      playable: !!project.videoUri && !project.mediaMissing, quality: unclearIds.has(s.id) ? 'scratched' as const : 'clean' as const,
       inFrame: false, transcriptSegmentIds: [s.id] })),
   });
 }
@@ -112,4 +114,11 @@ function validateRefinementPayload(value: unknown): TranscriptSeg[] {
     }
     return { ...segment };
   });
+}
+
+export function toggleCaptionListening(project: Project, segmentId: string | number): Project {
+  const index = typeof segmentId === 'number' ? segmentId : project.transcript.findIndex(segment => segment.id === segmentId);
+  if (!Number.isInteger(index) || index < 0 || index >= project.transcript.length) throw new Error('This caption is no longer available.');
+  return { ...project, cuts: undefined, reviewSegments: undefined, cutsReviewed: false,
+    transcript: project.transcript.map((segment, position) => position === index ? { ...segment, needsListening: !segment.needsListening } : segment) };
 }
