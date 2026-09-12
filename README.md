@@ -4,6 +4,36 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
 
 ## Get started
 
+### Android Studio and a physical Android phone
+
+Use Node.js 22.13 or newer for [Expo SDK 57](https://docs.expo.dev/versions/v57.0.0/).
+Install dependencies with `npm ci` before opening the native project.
+
+1. In Android Studio's SDK Manager, install Android SDK Platform 36, Build Tools 36.0.0, Platform Tools, NDK (Side by side) 27.1.12297006, and CMake 3.22.1.
+   Enable **Show Package Details** to select the exact NDK version.
+2. Open this repository's `android/` directory in Android Studio and let Gradle sync finish.
+   Use the Gradle wrapper provided by the project.
+   Android Studio creates `android/local.properties` with your local SDK path; this machine-specific file is intentionally ignored by Git.
+3. Enable USB debugging on your phone, connect it with a data-capable USB cable, and accept the phone's debugging authorization prompt.
+   Confirm it appears as `device` in `adb devices -l`.
+4. From the repository root, run `npm run android -- --device` and select the connected phone.
+   This builds and installs the native app and starts Metro.
+
+To use Android Studio's Run button, keep `npm start -- --localhost` running in a terminal at the repository root, run `adb reverse tcp:8081 tcp:8081`, and select the `app` configuration and your phone in Studio.
+If several devices are connected, pass `-s <serial>` to `adb`.
+Keep Metro running while using the debug app.
+
+On macOS, the default SDK path is `~/Library/Android/sdk`.
+If terminal tools cannot find it, set `ANDROID_HOME` to that path and add `$ANDROID_HOME/platform-tools` to your `PATH`.
+Set `JAVA_HOME` to an installed JDK or Android Studio's bundled runtime if Java cannot be found.
+
+If the build reports `[CXX1101]` and a missing NDK `source.properties`, the local NDK installation is incomplete.
+Stop builds and Gradle sync, move the incomplete version directory outside the SDK's `ndk/` folder, then reinstall that exact version through SDK Manager before retrying.
+Do not change the project's NDK version to work around a partial download.
+The tracked `android/gradlew` must remain executable; `chmod +x android/gradlew` repairs checkouts that lost that permission.
+
+### Expo development server
+
 1. Install dependencies
 
    ```bash
