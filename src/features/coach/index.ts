@@ -1,0 +1,23 @@
+export { CompositionCoach, type CompositionCoachProps } from './composition-coach';
+export {
+  COACH_THRESHOLDS,
+  chooseCoachView,
+  createCoachTakeState,
+  dismissCoachCue,
+  getCoachTakeDismissals,
+  type CoachCue,
+  type CoachDecision,
+  type CoachIntent,
+  type CoachPolicyInput,
+  type CoachTakeState,
+  type CoachVisionEvidence,
+  type CueObservation,
+  type MeasuredCueEvidence,
+  type MeasuredCueObservation,
+  type PendingVisionEvidence,
+  type ReadyVisionEvidence,
+  type SpeechState,
+  type UnavailableVisionEvidence,
+  type UnsupportedCueObservation,
+  type VisionUnavailableReason,
+} from './policy';
