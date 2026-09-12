@@ -6,12 +6,41 @@ import { router, useFocusEffect, useIsFocused, useLocalSearchParams } from 'expo
 import { useVideoPlayer, VideoView, type VideoThumbnail } from 'expo-video';
 import { Image } from 'expo-image';
 import { ArrowLeft, Images, ChevronLeft, ChevronRight, Grid3X3, SlidersHorizontal, SwitchCamera, X, Sparkles } from 'lucide-react-native';
-import { beginRecording, getSetting, saveProject, saveProjectMetadata, saveSetting } from '@/lib/store';
+import {
+  beginProjectPickup,
+  beginRecording,
+  completeProjectPickup,
+  getProject,
+  getSetting,
+  saveProject,
+  saveProjectMetadata,
+  saveSetting,
+} from '@/lib/store';
 import type { Project } from '@/lib/session';
 import { projectScriptLines } from '@/lib/project-workflow';
 import { useLiveCaptions } from '@/hooks/use-live-captions';
 import { LOCAL_VIDEO_BUFFER } from '@/lib/video-buffer';
 import { LiveCaptions } from '@/components/captions/live-captions';
+import { CoverageStrip } from '@/components/prompter/coverage-strip';
+import { PrompterLines } from '@/components/prompter/prompter-lines';
+import { RetakePrompt } from '@/components/prompter/retake-prompt';
+import { CaptureControls } from '@/components/capture/capture-controls';
+import { decideRetakePrompt } from '@/lib/retake-prompts';
+import {
+  captureScriptLines,
+  captureTranscriptSegments,
+  deriveCaptureCoverage,
+  deriveProjectCaptureCoverage,
+  pendingCaptureCoverage,
+  type CaptureCoverageSnapshot,
+} from '@/features/capture/coverage';
+import {
+  createCaptureCommandGate,
+  type CaptureCommand,
+} from '@/features/capture/capture-controls';
+import { setCaptureInputActive, subscribeCaptureInput } from '@/features/capture/input';
+import { loadAcceptedScriptDocument } from '@/lib/script-draft';
+import { parseScript, setCueStatus, type ScriptDocument } from '@/lib/script-lines';
 import {
   captureFailureMessage,
   classifyCaptureFailure,
@@ -23,7 +52,7 @@ import {
   type CaptureStopReason,
 } from '@/features/capture/reliability';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, AppState, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import {
   PinchGestureHandler,
@@ -103,8 +132,13 @@ function readCaptureStorage(): CaptureStorageCheck {
 
 export default function CameraScreen() {
   useKeepAwake();
-  const { mode, script } = useLocalSearchParams<{ mode?: string; script?: string }>();
+  const { mode, script, pickupProjectId: requestedPickupProjectId } = useLocalSearchParams<{
+    mode?: string;
+    script?: string;
+    pickupProjectId?: string;
+  }>();
   const isScript = mode === 'script';
+  const routeScript = typeof script === 'string' ? script : '';
   const isFocused = useIsFocused();
   const [cameraPermission, requestCamera, getCameraPermission] = useCameraPermissions();
   const [micPermission, requestMic, getMicPermission] = useMicrophonePermissions();
@@ -132,18 +166,30 @@ export default function CameraScreen() {
   const [previewDuration, setPreviewDuration] = useState(0);
   const [lastUri, setLastUri] = useState<string | null>(null);
   const [recordedProject, setRecordedProject] = useState<Project | null>(null);
+  const [scriptDocument, setScriptDocument] = useState<ScriptDocument>(() => parseScript(routeScript));
+  const [scriptDocumentLoaded, setScriptDocumentLoaded] = useState(!isScript);
+  const [captureCoverage, setCaptureCoverage] = useState<CaptureCoverageSnapshot>(() => pendingCaptureCoverage(parseScript(routeScript)));
+  const [pickupTargetId, setPickupTargetId] = useState<string | null>(null);
+  const [captureFeedback, setCaptureFeedback] = useState('');
+  const [promptNow, setPromptNow] = useState(Date.now());
   const [captureMode, setCaptureMode] = useState<'pending' | 'live' | 'record-only'>('pending');
   const [storageCheck, setStorageCheck] = useState<CaptureStorageCheck>(() => readCaptureStorage());
   const [cameraMountFailure, setCameraMountFailure] = useState<CaptureFailureKind | null>(null);
   const [cameraRetry, setCameraRetry] = useState(0);
   const [requestingPermission, setRequestingPermission] = useState(false);
   const permissionRequesting = useRef(false);
+  const commandGate = useRef(createCaptureCommandGate());
+  const scratchRequested = useRef(false);
+  const activeCaptureTakeId = useRef<string | null>(null);
+  const lastTranscript = useRef<ReturnType<typeof captureTranscriptSegments>>([]);
+  const lastCoverageTakeId = useRef('');
+  const lastCoverageUri = useRef<string | null>(null);
   const captionStatus = useRef(captions.status);
   const captionMessage = useRef(captions.message);
   captionStatus.current = captions.status;
   captionMessage.current = captions.message;
   const interrupted = useRef(false);
-  const chunks = (script ?? '').match(/[^.!?\n]+[.!?]?/g)?.map(s => s.trim()).filter(Boolean) ?? [];
+  const chunks = scriptDocument.lines.map(line => line.text);
 
   const refreshDeviceState = useCallback(() => {
     setStorageCheck(readCaptureStorage());
@@ -158,6 +204,9 @@ export default function CameraScreen() {
     if (phase === 'preparing') recordingGeneration.current++;
     if (reason === 'storage') setError(captureFailureMessage('storage'));
     if (reason !== 'user' && reason !== 'storage') setError(captureFailureMessage('interrupted'));
+    commandGate.current.end();
+    activeCaptureTakeId.current = null;
+    setCaptureInputActive(false);
     setSaving(true);
     camera.current?.stopRecording();
     void captions.stop().catch(() => {});
@@ -233,7 +282,7 @@ export default function CameraScreen() {
   }, [recording]);
 
   useEffect(() => {
-    if (captions.status === 'error') setCaptureMode('record-only');
+    if (captions.status === 'unavailable' || captions.status === 'interrupted') setCaptureMode('record-only');
   }, [captions.status]);
 
   useEffect(() => {
@@ -250,6 +299,122 @@ export default function CameraScreen() {
     const id = setInterval(checkStorage, 1000);
     return () => clearInterval(id);
   }, [recording, stopActiveCapture]);
+
+  const applyCaptureCommand = useCallback((command: CaptureCommand) => {
+    if (command === 'scratch') {
+      scratchRequested.current = true;
+      setCaptureFeedback('Current take marked for scratch. It will not count toward coverage.');
+      return;
+    }
+    if (!isScript || chunks.length === 0) {
+      setCaptureFeedback('There are no script lines to advance.');
+      return;
+    }
+    const next = Math.min(chunks.length - 1, chunk + 1);
+    setChunk(next);
+    setCaptureFeedback(next === chunk ? 'Already at the last script line.' : 'Advanced to the next script line.');
+  }, [chunk, chunks.length, isScript]);
+
+  const receiveCaptureCommand = useCallback((command: CaptureCommand) => {
+    const result = commandGate.current.receive({ command, source: 'tap' });
+    if (result.accepted) applyCaptureCommand(result.command);
+  }, [applyCaptureCommand]);
+
+  useEffect(() => {
+    const unsubscribe = subscribeCaptureInput(event => {
+      const result = commandGate.current.receive(event);
+      if (result.accepted) applyCaptureCommand(result.command);
+    });
+    return unsubscribe;
+  }, [applyCaptureCommand]);
+
+  useEffect(() => {
+    if (!isScript) {
+      setScriptDocumentLoaded(true);
+      return;
+    }
+    let cancelled = false;
+    setScriptDocumentLoaded(false);
+    loadAcceptedScriptDocument(routeScript || undefined)
+      .then(document => {
+        if (cancelled) return;
+        setScriptDocument(document);
+        setCaptureCoverage(pendingCaptureCoverage(document));
+        setScriptDocumentLoaded(true);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        const document = parseScript(routeScript);
+        setScriptDocument(document);
+        setCaptureCoverage(pendingCaptureCoverage(document));
+        setScriptDocumentLoaded(true);
+      });
+    return () => { cancelled = true; };
+  }, [isScript, routeScript]);
+
+  useEffect(() => {
+    if (!requestedPickupProjectId) return;
+    let cancelled = false;
+    getProject(requestedPickupProjectId)
+      .then(async project => {
+        if (cancelled) return;
+        if (!project) {
+          setError('That project is no longer available for another take.');
+          return;
+        }
+        const document = await loadAcceptedScriptDocument(routeScript || project.script);
+        if (cancelled) return;
+        setPickupTargetId(project.id);
+        setScriptDocument(document);
+        setScriptDocumentLoaded(true);
+        setCaptureCoverage(deriveProjectCaptureCoverage(document, project));
+      })
+      .catch(() => {
+        if (!cancelled) setError('Could not open the project for another take.');
+      });
+    return () => { cancelled = true; };
+  }, [requestedPickupProjectId, routeScript]);
+
+  useEffect(() => {
+    if (!scriptDocumentLoaded || !isScript) return;
+    if (recordedProject) {
+      setCaptureCoverage(deriveProjectCaptureCoverage(scriptDocument, recordedProject));
+    } else if (!previewUri) {
+      setCaptureCoverage(pendingCaptureCoverage(scriptDocument));
+    }
+  }, [isScript, previewUri, recordedProject, scriptDocument, scriptDocumentLoaded]);
+
+  useEffect(() => {
+    setChunk(current => Math.min(Math.max(current, 0), Math.max(0, chunks.length - 1)));
+  }, [chunks.length]);
+
+  useEffect(() => {
+    if (!recording && !previewUri) return;
+    const id = setInterval(() => setPromptNow(Date.now()), 250);
+    return () => clearInterval(id);
+  }, [previewUri, recording]);
+
+  const markCueDone = useCallback((cueId: string) => {
+    setScriptDocument(document => setCueStatus(document, cueId, 'done'));
+  }, []);
+
+  const promptDecision = useMemo(() => {
+    if (!isScript) return null;
+    const engineState = captions.status === 'delayed'
+      ? 'delayed' as const
+      : captions.status === 'unavailable' || captions.status === 'interrupted'
+        ? 'unavailable' as const
+        : 'ready' as const;
+    return decideRetakePrompt({
+      lines: captureCoverage.spokenLines,
+      lineEnds: captureCoverage.lineEnds,
+      verdicts: captureCoverage.verdicts,
+      now: promptNow,
+      midLine: recording && !captions.isFinal,
+      takeEnded: !!previewUri,
+      engineState,
+    });
+  }, [captions.isFinal, captions.status, captureCoverage, isScript, previewUri, promptNow, recording]);
 
   const zoomRef = useRef(zoom);
   useEffect(() => { zoomRef.current = zoom; }, [zoom]);  const pinchBase = useRef(0);
@@ -271,9 +436,16 @@ export default function CameraScreen() {
     capturePhase.current = 'preparing';
     stopLatch.current.reset();
     const generation = ++recordingGeneration.current;
-    setSeconds(0); setError(''); setPreparing(true);
-    setCaptureMode('pending');
+    const captureDocument = scriptDocumentLoaded ? scriptDocument : parseScript(routeScript);
+    let project: Project | null = null;
+    let targetProject: Project | null = null;
+    let pickupRecordingId = '';
+    let pickupLineIds: string[] = [];
     let captionFailure: string | undefined;
+    setSeconds(0); setError(''); setPreparing(true);
+    setCaptureFeedback('');
+    setCaptureMode('pending');
+    scratchRequested.current = false;
     try {
       const [latestCamera, latestMic] = await Promise.all([getCameraPermission(), getMicPermission()]);
       const permissions = describeCapturePermissions(latestCamera, latestMic);
@@ -290,11 +462,35 @@ export default function CameraScreen() {
         return;
       }
 
-      const project: Project = { id: `recording-${Date.now()}`, mode: isScript ? 'script' : 'assisted',
-        script: isScript && typeof script === 'string' ? script : undefined,
-        videoUri: null, transcript: [], clips: [], createdAt: Date.now(), schemaVersion: 2 };
-      await beginRecording(project);
+      if (pickupTargetId) {
+        targetProject = await getProject(pickupTargetId);
+        if (!targetProject) throw new Error('That project is no longer available for another take.');
+        const targetLines = projectScriptLines(targetProject);
+        const targetCoverage = deriveProjectCaptureCoverage(captureDocument, targetProject);
+        const covered = new Set(targetCoverage.spokenLines
+          .filter(line => line.status === 'covered')
+          .map(line => line.id));
+        pickupLineIds = targetLines
+          .filter(line => line.spokenText.trim().length > 0 && !covered.has(line.id))
+          .map(line => line.id);
+        if (pickupLineIds.length === 0) throw new Error('Every spoken line is already covered. You can wrap this project.');
+        pickupRecordingId = `${targetProject.id}:pickup:${Date.now()}`;
+      } else {
+        project = {
+          id: `recording-${Date.now()}`,
+          mode: isScript ? 'script' : 'assisted',
+          script: isScript ? captureDocument.text : undefined,
+          videoUri: null,
+          transcript: [],
+          clips: [],
+          createdAt: Date.now(),
+          schemaVersion: 2,
+          scriptLines: isScript ? captureScriptLines(captureDocument) : undefined,
+        };
+        await beginRecording(project);
+      }
       if (stopLatch.current.requested || !activeScreen.current || generation !== recordingGeneration.current) return;
+
       const startResult = await captions.start();
       if (!startResult.ok) {
         captionFailure = startResult.message;
@@ -303,22 +499,35 @@ export default function CameraScreen() {
         setCaptureMode('live');
       }
       if (stopLatch.current.requested || !activeScreen.current || generation !== recordingGeneration.current || !camera.current) return;
+
+      if (targetProject) {
+        await beginProjectPickup(targetProject.id, pickupRecordingId, pickupLineIds);
+      }
+      const captureTakeId = pickupRecordingId || project?.id || `recording-${Date.now()}`;
+      activeCaptureTakeId.current = captureTakeId;
+      commandGate.current.begin(captureTakeId);
+      setCaptureInputActive(true);
       capturePhase.current = 'recording';
       setPreparing(false);
       startedAt.current = Date.now();
       setRecording(true);
       const result = await camera.current.recordAsync();
       if (!result) throw new Error('No video was returned. Please try again.');
+      commandGate.current.end();
+      activeCaptureTakeId.current = null;
+      setCaptureInputActive(false);
       const duration = (Date.now() - startedAt.current) / 1000;
       capturePhase.current = 'saving';
       setSaving(true);
       // Make the returned original discoverable before waiting for analysis.
       // If the process stops during caption cleanup, Projects can recover it.
-      await saveProjectMetadata({ ...project, videoUri: result.uri, duration,
-        recordingStatus: 'interrupted',
-        recoveryMessage: 'The original is available. Saving or analysis did not finish; review this take in Projects.',
-        transcript: captions.transcript.current,
-      });
+      if (project) {
+        await saveProjectMetadata({ ...project, videoUri: result.uri, duration,
+          recordingStatus: 'interrupted',
+          recoveryMessage: 'The original is available. Saving or analysis did not finish; review this take in Projects.',
+           transcript: captions.transcript.current,
+         });
+       }
       let transcript = captions.transcript.current;
       try {
         transcript = await captions.stop();
@@ -329,10 +538,19 @@ export default function CameraScreen() {
         captionFailure = e instanceof Error && e.message ? e.message : 'Could not finish captions.';
         transcript = captions.transcript.current;
       }
-      if (captionStatus.current === 'error') {
+      if (captionStatus.current === 'unavailable' || captionStatus.current === 'interrupted') {
         captionFailure ??= captionMessage.current || 'Live captions became unavailable.';
         setCaptureMode('record-only');
       }
+      const transcriptSegments = captureTranscriptSegments(transcript);
+      lastTranscript.current = transcriptSegments;
+      const coverage = deriveCaptureCoverage({
+        document: captureDocument,
+        takeId: captureTakeId,
+        videoUri: result.uri,
+        transcript: transcriptSegments,
+        scratched: scratchRequested.current,
+      });
       const stopReason = stopLatch.current.reason;
       const wasInterrupted = interrupted.current || stopReason === 'interruption' || stopReason === 'storage'
         || stopReason === 'screen-blur' || stopReason === 'cleanup';
@@ -344,22 +562,44 @@ export default function CameraScreen() {
           : undefined,
         captionFailure ? `Live captions need recovery: ${captionFailure} Recheck the saved audio in the editor.` : undefined,
       ].filter((value): value is string => !!value);
-      const captured: Project = { ...project, videoUri: result.uri, duration,
-        recordingStatus: wasInterrupted ? 'interrupted' : 'complete',
-        recoveryMessage: recoveryMessages.length ? recoveryMessages.join(' ') : undefined,
-        scriptLines: isScript ? projectScriptLines(project) : undefined,
-        transcript: transcript.map(segment => ({ ...segment, rawText: segment.text, timingSource: 'live-estimate' as const })),
-      };
-      await saveProjectMetadata({ ...captured, recoveryMessage: [
-        'Recording is available in temporary storage. Open and save it to preserve it.',
-        ...recoveryMessages,
-      ].join(' ') });
-      const saved = await saveProject(captured);
+
+      let saved: Project;
+      if (project) {
+        const captured: Project = { ...project, videoUri: result.uri, duration,
+          recordingStatus: wasInterrupted ? 'interrupted' : 'complete',
+          recoveryMessage: recoveryMessages.length ? recoveryMessages.join(' ') : undefined,
+          scriptLines: isScript ? captureScriptLines(captureDocument) : undefined,
+          takes: coverage.review.takes,
+          transcript: transcript.map(segment => ({ ...segment, rawText: segment.text, timingSource: 'live-estimate' as const })),
+        };
+        await saveProjectMetadata({ ...captured, recoveryMessage: [
+          'Recording is available in temporary storage. Open and save it to preserve it.',
+          ...recoveryMessages,
+        ].join(' ') });
+        saved = await saveProject(captured);
+        setCaptureCoverage(deriveCaptureCoverage({
+          document: captureDocument,
+          takeId: captureTakeId,
+          videoUri: saved.videoUri,
+          transcript: transcriptSegments,
+          scratched: scratchRequested.current,
+        }));
+      } else {
+        saved = await completeProjectPickup(targetProject!.id, pickupRecordingId, {
+          videoUri: result.uri,
+          duration,
+          transcript: transcript.map(segment => ({ ...segment, rawText: segment.text, timingSource: 'live-estimate' as const })),
+          takes: coverage.review.takes,
+        });
+        setCaptureCoverage(deriveProjectCaptureCoverage(captureDocument, saved));
+      }
+      lastCoverageTakeId.current = captureTakeId;
+      lastCoverageUri.current = result.uri;
       setRecordedProject(saved);
       setPreviewDuration(Math.floor(duration));
-      setPreviewUri(saved.videoUri);
+      setPreviewUri(project ? saved.videoUri : result.uri);
       setLastUri(saved.videoUri);
-      saveSetting('last_video_uri', saved.videoUri!).catch(() => {});
+      if (saved.videoUri) saveSetting('last_video_uri', saved.videoUri).catch(() => {});
     } catch (e) {
       const classified = classifyCaptureFailure(e);
       const kind: CaptureFailureKind = classified === 'storage'
@@ -370,12 +610,31 @@ export default function CameraScreen() {
       if (kind === 'camera-busy') setCameraMountFailure(kind);
       setError(captureFailureMessage(kind));
     } finally {
+      commandGate.current.end();
+      activeCaptureTakeId.current = null;
+      setCaptureInputActive(false);
       setSaving(true);
       await captions.stop().catch(() => {});
       capturePhase.current = 'idle';
       stopLatch.current.reset();
       busy.current = false; setRecording(false); setSaving(false); setPreparing(false);
     }
+  }
+
+  function retake() {
+    if (saving) return;
+    setPreviewUri(null);
+    setRecordedProject(null);
+    setPickupTargetId(null);
+    setCaptureCoverage(pendingCaptureCoverage(scriptDocument));
+    setCaptureFeedback('');
+  }
+
+  function continueRecording() {
+    if (saving || !recordedProject || !isScript || captureCoverage.safeToWrap) return;
+    setPickupTargetId(recordedProject.id);
+    setPreviewUri(null);
+    setCaptureFeedback('Record the lines still needed.');
   }
 
   async function continueToEditor() {
@@ -413,6 +672,8 @@ export default function CameraScreen() {
   }
 
   const permissionDescription = describeCapturePermissions(cameraPermission, micPermission);
+  const currentPrompterLine = captureCoverage.lines[chunk] ?? null;
+  const nextPrompterLine = captureCoverage.lines[chunk + 1] ?? null;
 
   async function requestAccess() {
     if (permissionRequesting.current || permissionDescription.state !== 'requestable') return;
@@ -488,12 +749,23 @@ export default function CameraScreen() {
         </View>
         {(preparing || recording) && <LiveCaptions text={captions.text} isFinal={captions.isFinal} status={captions.status} />}
         {(preparing || recording) && captureMode === 'record-only' && <Text accessibilityRole="alert" className="self-center mt-2 rounded bg-amber-950/90 px-3 py-1.5 text-center text-amber-200 text-xs">RECORD-ONLY · Live analysis unavailable. Video and camera audio will still be saved.</Text>}
-        {isScript && <View className="absolute bottom-3 left-3 right-3 bg-black/70 rounded-xl px-3 py-2">
-          <Text numberOfLines={2} className="text-white text-base leading-6">{chunks[chunk] ?? 'No script'}</Text>
-          <View className="flex-row justify-between items-center">
-            <IconButton icon="chevron_left" label="Previous script section" disabled={chunk === 0} onPress={() => setChunk(i => i - 1)} />
-            <Text className="text-neutral-400 text-xs">Manual · {chunks.length ? chunk + 1 : 0}/{chunks.length}</Text>
-            <IconButton icon="chevron_right" label="Next script section" disabled={chunk >= chunks.length - 1} onPress={() => setChunk(i => i + 1)} />
+        {isScript && scriptDocumentLoaded && <View className="absolute top-3 left-3 right-3 gap-2">
+          <CoverageStrip
+            lines={captureCoverage.spokenLines}
+            currentLineId={currentPrompterLine?.id}
+            nextLineId={nextPrompterLine?.id}
+          />
+          <PrompterLines
+            current={currentPrompterLine}
+            next={nextPrompterLine}
+            onCueDone={markCueDone}
+          />
+          {recording && <RetakePrompt decision={promptDecision} />}
+          {!!captureFeedback && <Text accessibilityRole="alert" className="rounded-lg bg-black/80 px-3 py-2 text-center text-neutral-200 text-xs">{captureFeedback}</Text>}
+          <View className="flex-row justify-between items-center rounded-xl bg-black/70 px-2">
+            <IconButton icon="chevron_left" label="Previous script section" disabled={chunk === 0 || recording === false && preparing} onPress={() => setChunk(i => Math.max(0, i - 1))} />
+            <Text className="text-neutral-400 text-xs">{chunks.length ? chunk + 1 : 0}/{chunks.length}</Text>
+            <IconButton icon="chevron_right" label="Next script section" disabled={chunk >= chunks.length - 1 || recording === false && preparing} onPress={() => setChunk(i => Math.min(chunks.length - 1, i + 1))} />
           </View>
         </View>}
         </Animated.View>
@@ -505,6 +777,7 @@ export default function CameraScreen() {
       {!!error && <Text accessibilityRole="alert" numberOfLines={3} className="text-red-300 text-xs text-center py-2">{error}</Text>}
       {(storageCheck.state === 'warning' || storageCheck.state === 'blocked') && <Text accessibilityRole="alert" numberOfLines={3} className="text-amber-200 text-xs text-center pb-2">{storageCheck.message}</Text>}
       {!!cameraMountFailure && <Pressable accessibilityRole="button" accessibilityLabel="Retry camera" onPress={() => { setCameraMountFailure(null); setReady(false); setError(''); setCameraRetry(value => value + 1); }} className="self-center rounded-lg bg-neutral-900 border border-neutral-700 px-4 py-2 mb-2 active:opacity-70"><Text className="text-neutral-200 text-xs font-semibold">Retry camera</Text></Pressable>}
+      {isScript && recording && <View className="pb-2"><CaptureControls active={recording} onCommand={receiveCaptureCommand} /></View>}
       <View className="flex-row items-center border-b border-neutral-800 py-2">
         <View className="flex-1 items-center"><IconButton icon="grid_3x3" label={grid ? 'Hide grid' : 'Show grid'} onPress={() => setGrid(v => !v)} /></View>
         <View className="flex-1 items-center border-l border-neutral-800"><Pressable accessibilityRole="button" accessibilityLabel="Change zoom" onPress={() => setZoom(v => {
@@ -560,12 +833,20 @@ export default function CameraScreen() {
         </View>
         {!!recordedProject?.recoveryMessage && <Text accessibilityRole="alert" className="text-amber-200 text-sm px-4 pt-3">{recordedProject.recoveryMessage}</Text>}
         {!!error && <Text accessibilityRole="alert" className="text-red-300 text-sm px-4 pt-3">{error}</Text>}
+        {isScript && !captureCoverage.safeToWrap && <View className="px-4 pt-3">
+          <Text accessibilityRole="alert" className="text-amber-200 text-xs leading-5">
+            {promptDecision?.text ?? 'Some lines still need a clean, playable take.'}
+          </Text>
+        </View>}
         <View className="flex-row gap-2 px-4 py-5" style={{ maxWidth: 520, width: '100%', alignSelf: 'center' }}>
-          <Pressable disabled={saving} accessibilityRole="button" accessibilityLabel="Retake video" onPress={() => setPreviewUri(null)} className="flex-1 bg-neutral-900 border border-neutral-800 rounded-xl py-3.5 active:opacity-70">
+          <Pressable disabled={saving} accessibilityRole="button" accessibilityLabel="Retake video" onPress={retake} className="flex-1 bg-neutral-900 border border-neutral-800 rounded-xl py-3.5 active:opacity-70">
             <Text className="text-neutral-200 text-xs font-semibold text-center">Retake</Text>
           </Pressable>
+          {isScript && !captureCoverage.safeToWrap && <Pressable disabled={saving} accessibilityRole="button" accessibilityLabel="Continue recording" onPress={continueRecording} className="flex-1 bg-neutral-900 border border-amber-800 rounded-xl py-3.5 active:opacity-70">
+            <Text className="text-amber-100 text-xs font-semibold text-center">Continue recording</Text>
+          </Pressable>}
           <Pressable disabled={saving} accessibilityRole="button" accessibilityLabel="Continue to editor" onPress={continueToEditor} className="flex-1 bg-white rounded-xl py-3.5 active:opacity-80">
-            <Text className="text-black text-xs font-bold text-center">{saving ? 'Saving…' : 'Continue'}</Text>
+            <Text className="text-black text-xs font-bold text-center">{saving ? 'Saving…' : isScript && !captureCoverage.safeToWrap ? 'Wrap anyway' : 'Continue'}</Text>
           </Pressable>
         </View>
       </SafeAreaView>
