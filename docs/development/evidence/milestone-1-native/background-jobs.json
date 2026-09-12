@@ -1,0 +1,399 @@
+{
+  "version": 1,
+  "jobs": [
+    {
+      "id": "tier0-1789251860145-missing",
+      "sourceUri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+      "cuts": [],
+      "captions": [],
+      "segments": [
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/tier0-absent.mp4",
+          "t0": 0,
+          "t1": 4,
+          "captions": []
+        }
+      ],
+      "status": "failed",
+      "progress": 0,
+      "uri": null,
+      "error": "/data/user/0/com.anonymous.onetake/files/research/tier0-absent.mp4 does not exist",
+      "galleryUri": null,
+      "galleryPending": false
+    },
+    {
+      "id": "tier0-1789251932858",
+      "sourceUri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+      "cuts": [],
+      "captions": [],
+      "segments": [
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "t0": 0,
+          "t1": 4,
+          "captions": [
+            {
+              "t0": 0,
+              "t1": 4,
+              "text": "This is the first clean take."
+            }
+          ]
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/tier0-second-source.mp4",
+          "t0": 8,
+          "t1": 12,
+          "captions": [
+            {
+              "t0": 8,
+              "t1": 12,
+              "text": "This is the final clean take."
+            }
+          ]
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "t0": 0,
+          "t1": 4,
+          "captions": [
+            {
+              "t0": 0,
+              "t1": 4,
+              "text": "This is the first clean take."
+            }
+          ]
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/tier0-second-source.mp4",
+          "t0": 8,
+          "t1": 12,
+          "captions": [
+            {
+              "t0": 8,
+              "t1": 12,
+              "text": "This is the final clean take."
+            }
+          ]
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "t0": 0,
+          "t1": 4,
+          "captions": [
+            {
+              "t0": 0,
+              "t1": 4,
+              "text": "This is the first clean take."
+            }
+          ]
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/tier0-second-source.mp4",
+          "t0": 8,
+          "t1": 12,
+          "captions": [
+            {
+              "t0": 8,
+              "t1": 12,
+              "text": "This is the final clean take."
+            }
+          ]
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "t0": 0,
+          "t1": 4,
+          "captions": [
+            {
+              "t0": 0,
+              "t1": 4,
+              "text": "This is the first clean take."
+            }
+          ]
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/tier0-second-source.mp4",
+          "t0": 8,
+          "t1": 12,
+          "captions": [
+            {
+              "t0": 8,
+              "t1": 12,
+              "text": "This is the final clean take."
+            }
+          ]
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "t0": 0,
+          "t1": 4,
+          "captions": [
+            {
+              "t0": 0,
+              "t1": 4,
+              "text": "This is the first clean take."
+            }
+          ]
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/tier0-second-source.mp4",
+          "t0": 8,
+          "t1": 12,
+          "captions": [
+            {
+              "t0": 8,
+              "t1": 12,
+              "text": "This is the final clean take."
+            }
+          ]
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "t0": 0,
+          "t1": 4,
+          "captions": [
+            {
+              "t0": 0,
+              "t1": 4,
+              "text": "This is the first clean take."
+            }
+          ]
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/tier0-second-source.mp4",
+          "t0": 8,
+          "t1": 12,
+          "captions": [
+            {
+              "t0": 8,
+              "t1": 12,
+              "text": "This is the final clean take."
+            }
+          ]
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "t0": 0,
+          "t1": 4,
+          "captions": [
+            {
+              "t0": 0,
+              "t1": 4,
+              "text": "This is the first clean take."
+            }
+          ]
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/tier0-second-source.mp4",
+          "t0": 8,
+          "t1": 12,
+          "captions": [
+            {
+              "t0": 8,
+              "t1": 12,
+              "text": "This is the final clean take."
+            }
+          ]
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "t0": 0,
+          "t1": 4,
+          "captions": [
+            {
+              "t0": 0,
+              "t1": 4,
+              "text": "This is the first clean take."
+            }
+          ]
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/tier0-second-source.mp4",
+          "t0": 8,
+          "t1": 12,
+          "captions": [
+            {
+              "t0": 8,
+              "t1": 12,
+              "text": "This is the final clean take."
+            }
+          ]
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "t0": 0,
+          "t1": 4,
+          "captions": [
+            {
+              "t0": 0,
+              "t1": 4,
+              "text": "This is the first clean take."
+            }
+          ]
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/tier0-second-source.mp4",
+          "t0": 8,
+          "t1": 12,
+          "captions": [
+            {
+              "t0": 8,
+              "t1": 12,
+              "text": "This is the final clean take."
+            }
+          ]
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "t0": 0,
+          "t1": 4,
+          "captions": [
+            {
+              "t0": 0,
+              "t1": 4,
+              "text": "This is the first clean take."
+            }
+          ]
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/tier0-second-source.mp4",
+          "t0": 8,
+          "t1": 12,
+          "captions": [
+            {
+              "t0": 8,
+              "t1": 12,
+              "text": "This is the final clean take."
+            }
+          ]
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "t0": 0,
+          "t1": 4,
+          "captions": [
+            {
+              "t0": 0,
+              "t1": 4,
+              "text": "This is the first clean take."
+            }
+          ]
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/tier0-second-source.mp4",
+          "t0": 8,
+          "t1": 12,
+          "captions": [
+            {
+              "t0": 8,
+              "t1": 12,
+              "text": "This is the final clean take."
+            }
+          ]
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "t0": 0,
+          "t1": 4,
+          "captions": [
+            {
+              "t0": 0,
+              "t1": 4,
+              "text": "This is the first clean take."
+            }
+          ]
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/tier0-second-source.mp4",
+          "t0": 8,
+          "t1": 12,
+          "captions": [
+            {
+              "t0": 8,
+              "t1": 12,
+              "text": "This is the final clean take."
+            }
+          ]
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "t0": 0,
+          "t1": 4,
+          "captions": [
+            {
+              "t0": 0,
+              "t1": 4,
+              "text": "This is the first clean take."
+            }
+          ]
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/tier0-second-source.mp4",
+          "t0": 8,
+          "t1": 12,
+          "captions": [
+            {
+              "t0": 8,
+              "t1": 12,
+              "text": "This is the final clean take."
+            }
+          ]
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "t0": 0,
+          "t1": 4,
+          "captions": [
+            {
+              "t0": 0,
+              "t1": 4,
+              "text": "This is the first clean take."
+            }
+          ]
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/tier0-second-source.mp4",
+          "t0": 8,
+          "t1": 12,
+          "captions": [
+            {
+              "t0": 8,
+              "t1": 12,
+              "text": "This is the final clean take."
+            }
+          ]
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/media-sample.mp4",
+          "t0": 0,
+          "t1": 4,
+          "captions": [
+            {
+              "t0": 0,
+              "t1": 4,
+              "text": "This is the first clean take."
+            }
+          ]
+        },
+        {
+          "uri": "file:///data/user/0/com.anonymous.onetake/files/research/tier0-second-source.mp4",
+          "t0": 8,
+          "t1": 12,
+          "captions": [
+            {
+              "t0": 8,
+              "t1": 12,
+              "text": "This is the final clean take."
+            }
+          ]
+        }
+      ],
+      "status": "completed",
+      "progress": 100,
+      "uri": "file:/data/user/0/com.anonymous.onetake/files/exports/tier0-1789251932858.mp4",
+      "error": null,
+      "galleryUri": null,
+      "galleryPending": false
+    }
+  ]
+}

@@ -438,6 +438,8 @@ export interface LineReview {
   status: CoverageStatus;
   selectedTakeId: string | null;
   candidateTakeIds: string[];
+  /** Clean, playable takes with final transcript evidence for this line. */
+  eligibleTakeIds: string[];
   rejectedTakeIds: string[];
   missingMediaTakeIds: string[];
   matchedSegmentIds: string[];
@@ -551,6 +553,7 @@ export function deriveReviewState(input: WorkflowInput): ReviewState {
       status,
       selectedTakeId: selected?.take.id ?? null,
       candidateTakeIds: candidate.map(({ take }) => take.id),
+      eligibleTakeIds: playableFinal.map(({ take }) => take.id),
       rejectedTakeIds: rejected.map(({ take }) => take.id),
       missingMediaTakeIds: missingMedia.map(({ take }) => take.id),
       matchedSegmentIds: [...new Set(matching.flatMap(({ evidenceByLine }) => {
@@ -619,12 +622,24 @@ export function restoreDecision(
   return decisions.filter((decision) => decision.id !== decisionId);
 }
 
+/** The ranking fields shared by live take evidence and stored coverage history. */
+export interface TakePreference {
+  id: string;
+  t0: number;
+  inFrame: boolean;
+}
+
+/**
+ * Order equally eligible takes: an in-frame take wins, then the earliest take,
+ * then the id as a deterministic tie-breaker.  Framing is the only quality
+ * signal here, so an unobserved frame never outranks a confirmed in-frame take.
+ */
+export function compareTakePreference(a: TakePreference, b: TakePreference): number {
+  return Number(b.inFrame) - Number(a.inFrame) || a.t0 - b.t0 || a.id.localeCompare(b.id);
+}
+
 function chooseBestTake(observations: readonly TakeObservation[]): TakeObservation | undefined {
-  return observations
-    .slice()
-    .sort((a, b) => Number(b.take.inFrame) - Number(a.take.inFrame)
-      || a.take.t0 - b.take.t0
-      || a.take.id.localeCompare(b.take.id))[0];
+  return observations.slice().sort((a, b) => compareTakePreference(a.take, b.take))[0];
 }
 
 function lastTakeDecision(decisions: readonly ReviewDecision[], lineId: string): Extract<ReviewDecision, { type: 'take-selection' }> | undefined {

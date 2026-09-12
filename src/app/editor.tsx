@@ -1,17 +1,23 @@
 import { useEvent } from 'expo';
 import { Image } from 'expo-image';
-import { router, useNavigation, useLocalSearchParams } from 'expo-router';
+import { router, useNavigation, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { useVideoPlayer, VideoView, type VideoThumbnail } from 'expo-video';
 import { ArrowLeft, Pause, Play, RotateCcw, Scissors } from 'lucide-react-native';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, PanResponder, Pressable, ScrollView, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, AppState, PanResponder, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { recordedMediaDuration } from '@/lib/recorded-media';
+import { transcriptForSource } from '@/lib/review-source';
+import { reviewExportSelection } from '@/lib/review-export-selection';
+import { sanitizeExportCaption } from '@/lib/export-plan';
+import { cleanReview, selectedReviewCuts, selectedReviewSegments } from '@/lib/clean-review';
 import type { Project } from '@/lib/session';
 import { getProject, saveProject, saveProjectMetadata } from '@/lib/store';
 import { partitionCaptionTimeline, activeCaptionAt } from '@/lib/caption-timeline';
 import { LOCAL_VIDEO_BUFFER } from '@/lib/video-buffer';
 import { ExportControls } from '@/components/review/export-controls';
+import { NativeCutPreview } from '../../modules/one-take-media';
 import { TranscriptReview } from '@/components/review/transcript-review';
 
 const time = (seconds: number) => `${Math.floor(seconds / 60)}:${Math.floor(seconds % 60).toString().padStart(2, '0')}`;
@@ -74,19 +80,60 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [previewOriginal, setPreviewOriginal] = useState(false);
+  const [previewTrim, setPreviewTrim] = useState(false);
   const cutIndex = useRef(0);
-  const previewCuts = !previewOriginal ? project?.cuts : undefined;
-  const previewFullSource = previewOriginal || project?.cuts?.length === 0;
+  const review = useMemo(() => project ? cleanReview(project) : null, [project]);
+  const clean = useMemo(() => review ? selectedReviewCuts(review, uri, duration > 0 ? duration : undefined) : null, [review, uri, duration]);
+  const sequence = useMemo(() => project ? selectedReviewSegments({ ...project, duration: duration > 0 ? duration : project.duration }, review!) : null, [project, review, duration]);
+  const proposedSegments = useMemo<NonNullable<Project['reviewSegments']>>(() => project?.reviewSegments ?? (project?.cuts?.length ? project.cuts.map(cut => ({ ...cut, uri, captions: transcriptForSource(project, uri).filter(segment => segment.isFinal !== false).map(segment => ({ t0: segment.t0, t1: segment.t1, text: sanitizeExportCaption(segment.manualCorrection ?? segment.correctedText ?? segment.text) })).filter(caption => caption.text.trim()) })) : project?.cuts ? [] : sequence?.segments ?? []), [project?.reviewSegments, project?.cuts, project?.transcript, uri, sequence]);
+  const [activeSegments, setActiveSegments] = useState(proposedSegments);
+  const [takePreview, setTakePreview] = useState<Project['reviewSegments']>();
+  const [nativePlaying, setNativePlaying] = useState(true);
+  const [nativeSeek, setNativeSeek] = useState(0);
+  const [nativePosition, setNativePosition] = useState(0);
+  const [nativeError, setNativeError] = useState('');
+  const playingSegments = takePreview ?? activeSegments;
+  const nativeMode = !!NativeCutPreview && !previewOriginal && !previewTrim && playingSegments.length > 0;
+  const playing = nativeMode ? nativePlaying : isPlaying;
+  const nativeStarted = useRef(false);
+  useEffect(() => {
+    if (nativeMode && !nativeStarted.current && !isPlaying) { nativeStarted.current = true; setNativePlaying(true); }
+  }, [nativeMode, isPlaying]);
+  const nativeRequest = useMemo(() => JSON.stringify({ id: 'preview', sourceUri: playingSegments[0]?.uri ?? uri, cuts: [], captions: [], segments: playingSegments }), [playingSegments, uri]);
+  useEffect(() => { if (nativeMode) player.pause(); else setNativePlaying(false); }, [nativeMode, player]);
+  const proposedCuts = project?.cuts ?? (!sequence?.conflicts.length && clean?.cuts.length ? clean.cuts : undefined);
+  const [activeCuts, setActiveCuts] = useState(proposedCuts);
+  const previewCuts = !nativeMode && !previewOriginal && !previewTrim ? activeCuts : undefined;
+  const updatesWaiting = JSON.stringify(proposedCuts) !== JSON.stringify(activeCuts) || JSON.stringify(proposedSegments) !== JSON.stringify(activeSegments);
+  const autoStarted = useRef(false);
+  useEffect(() => {
+    if (playing || !updatesWaiting) return;
+    setActiveCuts(proposedCuts); setActiveSegments(proposedSegments); cutIndex.current = 0;
+  }, [playing, updatesWaiting, proposedCuts, proposedSegments]);
+  useEffect(() => {
+    if (nativeMode || status !== 'readyToPlay' || isPlaying || previewOriginal || previewTrim || !activeCuts?.length || autoStarted.current) return;
+    autoStarted.current = true;
+    player.currentTime = activeCuts[0].t0;
+    player.play();
+  }, [player, status, activeCuts, previewOriginal, previewTrim, isPlaying, nativeMode]);
+  const previewFullSource = previewOriginal || (!previewTrim && project?.cuts?.length === 0);
   const limit = end || duration;
   const valid = Number.isFinite(duration) && duration > 0;
   const captionCues = useMemo(() => {
-    try { return partitionCaptionTimeline((project?.transcript ?? []).map(s => ({ ...s, text: s.manualCorrection ?? s.correctedText ?? s.text }))); }
+    try { return partitionCaptionTimeline((project ? transcriptForSource(project, uri) : []).map(s => ({ ...s, text: sanitizeExportCaption(s.manualCorrection ?? s.correctedText ?? s.text) }))); }
     catch { return []; }
-  }, [project?.transcript]);
+  }, [project, uri]);
   const captionText = activeCaptionAt(captionCues, currentTime)?.text ?? '';
+  const exportProject = project && !updatesWaiting && !takePreview ? reviewExportSelection({ ...project, duration: valid ? duration : project.duration },
+    previewOriginal ? 'original' : previewTrim ? 'trim' : 'cut', !!sequence?.segments.length) : null;
 
 
-  useEffect(() => navigation.addListener('blur', () => player.pause()), [navigation, player]);
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', state => { if (state !== 'active') { player.pause(); setNativePlaying(false); } });
+    return () => subscription.remove();
+  }, [player]);
+
+  useEffect(() => navigation.addListener('blur', () => { player.pause(); setNativePlaying(false); }), [navigation, player]);
 
   useEffect(() => {
     if (status !== 'readyToPlay' || !valid) return;
@@ -145,37 +192,62 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
       </Pressable>
     </View>
     <View className="flex-1 bg-neutral-950">
-      <VideoView style={{ flex: 1 }} player={player} nativeControls={false} contentFit="contain" />
-      {!!captionText && !previewOriginal && <View pointerEvents="none" style={{ position: 'absolute', bottom: '17%', left: '10%', right: '10%', alignItems: 'center' }}>
+      {nativeMode && NativeCutPreview ? <NativeCutPreview style={{ flex: 1 }} request={nativeRequest} playing={nativePlaying} seek={nativeSeek} onState={event => {
+        const state = event.nativeEvent;
+        if (state.position !== undefined) setNativePosition(state.position);
+        if (state.ended) setNativePlaying(false);
+        if (state.error) {
+          setNativeError(state.error); setNativePlaying(false); setPreviewOriginal(true);
+
+        }
+      }} /> : <VideoView style={{ flex: 1 }} player={player} nativeControls={false} contentFit="contain" />}
+      {!!captionText && !previewOriginal && !nativeMode && <View pointerEvents="none" style={{ position: 'absolute', bottom: '17%', left: '10%', right: '10%', alignItems: 'center' }}>
         <Text style={{ color: 'white', backgroundColor: '#000b', textAlign: 'center', fontWeight: 'bold', fontSize: 18, padding: 6 }}>{captionText}</Text>
       </View>}
-      {status === 'loading' && <ActivityIndicator style={{ position: 'absolute', alignSelf: 'center', top: '50%' }} color="white" />}
+      {!nativeMode && status === 'loading' && <ActivityIndicator style={{ position: 'absolute', alignSelf: 'center', top: '50%' }} color="white" />}
     </View>
+    {!!nativeError && <Text accessibilityRole="alert" className="text-amber-200 px-6 py-3">Clean preview failed: {nativeError}. Preview the original recording or attach replacement footage. Coverage is not verified.</Text>}
     {status === 'error' && <Text accessibilityRole="alert" className="text-red-300 px-6 py-3">{playbackError?.message ?? 'This video could not be opened. The file may no longer be available.'}</Text>}
-    <ScrollView className="px-6 pt-4 pb-6 w-full self-center" style={{ maxWidth: 600, maxHeight: '55%' }}>
+    <ScrollView keyboardShouldPersistTaps="handled" className="px-6 pt-4 pb-6 w-full self-center" style={{ maxWidth: 600, maxHeight: '55%' }}>
+      {!NativeCutPreview && proposedSegments.some(segment => segment.uri !== uri) && <Text className="text-amber-200 text-xs mb-3">Multi-recording preview needs the Android development build with the media player. Your original recording remains available.</Text>}
+      {takePreview && <Pressable accessibilityRole="button" className="py-3" onPress={() => { setTakePreview(undefined); setNativePlaying(false); setNativeSeek(0); }}><Text className="text-white text-xs">Return to clean cut</Text></Pressable>}
+      {review && <Text accessibilityLiveRegion="polite" className="text-neutral-300 text-xs mb-3">
+        {review.lines.filter(line => line.spokenText.trim() && line.selectedTakeId).length} / {review.lines.filter(line => line.spokenText.trim()).length} spoken lines {nativeError ? 'matched; playback verification failed' : 'covered'}.
+        {review.lines.some(line => line.pendingReasons.length) || project?.refinement?.status === 'running' ? ' Verdicts updating.' : ''}
+        {updatesWaiting ? ' Updated cuts will apply when playback pauses.' : ''}
+        {!proposedSegments.length ? ' No clean sequence yet. Preview the original or recheck saved audio below.' : ' Selected takes play directly; review boundaries before export.'}
+        {sequence?.conflicts.length ? ' Selected takes overlap spoken lines. Choose the same whole take for those lines below; preview the original meanwhile.' : sequence?.unavailableTakeIds.length ? ' Some selected media cannot play here. Coverage is incomplete; compare the original.' : ''}
+      </Text>}
       <View className="flex-row items-center justify-between mb-5">
-        <Text className="text-neutral-300 text-xs">{time(currentTime)} / {time(valid ? duration : 0)}</Text>
-        <Pressable disabled={!valid || status === 'error'} accessibilityRole="button" accessibilityLabel={isPlaying ? 'Pause' : 'Play'} className="p-3 bg-neutral-800 rounded-full" onPress={() => {
+        <Text className="text-neutral-300 text-xs">{time(nativeMode ? nativePosition : currentTime)} / {time(nativeMode ? playingSegments.reduce((sum, item) => sum + item.t1 - item.t0, 0) : valid ? duration : 0)}</Text>
+        <Pressable disabled={!nativeMode && (!valid || status === 'error')} accessibilityRole="button" accessibilityLabel={playing ? 'Pause' : 'Play'} className="p-3 bg-neutral-800 rounded-full" onPress={() => {
+          if (nativeMode) { if (!nativePlaying && nativePosition >= playingSegments.reduce((sum, item) => sum + item.t1 - item.t0, 0) - 0.05) setNativeSeek(0); setNativePlaying(value => !value); return; }
           if (isPlaying) player.pause();
           else {
-            if (previewCuts?.length) { cutIndex.current = 0; player.currentTime = previewCuts[0].t0; }
+            if (previewCuts?.length) {
+              const cut = previewCuts[cutIndex.current] ?? previewCuts[0];
+              if (player.currentTime < cut.t0 || player.currentTime >= cut.t1) player.currentTime = cut.t0;
+            }
             else if (player.currentTime < (previewFullSource ? 0 : start) || player.currentTime >= (previewFullSource ? duration : limit)) player.currentTime = previewFullSource ? 0 : start;
             player.play();
           }
         }}>
-          {isPlaying ? <Pause size={22} color="white" /> : <Play size={22} color="white" />}
+          {playing ? <Pause size={22} color="white" /> : <Play size={22} color="white" />}
         </Pressable>
         <Pressable accessibilityRole="button" accessibilityLabel="Reset trim" className="p-3" onPress={() => { setStart(0); setEnd(duration); player.pause(); player.currentTime = 0; setMessage(''); }}>
           <RotateCcw size={20} color="#a3a3a3" />
         </Pressable>
       </View>
-      <Pressable className="py-3" onPress={() => { player.pause(); setPreviewOriginal(v => !v); }}>
-        <Text className="text-white text-xs">{previewOriginal ? 'Preview edits' : 'Compare original video'}</Text>
+      <Pressable className="py-3" onPress={() => { setTakePreview(undefined); setNativePlaying(false); player.pause(); setPreviewTrim(false); setPreviewOriginal(v => !v); }}>
+        <Text className="text-white text-xs">{previewOriginal ? 'Preview clean cut' : 'Compare original video'}</Text>
       </Pressable>
+      <Pressable accessibilityRole="button" className="py-3" onPress={() => {
+        setTakePreview(undefined); setNativePlaying(false); player.pause(); setPreviewOriginal(false); setPreviewTrim(v => !v); player.currentTime = start;
+      }}><Text className="text-white text-xs">{previewTrim ? 'Preview clean cut' : 'Preview manual trim'}</Text></Pressable>
       {valid && <View onLayout={e => setWidth(e.nativeEvent.layout.width)} style={{ height: 56, marginHorizontal: 12 }}>
         <View onStartShouldSetResponder={() => true} onMoveShouldSetResponder={() => true}
-          onResponderGrant={e => { if (width) seek(e.nativeEvent.locationX / width * duration); }}
-          onResponderMove={e => { if (width) seek(e.nativeEvent.locationX / width * duration); }}
+          onResponderGrant={e => { if (width) { setTakePreview(undefined); setPreviewTrim(true); seek(e.nativeEvent.locationX / width * duration); } }}
+          onResponderMove={e => { if (width) { setTakePreview(undefined); setPreviewTrim(true); seek(e.nativeEvent.locationX / width * duration); } }}
           style={{ flex: 1, backgroundColor: '#262626', overflow: 'hidden', borderRadius: 4 }}>
           <View pointerEvents="none" style={{ flex: 1, flexDirection: 'row' }}>
             {thumbnails.map((thumbnail, i) => <Image key={i} source={thumbnail} contentFit="cover" style={{ flex: 1, height: 56 }} />)}
@@ -187,11 +259,11 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
         </View>
         <TrimHandle value={start} duration={duration} width={width} onChange={v => {
           const next = Math.max(0, Math.min(limit - Math.min(0.25, duration), v));
-          setStart(next); player.pause(); player.currentTime = next; setMessage('');
+          setPreviewOriginal(false); setPreviewTrim(true); setStart(next); player.pause(); player.currentTime = next; setMessage('');
         }} />
         <TrimHandle value={limit} duration={duration} width={width} onChange={v => {
           const next = Math.min(duration, Math.max(start + Math.min(0.25, duration), v));
-          setEnd(next); player.pause(); player.currentTime = next; setMessage('');
+          setPreviewOriginal(false); setPreviewTrim(true); setEnd(next); player.pause(); player.currentTime = next; setMessage('');
         }} />
       </View>}
       <View className="flex-row justify-between mt-4">
@@ -202,11 +274,29 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
       <View className="items-center mt-6"><Scissors size={20} color="white" /><Text className="text-white text-xs mt-2">Trim</Text></View>
       <Text className="text-neutral-500 text-xs text-center mt-3">Drag the ends to trim. Slide across the filmstrip to preview.</Text>
       {!!message && <Text accessibilityRole="alert" className="text-neutral-200 text-sm mt-3 text-center">{message}</Text>}
-      {project && <TranscriptReview project={project} duration={valid ? duration : undefined} onChange={changeProject} onSeek={value => {
-        setPreviewOriginal(true); player.pause(); player.currentTime = Math.max(0, Math.min(duration, value));
+      {project && <TranscriptReview project={project} duration={valid ? duration : undefined} onChange={changeProject} onPreviewRecording={NativeCutPreview ? async (recordingUri) => {
+        setNativePlaying(false); player.pause();
+        try {
+          const recordingDuration = await recordedMediaDuration(recordingUri);
+          setTakePreview([{ uri: recordingUri, t0: 0, t1: recordingDuration, captions: [] }]);
+          setNativeError(''); setMessage('');
+          setPreviewOriginal(false); setPreviewTrim(false); setNativeSeek(0); setNativePlaying(true);
+        } catch (error) {
+          setMessage(`Could not preview the saved original: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      } : undefined} onPreviewTake={NativeCutPreview ? id => {
+        const take = review?.takes.find(item => item.id === id);
+        if (!take?.mediaUri || !take.playable) return;
+        setTakePreview([{ uri: take.mediaUri, t0: take.t0, t1: take.t1, takeId: id, captions: [] }]);
+        setPreviewOriginal(false); setPreviewTrim(false); setNativeSeek(0); setNativePlaying(true);
+      } : undefined} onSeek={value => {
+        setTakePreview(undefined); setPreviewOriginal(true); player.pause(); player.currentTime = Math.max(0, Math.min(duration, value));
       }} />}
       {!!persistenceError && <Text accessibilityRole="alert" className="text-red-300 py-3">{persistenceError}</Text>}
-      {project && valid && !persistenceError && pendingWrites === 0 && <ExportControls project={project} start={start} end={limit} onMessage={setMessage} />}
+      {project && valid && !persistenceError && pendingWrites === 0 && (exportProject ? <>
+        <Text className="text-neutral-300 text-xs mt-3">{previewOriginal ? 'Export original video without captions' : previewTrim ? 'Export the manual trim with captions' : project.cuts || project.reviewSegments?.length ? 'Export prepared cuts with captions' : 'Export the manual trim with captions'}</Text>
+        <ExportControls project={exportProject} start={previewOriginal ? 0 : start} end={previewOriginal ? duration : limit} onMessage={setMessage} />
+      </> : <Text className="text-amber-200 text-xs mt-3">{takePreview ? 'Previewing a take. Return to the clean cut, original, or manual trim to export.' : updatesWaiting ? 'Pause playback to apply updated cuts before exporting.' : 'Prepare selected takes below and review every cut before exporting this clean preview. To export the original or manual trim, switch to that preview first.'}</Text>)}
     </ScrollView>
   </SafeAreaView>;
 }
@@ -216,7 +306,7 @@ export default function Editor() {
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(!!projectId);
   const [error, setError] = useState('');
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     let active = true;
     if (!projectId) { setLoading(false); return; }
     setLoading(true); setError('');
@@ -227,11 +317,13 @@ export default function Editor() {
     }).catch(e => { if (active) setError(`Could not open project: ${e.message}`); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [projectId]);
+  }, [projectId]));
   if (!loading && project && (!project.videoUri || project.mediaMissing)) return <SafeAreaView className="flex-1 bg-black px-6">
     <Pressable onPress={() => router.back()} className="py-4"><Text className="text-white">Back</Text></Pressable>
     <Text className="text-amber-200">{project.recoveryMessage ?? 'The original recording is unavailable. Your saved transcript is still here.'}</Text>
-    <TranscriptReview project={project} onChange={async next => { setProject(next); await saveProjectMetadata(next); }} onSeek={() => {}} />
+    <ScrollView keyboardShouldPersistTaps="handled">
+      <TranscriptReview project={project} onChange={async next => { setProject(next); await saveProjectMetadata(next); }} onSeek={() => {}} />
+    </ScrollView>
   </SafeAreaView>;
   const uri = project?.videoUri ?? videoUri;
   if (loading || error || !uri) return <SafeAreaView className="flex-1 bg-black items-center justify-center px-6">

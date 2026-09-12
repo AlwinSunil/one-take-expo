@@ -20,6 +20,7 @@ internal data class MediaExportRequest(
   val sourceUri: String,
   val cuts: List<SourceCut>,
   val captions: List<SourceCaption>,
+  val segments: List<MediaSourceSegment> = emptyList(),
 )
 
 internal data class MediaExportJob(
@@ -29,6 +30,7 @@ internal data class MediaExportJob(
   val uri: String? = null,
   val error: String? = null,
   val galleryUri: String? = null,
+  val galleryPending: Boolean = false,
 )
 
 internal object MediaExportRequestParser {
@@ -59,7 +61,26 @@ internal object MediaExportRequestParser {
     }
     MediaExportTimeline.validateCuts(cuts)
     MediaExportTimeline.validateCaptions(captions)
-    return MediaExportRequest(id, sourceUri, cuts, captions)
+    val segments = raw.list("segments").mapIndexed { index, value ->
+      val map = value.asStringMap("segment", index)
+      val nested = parse(mapOf("id" to id, "sourceUri" to map.string("uri"),
+        "cuts" to listOf(mapOf("t0" to map.number("t0", "segment", index), "t1" to map.number("t1", "segment", index))),
+        "captions" to (map["captions"] ?: emptyList<Any>())))
+      MediaSourceSegment(nested.sourceUri, nested.cuts.single(), nested.captions)
+    }
+    require(segments.size <= MediaExportTimeline.MAX_CUTS) { "Too many export segments" }
+    return MediaExportRequest(id, sourceUri, cuts, captions, segments)
+  }
+
+  fun parseJson(json: JSONObject): MediaExportRequest {
+    fun convert(value: Any?): Any? = when (value) {
+      is JSONObject -> value.keys().asSequence().associateWith { convert(value.get(it)) }
+      is JSONArray -> (0 until value.length()).map { convert(value.get(it)) }
+      JSONObject.NULL -> null
+      else -> value
+    }
+    @Suppress("UNCHECKED_CAST")
+    return parse(convert(json) as Map<String, Any?>)
   }
 
   private fun Map<String, Any?>.string(name: String): String {
@@ -110,11 +131,20 @@ internal object MediaExportJobJson {
         })
       }
     })
+    put("segments", JSONArray().apply {
+      job.request.segments.forEach { segment -> put(JSONObject().apply {
+        put("uri", segment.uri); put("t0", segment.cut.t0); put("t1", segment.cut.t1)
+        put("captions", JSONArray().apply { segment.captions.forEach { caption -> put(JSONObject().apply {
+          put("t0", caption.t0); put("t1", caption.t1); put("text", caption.text)
+        }) } })
+      }) }
+    })
     put("status", job.status.name.lowercase(Locale.US))
     put("progress", job.progress.coerceIn(0, 100))
     putNullable("uri", job.uri)
     putNullable("error", job.error)
     putNullable("galleryUri", job.galleryUri)
+    put("galleryPending", job.galleryPending)
   }
 
   fun decode(value: JSONObject): MediaExportJob {
@@ -134,7 +164,14 @@ internal object MediaExportJobJson {
         add(SourceCaption(item.getDouble("t0"), item.getDouble("t1"), item.getString("text")))
       }
     }
-    val request = MediaExportRequest(id, sourceUri, cuts, captions)
+    val segmentJson = value.optJSONArray("segments") ?: JSONArray()
+    val segments = (0 until segmentJson.length()).map { index ->
+      val segment = segmentJson.getJSONObject(index)
+      val captionJson = segment.optJSONArray("captions") ?: JSONArray()
+      MediaSourceSegment(segment.getString("uri"), SourceCut(segment.getDouble("t0"), segment.getDouble("t1")),
+        (0 until captionJson.length()).map { i -> captionJson.getJSONObject(i).let { SourceCaption(it.getDouble("t0"), it.getDouble("t1"), it.getString("text")) } })
+    }
+    val request = MediaExportRequest(id, sourceUri, cuts, captions, segments)
     MediaExportTimeline.validateCuts(cuts)
     MediaExportTimeline.validateCaptions(captions)
     return MediaExportJob(
@@ -144,6 +181,7 @@ internal object MediaExportJobJson {
       uri = value.optNullableString("uri"),
       error = value.optNullableString("error"),
       galleryUri = value.optNullableString("galleryUri"),
+      galleryPending = value.optBoolean("galleryPending", false),
     )
   }
 
@@ -204,7 +242,23 @@ internal class MediaExportStore(context: android.content.Context) {
 
   fun get(id: String): MediaExportJob? = synchronized(lock) {
     loadLocked()
-    jobs[id]
+    val job = jobs[id]
+    if (job?.status == MediaExportStatus.COMPLETED && (!outputFile(id).isFile || outputFile(id).length() == 0L)) {
+      val missing = job.copy(status = MediaExportStatus.FAILED, uri = null, error = "Export output is missing. Retry to create it again.")
+      jobs[id] = missing
+      persistLocked()
+      missing
+    } else job
+  }
+
+  fun delete(id: String) = synchronized(lock) {
+    loadLocked()
+    check(!MediaExportRuntime.isActive(id)) { "Export is still stopping. Retry deletion." }
+    listOf(outputFile(id), File(directory, ".$id.mp4.part")).forEach { file ->
+      check(!file.exists() || file.delete()) { "Could not delete export output" }
+    }
+    jobs.remove(id)
+    persistLocked()
   }
 
   fun markRunning(id: String): Boolean = synchronized(lock) {
@@ -272,7 +326,7 @@ internal class MediaExportStore(context: android.content.Context) {
     loadLocked()
     var changed = false
     jobs.entries.forEach { (id, job) ->
-      if (job.status == MediaExportStatus.RUNNING && !MediaExportRuntime.isActive(id)) {
+      if (job.status in setOf(MediaExportStatus.QUEUED, MediaExportStatus.RUNNING) && !MediaExportRuntime.isActive(id)) {
         jobs[id] = job.copy(
           status = MediaExportStatus.INTERRUPTED,
           error = "Export stopped before it finished. Retry to start it again.",
@@ -294,11 +348,11 @@ internal class MediaExportStore(context: android.content.Context) {
     persistLocked()
   }
 
-  fun setGalleryUri(id: String, galleryUri: String): Boolean = synchronized(lock) {
+  fun setGalleryUri(id: String, galleryUri: String?, pending: Boolean = false): Boolean = synchronized(lock) {
     loadLocked()
     val job = jobs[id] ?: return@synchronized false
     if (job.status != MediaExportStatus.COMPLETED) return@synchronized false
-    jobs[id] = job.copy(galleryUri = galleryUri)
+    jobs[id] = job.copy(galleryUri = galleryUri, galleryPending = pending)
     persistLocked()
     true
   }
@@ -366,4 +420,5 @@ internal fun MediaExportJob.toJsMap(): Map<String, Any?> = buildMap {
   put("progress", progress.coerceIn(0, 100))
   uri?.let { put("uri", it) }
   error?.let { put("error", it) }
+  galleryUri?.let { put("galleryUri", it) }
 }

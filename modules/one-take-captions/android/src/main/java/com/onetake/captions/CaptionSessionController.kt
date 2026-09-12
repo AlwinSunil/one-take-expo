@@ -69,7 +69,7 @@ internal class CaptionSessionController(
   private var current: Session? = null
   private var closed = false
   private var closeJob: Job? = null
-  private var lastResult: Pair<String, List<Map<String, Any>>>? = null
+  private var lastResult: Pair<String, CaptionStopResult>? = null
   fun isActive(): Boolean = synchronized(lock) { current != null }
 
   /** Resolves after the model and microphone are ready for camera recording. */
@@ -123,7 +123,7 @@ internal class CaptionSessionController(
     val shouldStop: Boolean
     synchronized(lock) {
       when (state.stop(sessionId)) {
-        CaptionSessionState.StopResult.AlreadyStopped -> return lastResult?.takeIf { it.first == sessionId }?.second ?: emptyList()
+        CaptionSessionState.StopResult.AlreadyStopped -> return lastResult?.takeIf { it.first == sessionId }?.second?.transcriptOrThrow() ?: emptyList()
         CaptionSessionState.StopResult.Stale -> {
           throw IllegalArgumentException("Stale caption session: $sessionId")
         }
@@ -143,20 +143,29 @@ internal class CaptionSessionController(
 
     if (!shouldStop) {
       awaitStop(session)
-      return session.transcript
+      return CaptionStopResult(session.transcript, session.failureMessage).transcriptOrThrow()
     }
 
     session.microphone.requestStop()
     session.preparationJob?.cancel()
     scheduleCleanup(session)
     awaitStop(session)
-    return session.transcript
+    return CaptionStopResult(session.transcript, session.failureMessage).transcriptOrThrow()
   }
 
   /** Called by Expo activity lifecycle callbacks. */
   fun requestStopFromLifecycle(reason: String) {
     val sessionId = synchronized(lock) { current?.id }
     if (sessionId == null) return
+    // The take itself survives a background or destroy transition, so this is
+    // reported as an interruption rather than as unavailable recognition. The
+    // next start prepares a fresh session and clears it.
+    emitStatusMessage(
+      sessionId,
+      "interrupted",
+      "Captions were interrupted ($reason)",
+      CaptionFailureReason.LIFECYCLE_INTERRUPTED,
+    )
     scope.launch {
       runCatching { stop(sessionId) }
         .onFailure { Log.w(TAG, "lifecycle_stop_failed session=$sessionId reason=$reason", it) }
@@ -334,7 +343,7 @@ internal class CaptionSessionController(
         false
       } else {
         session.stopCompleted = true
-        lastResult = session.id to session.transcript
+        lastResult = session.id to CaptionStopResult(session.transcript, session.failureMessage)
         state.finish(session.id)
         if (current === session) current = null
         // Keep stopped ahead of any subsequent session's preparing event.
@@ -437,12 +446,12 @@ internal class CaptionSessionController(
   private fun ensureSupported(sessionId: String) {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
       val message = "Moonshine live captions require Android API 26 or newer"
-      emitStatusMessage(sessionId, "error", message)
+      emitStatusMessage(sessionId, "error", message, CaptionFailureReason.UNSUPPORTED_DEVICE)
       throw UnsupportedOperationException(message)
     }
     if (!Build.SUPPORTED_ABIS.any { it == ARM64_ABI }) {
       val message = "Moonshine live captions require an arm64-v8a device"
-      emitStatusMessage(sessionId, "error", message)
+      emitStatusMessage(sessionId, "error", message, CaptionFailureReason.UNSUPPORTED_DEVICE)
       throw UnsupportedOperationException(message)
     }
   }
@@ -467,7 +476,7 @@ internal class CaptionSessionController(
         false
       }
     }
-    if (shouldEmit) emitStatus(session, "error", message)
+    if (shouldEmit) emitStatus(session, "error", message, CaptionFailureReason.classify(message))
   }
 
   private fun scheduleAutomaticStop(session: Session) {
@@ -488,15 +497,22 @@ internal class CaptionSessionController(
     }
   }
 
-  private fun emitStatus(session: Session, status: String, message: String? = null) {
-    emitStatusMessage(session.id, status, message)
+  private fun emitStatus(session: Session, status: String, message: String? = null, reason: String? = null) {
+    emitStatusMessage(session.id, status, message, reason)
   }
 
-  private fun emitStatusMessage(sessionId: String, status: String, message: String? = null) {
-    val event = if (message == null) {
-      mapOf<String, Any?>("sessionId" to sessionId, "status" to status, "processor" to "cpu")
-    } else {
-      mapOf<String, Any?>("sessionId" to sessionId, "status" to status, "message" to message, "processor" to "cpu")
+  private fun emitStatusMessage(
+    sessionId: String,
+    status: String,
+    message: String? = null,
+    reason: String? = null,
+  ) {
+    val event = buildMap<String, Any?> {
+      put("sessionId", sessionId)
+      put("status", status)
+      put("processor", "cpu")
+      if (message != null) put("message", message)
+      if (reason != null) put("reason", reason)
     }
     synchronized(eventLock) {
       runCatching { onStatus(event) }

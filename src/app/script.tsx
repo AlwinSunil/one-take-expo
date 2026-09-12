@@ -5,7 +5,7 @@ import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ScriptLineRow } from '@/components/script/script-line-row';
-import { clearScriptStructure, loadScriptDocument, saveScriptStructure } from '@/lib/script-draft';
+import { clearScriptStructure, loadScriptDocument, saveAcceptedScriptStructure, saveScriptStructure } from '@/lib/script-draft';
 import {
   correctAmbiguousCue,
   deleteLine,
@@ -80,6 +80,7 @@ export default function ScriptInput() {
     setSaveError('');
     try {
       const accepted = await acceptDraft(script);
+      await saveAcceptedScriptStructure(doc).catch(() => {});
       await clearScriptStructure().catch(() => {});
       router.push({ pathname: '/camera', params: { mode: 'script', script: accepted } });
     } catch {

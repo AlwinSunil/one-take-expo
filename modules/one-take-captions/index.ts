@@ -1,12 +1,43 @@
 import { NativeModule, requireNativeModule } from 'expo-modules-core';
 import { Platform } from 'react-native';
 
+/**
+ * Why recognition stopped producing text.
+ *
+ * These names are the wire contract with `CaptionFailureReason.kt`; the app
+ * imports them from here rather than the other way round.
+ */
+export type CaptionUnavailableReason =
+  | 'model-missing'
+  | 'model-corrupt'
+  | 'initialization-failed'
+  | 'unsupported-device'
+  | 'permission-denied'
+  | 'unknown';
+
+/** A failure the take survives, which the next start clears on its own. */
+export type CaptionInterruptionReason =
+  | 'audio-focus-lost'
+  | 'audio-route-changed'
+  | 'lifecycle-interrupted';
+
+export type CaptionFailureReason = CaptionUnavailableReason | CaptionInterruptionReason;
+
+/**
+ * The wire status vocabulary emitted by the Kotlin module.
+ *
+ * `error` means recognition stopped being able to produce text; the paired
+ * `reason` says why and whether another attempt can help.  `interrupted` is
+ * separate because the take itself is still usable and the next start
+ * recovers without any user action.
+ */
 export type CaptionStatus =
   | 'preparing'
   | 'listening'
   | 'delayed'
   | 'stopping'
   | 'stopped'
+  | 'interrupted'
   | 'error';
 
 export type CaptionEvent = {
@@ -23,6 +54,14 @@ export type CaptionStatusEvent = {
   sessionId: string;
   status: CaptionStatus;
   message?: string;
+  /**
+   * A `CaptionFailureReason` when the native module could name the failure.
+   * Typed as a plain string because an older installed native build may not
+   * send one, and a newer one may send a reason this JavaScript does not know
+   * yet; `classifyCaptionFailure` resolves both cases.
+   */
+  reason?: string;
+  processor?: string;
 };
 
 export type OneTakeCaptionsEvents = {

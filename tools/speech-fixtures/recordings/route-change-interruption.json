@@ -1,0 +1,23 @@
+{
+  "synthetic": true,
+  "name": "route-change-interruption",
+  "sessionId": "route-change-interruption",
+  "description": "A headset is connected mid-take. The already recognized utterance is kept, the session reports an interruption, and the transcript is not extended with guessed text.",
+  "capturedDurationMs": 5300,
+  "events": [
+    {"atMs": 1290, "sessionId": "route-change-interruption", "sequence": 1, "text": "reading the first line", "isFinal": false, "segments": [{"id": "r1", "t0": 0.6, "t1": 1.3, "text": "reading the first line", "isFinal": false}]},
+    {"atMs": 2480, "sessionId": "route-change-interruption", "sequence": 2, "text": "Reading the first line now.", "isFinal": true, "segments": [{"id": "r1", "t0": 0.6, "t1": 2.4, "text": "Reading the first line now.", "isFinal": true}]}
+  ],
+  "statusEvents": [
+    {"atMs": 0, "sessionId": "route-change-interruption", "status": "preparing"},
+    {"atMs": 650, "sessionId": "route-change-interruption", "status": "listening"},
+    {"atMs": 3100, "sessionId": "route-change-interruption", "status": "interrupted", "reason": "audio-route-changed", "message": "The audio route changed during recording."},
+    {"atMs": 5300, "sessionId": "route-change-interruption", "status": "stopped"}
+  ],
+  "timingEvents": [
+    {"utteranceId": "r1", "stage": "speech-end", "at": 2300},
+    {"utteranceId": "r1", "stage": "pause-detected", "at": 2380},
+    {"utteranceId": "r1", "stage": "final-segment", "at": 2480},
+    {"utteranceId": "r1", "stage": "coverage-verdict", "at": 2600}
+  ]
+}

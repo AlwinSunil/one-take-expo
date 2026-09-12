@@ -1,6 +1,6 @@
 # Related issue acceptance map
 
-This map records the implementation and evidence for #6, #8, #11, #12, #13, #14, #16, #21, #24, #25, #29, #30 and #33.
+This map records the implementation and evidence for #6, #8, #11, #12, #13, #14, #16, #19, #21, #24, #25, #29, #30 and #33.
 
 The audit snapshot is 2026-09-13.
 
@@ -15,8 +15,9 @@ The implementation branch is [`feat/offline-speech-workflow`](https://github.com
 ## Evidence snapshot
 
 - `npm run typecheck` passes.
-- `npm test` passes 40 behavior-focused JavaScript tests.
+- `npm test` passes 72 behavior-focused JavaScript tests, including 29 for the #19 prompter and the coverage ledger/scenario replay tests added for #16.
 - `npm run samples` passes the deterministic caption replay.
+- `npm run coverage:report` replays the clean and flub scenarios and scores 16 synthetic fixture rows, while reporting zero consented human held-out rows.
 - `python3 tests/speech-evaluation.test.py` passes 12 evaluator tests.
 - `python3 tools/speech-fixtures/run_synthetic.py` passes 16 synthetic rows, while reporting zero eligible human held-out clean rows and zero eligible human held-out flub rows.
 - The Android caption module has 9 passing unit tests and the Media3 export module has 5 passing unit tests.
@@ -52,9 +53,10 @@ No recipient was selected and no external message was sent during share testing.
 | #8 | Research and evaluator implemented; accuracy gate open | Moonshine decision, pinned runtime notes, CPU timings and replayable evaluator | Candidate slice comparison, then 60 clean and 30 flub consented held-out rows and a human accuracy report |
 | #11 | Partial | Camera lifecycle recovery, optional captions, memory fix and two-minute saved take | Permission, interruption, route, low-storage and formal A/V sync scenarios |
 | #12 | Partial | Editable spoken lines, stable ids, bracketed action cues, manual required/done/skipped status and a published change intent | Device keyboard layout, draft recovery on a phone, a UX recording and the reviewer reproduction |
-| #13 | Partial | Offline Moonshine bridge, honest live/provisional/delayed/unavailable states and device live-caption run | Quiet/noisy/empty behavior, replay identity, model failure and interruption on device |
+| #13 | Partial | Offline Moonshine bridge, honest live/provisional/delayed/unavailable states, device live-caption run, replay identity, separated stage timing, named failure reasons with retry and a capture-lane status seam | Quiet/noisy/empty, route change, model failure, interruption and NPU on device |
 | #14 | Partial | Durable projects, normalization, recovery metadata, missing-media states and coverage counts | Force-close, migration, failed-save and low-storage reopen scenarios |
-| #16 | Partial | Conservative coverage, take ranking, script normalization, multi-line utterances and retake history | End-to-end multi-take capture and held-out precision evidence |
+| #16 | Partial | Conservative coverage, take ranking, script normalization, multi-line utterances, retake history, replayable scenarios, script-change and missing-media recomputation | End-to-end multi-take capture, real framing observations and a consented human held-out precision report |
+| #19 | Partial | Pure pause-timed retake scheduler, props-only coverage strip and prompter, camera-free harness and the camera.tsx handoff | Recorded quiet/noisy 18/20 prompt timing, a large-system-text device pass and the capture-lane integration |
 | #21 | Partial | Media3 cuts, partitioned captions, progress, cancellation, retry, background service, gallery and share | Low-storage/permission/process-restart checks and formal A/V sync review |
 | #24 | Partial | Timed refinement, quiet/repeat review suggestions, filler flags and reversible decisions | Listening to quiet/noisy/stutter/filler outputs and accepting safe boundaries |
 | #25 | Research only | CPU baseline, explicit fallback and NNAPI/QNN candidate matrix | Integrated NPU delegation, five warm sessions, power, heat and memory evidence |
@@ -106,6 +108,29 @@ The Kotlin bridge owns bounded microphone reads, Moonshine lifecycle, stale-sess
 The physical two-minute run proves a saved recording with non-silent audio and live caption events.
 It does not prove every permission, audio-route, call, low-storage or long-session condition.
 
+#### #13 source coverage added after the audit snapshot
+
+The following are covered by source tests only.
+None of them is device, accuracy or NPU evidence, and none of them closes an acceptance checkbox on its own.
+
+- Replay identity. `replayCaptionSession` is the same function the caption hook uses, so a recorded event log replays to exactly what the screen showed. `tests/caption-replay.test.mjs` replays every recording in `tools/speech-fixtures/recordings/` twice and compares the serialized merged transcript, and asserts that stale events change nothing when delivered late, redelivered or reordered among themselves.
+- Separate timing. `src/lib/caption-timing.ts` reports pause detection, recognition finalization and coverage processing as three independent durations per utterance, and reports `delayed` above 1500 ms of finalization or 500 ms of coverage. Both threshold edges are tested. A `caption-timing:` line is logged as soon as recognition finalizes an utterance, with unreported stages shown as `n/a`, and once more when the coverage verdict completes it; each distinct line is logged exactly once even when utterances complete out of order. All stage timestamps share the audio-stream clock. **Pause detection and the coverage verdict have no native source, so `pauseDetectionMs` and `finalizationMs` are `null` on device until the coverage lane supplies them through `noteCaptionTiming()`, and the existing native lag hysteresis is what drives the `delayed` state on a phone today.**
+- Named failure reasons. `model-missing`, `model-corrupt`, `initialization-failed`, `unsupported-device`, `permission-denied` and the interruption reasons are distinguished in both `src/lib/live-caption-state.ts` and `CaptionFailureReason.kt`, with a `retry()` that prepares recognition again and an interruption that clears on the next start. `unsupported-device` is matched only against the exact device-support sentences the module emits, so an audio-format failure stays retryable. A retry resumes the same take and keeps the utterances recognized before the failure.
+- Audio focus and route change. `CaptionFailureReason.kt` defines `audio-focus-lost` and `audio-route-changed` so the wire contract is complete, but **no `AudioManager` focus listener raises them**; only a lifecycle stop emits `interrupted` from native today. Adding the listener is an open device item, not something to add unverified.
+- Capture handoff. `useCaptionStatusForCapture()` publishes `{ status, reason, retry, timing }` through a module-level store so the capture route can read recognition state without starting a second session and without this lane editing `camera.tsx`. See [handoffs/issue-13.md](development/handoffs/issue-13.md).
+- Quiet, noisy and empty fixtures. Synthetic recordings exercise a low-volume read, a noisy read with revisions and a delayed state, and a sub-second take that produces no final segment and no text.
+
+Still open for #13, all of them requiring the phone:
+
+- a quiet, a noisy and a sub-second empty recording, confirming the utterances, the loading and delayed states and that nothing is invented for the empty take;
+- a deleted model asset and a corrupted model file, confirming the reported reason and that `retry()` recovers once the asset is restored;
+- an audio-route change and an audio-focus loss during a take, confirming the interrupted state and recovery on the next start;
+- the capture route consuming `useCaptionStatusForCapture()` after the capture lane applies the proposed change;
+- measured pause detection, finalization and coverage timing from device logs rather than from fixtures;
+- any NPU execution claim, which remains unmeasured and unimplemented.
+
+The Kotlin change in this work (a new `CaptionFailureReason.kt`, the `reason` field on status events, and an `interrupted` status on a lifecycle stop) has a matching JVM unit test, but the Gradle unit-test task was not run: `:one-take-captions:packageDebugResources` fails with "Moonshine is not staged", and staging requires downloading the pinned model files and a machine-local rebuilt runtime.
+
 ### #14, #16 and #30
 
 Project normalization preserves legacy records and marks missing media or interrupted work explicitly.
@@ -115,6 +140,43 @@ Coverage requires final transcript evidence and playable media, keeps earlier go
 Review state supports selecting takes, preparing cuts, undoing decisions and editing a segment's caption text.
 The editor currently edits a segment's text field rather than offering a separate tap-on-individual-word editor.
 Manual corrections remain separate from raw recognition evidence and therefore do not change a spoken-script verdict.
+
+### #19
+
+The prompt scheduler in `src/lib/retake-prompts.ts` offers an in-pause `Again, line N` prompt only when the verdict arrives within 1200 ms of the line end, before the next line starts and while the creator is not speaking.
+Anything else waits: during the take an unconfirmed line shows only a quiet count that names no line, and the honest `We will check lines N, M after this take` list appears once the take has ended.
+A delayed engine takes the same waiting path rather than guessing.
+The prompter components are props-only, show status by glyph and word before colour, label every coverage cell, keep the current line at 16 sp or more and truncate with a More control instead of clipping.
+A required action cue is never resolved by advancing a line; only an explicit Done press resolves it.
+`evaluatePromptTiming` replays a recorded log and reports how many line ends got a prompt before the next line, and it refuses to report a met target below 20 promptable line ends.
+The five fixtures and the `PrompterHarness` run without a camera, a recognizer or a recording, so they establish no device latency, no speech accuracy and no 18/20 measurement.
+The capture-route integration is written out in [handoffs/issue-19.md](development/handoffs/issue-19.md) and has not been applied to `camera.tsx`.
+
+### #16 source-side checks
+
+The following #16 acceptance work is now covered from source and is reproducible with `npm test` and `npm run coverage:report`.
+
+`src/development/coverage/scenarios.ts` defines ten deterministic scenarios: `clean`, `flub-reread`, `pending-timer`, `out-of-order`, `missing-file`, `two-lines-one-breath`, `off-frame-vs-in-frame`, `scratched-take`, `script-edit-after-coverage` and `required-action`.
+
+`tests/coverage-scenarios.test.mjs` replays every scenario twice and asserts identical coverage, identical take history and an identical cut order in script order rather than recording order.
+
+A simulated clock advanced far past the analysis timeout leaves a pending line pending, and only a final transcript segment covers it.
+
+A bad reread neither erases an earlier clean take nor lands on another line, an off-frame take loses to an otherwise suitable in-frame take, and scratched takes are excluded from coverage while remaining in history.
+
+`src/lib/coverage-updates.ts` consumes the script editor's `{ editedLineIds, deletedLineIds, addedLineIds, reorderedFrom }` change intent: an edited line returns to `needed` with its history, a deleted line is retired with its takes, and a reorder preserves every line id and verdict.
+
+Takes recorded before an edit are kept as stale history and can never cover the line again.
+
+When the capture layer reports that a take's media is gone, only a line that a derived clean take covered can fall back to another take; an explicit creator choice is never silently replaced, a pending line is never promoted, and the take stays in history.
+
+`npm run coverage:report` prints precision and recall per coverage verdict from the synthetic fixture rows and is labeled `synthetic fixtures, not human held-out data`.
+
+The framing values in these scenarios are declared fixture observations.
+
+The remaining #16 acceptance work is unchanged: an end-to-end scripted phone capture with multiple takes, omissions, restarts and required action cues; real vision or frame-quality observations feeding `inFrame`; a consented human held-out precision report; and the named non-author reviewer reproduction.
+
+Nothing in this source-side work establishes device, framing or human-accuracy behavior.
 
 ### #21, #24 and #33
 
@@ -144,6 +206,7 @@ The remaining release evidence is:
 - run permission denial, interruption, route-change, low-storage, force-close and process-restart scenarios on the physical phone;
 - repeat export/refinement with formal cancellation, recovery, audio/video sync and output inspection reports;
 - measure CPU and any future NNAPI or QNN path across five warm camera sessions, including memory, heat and battery;
+- record quiet and noisy reads and report how many of 20 line ends per condition showed a prompt before the next line;
 - obtain the named non-author peer reproductions and UX review.
 
 Pure tests, synthetic fixtures, emulator runs and hash checks do not satisfy those device, accuracy, NPU or peer-review gates.
