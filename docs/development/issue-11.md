@@ -63,3 +63,11 @@ Real camera-busy and nearly-full-storage recovery, actual calls and audio-route 
 A shared microphone source is not established by this change; the existing recognizer and recorder are separate consumers.
 The required two-minute clock-based A/V sync report remains open.
 No fixture, matching track duration, or successful build is claimed as proof of sync or microphone sharing.
+
+Additional I2501 check: rapid preparation cancellation returned to ready; an immediate start/stop failure showed a recoverable error, and the next recording started successfully.
+Two stop taps during that subsequent recording produced one normal preview.
+This is a bounded UI check rather than a complete rapid-input stress matrix.
+
+Review fixes reset camera readiness on blur and persist the returned cache URI before caption cleanup.
+Native stop now rejects a terminal caption failure directly, including repeated stop calls, independently of React status rendering.
+The caption JVM suite now passes 11 tests, including two terminal-result regressions; four focused capture checks pass.

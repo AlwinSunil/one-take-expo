@@ -168,6 +168,7 @@ export default function CameraScreen() {
     refreshDeviceState();
     return () => {
       activeScreen.current = false;
+      setReady(false);
       stopActiveCapture('screen-blur');
     };
   }, [refreshDeviceState, stopActiveCapture]));
@@ -311,6 +312,13 @@ export default function CameraScreen() {
       const duration = (Date.now() - startedAt.current) / 1000;
       capturePhase.current = 'saving';
       setSaving(true);
+      // Make the returned original discoverable before waiting for analysis.
+      // If the process stops during caption cleanup, Projects can recover it.
+      await saveProjectMetadata({ ...project, videoUri: result.uri, duration,
+        recordingStatus: 'interrupted',
+        recoveryMessage: 'The original is available. Saving or analysis did not finish; review this take in Projects.',
+        transcript: captions.transcript.current,
+      });
       let transcript = captions.transcript.current;
       try {
         transcript = await captions.stop();
