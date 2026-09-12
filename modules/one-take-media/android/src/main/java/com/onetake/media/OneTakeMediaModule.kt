@@ -100,7 +100,18 @@ class OneTakeMediaModule : Module() {
         deliveryLock.withLock {
           if (deleteGallery == true) {
             exportStore.get(id)?.galleryUri?.let { value ->
-              try { applicationContext().contentResolver.delete(android.net.Uri.parse(value), null, null) }
+              try {
+                val resolver = applicationContext().contentResolver
+                val uri = android.net.Uri.parse(value)
+                val removed = resolver.delete(uri, null, null)
+                if (removed == 0) {
+                  // Zero can mean an already removed copy or a provider refusing the delete.
+                  val stillPresent = resolver.query(uri, arrayOf(android.provider.MediaStore.MediaColumns._ID), null, null, null)
+                    ?.use { cursor -> cursor.moveToFirst() }
+                    ?: throw IllegalStateException("Android could not confirm removal of the gallery copy. Retry project deletion.")
+                  check(!stillPresent) { "Android kept the gallery copy. Remove it in Gallery, then retry project deletion." }
+                }
+              }
               catch (failure: SecurityException) {
                 throw IllegalStateException("Android did not allow removal of the gallery copy. Remove it in Gallery, then retry project deletion.", failure)
               }

@@ -16,9 +16,10 @@ export function projectScriptLines(project: Project) {
 export function projectReview(project: Project) {
   const segments = projectSegments(project);
   const lines = projectScriptLines(project);
+  const pendingUris = new Set(project.recordings?.filter(recording => recording.evidenceStatus === 'pending').map(recording => recording.mediaUri));
   return deriveScopedReview({ lines, segments, decisions: project.reviewDecisions,
     silences: project.quietIntervals?.map((s, i) => ({ ...s, id: `${project.id}:quiet:${i}`, verifiedBoundary: false })),
-    takes: project.takes?.map(take => ({ ...take, playable: take.playable && !project.unavailableTakeIds?.includes(take.id) })) ?? segments.map(s => ({ id: `take:${s.id}`, t0: s.t0, t1: s.t1, mediaUri: project.videoUri,
+    takes: project.takes?.map(take => ({ ...take, playable: take.playable && !pendingUris.has(take.mediaUri ?? '') && !project.unavailableTakeIds?.includes(take.id) })) ?? segments.map(s => ({ id: `take:${s.id}`, t0: s.t0, t1: s.t1, mediaUri: project.videoUri,
       playable: !!project.videoUri && !project.mediaMissing, quality: project.transcript.find(segment => segment.id === s.id)?.needsListening ? 'scratched' as const : 'clean' as const,
       inFrame: false, transcriptSegmentIds: [s.id] })),
   });

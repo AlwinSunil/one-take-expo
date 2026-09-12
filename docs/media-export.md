@@ -65,6 +65,27 @@ module to avoid incompatible runtime artifacts.
 the portrait canvas without stretching; HDR sources are tone mapped to SDR.
 Metadata inspection runs off the main thread and validates cut endpoints
 against the source duration before playback or encoding.
+
+For fixed local H.264/HEVC recordings, preview and export use
+`DecodeAheadMediaSourceFactory` before Media3's normal clipping source. This
+preserves post-cut compressed reference pictures needed to decode retained
+B-frames. Outside-cut references receive a pre-start timestamp that the
+renderer discards after decoding; retained timestamps, audio and timeline
+boundaries are unchanged. Read-ahead is bounded to 32 consecutive outside-cut
+packets, beyond H.264/HEVC's maximum 16-picture reorder depth. Other codecs use
+the unchanged baseline path. No source normalization, cut padding or dependency
+upgrade is introduced.
+
+The [physical-phone regression evidence](development/evidence/milestone-1-native/decode-ahead-validation.json)
+contains 3,600 frames over 120 seconds, maximum frame interval 33.334 ms and no
+100 ms splice gaps. The decoded audio comparison is byte-identical to the
+pre-fix export at 2 kHz mono, with unchanged 20.5–34.0 ms synthetic phrase lag.
+The final adapter also passed the same 120-second cadence/audio checks with a
+[44.7 MB local B-frame source](development/evidence/milestone-1-native/large-decode-ahead-validation.json).
+The period keeps requesting data while reference frames remain pending, and a
+synthetic end-of-stream remains readable even if the child stream is not ready.
+These checks validate the H.264 fixtures on the tested phone, not every
+codec/device or human lip synchronization.
 The composition contains one audio-and-video sequence with one clipped
 `EditedMediaItem` per cut.
 The composition-wide `OverlayEffect` uses a timed `BitmapOverlay`, so caption
@@ -132,7 +153,9 @@ Run the pure timeline checks with:
 node --test tests/media-export-timeline.test.mjs
 ```
 
-The Android module tests cover the same mapping and cancellation state rules:
+Ten Android module JVM tests cover timeline mapping, cancellation state,
+retained B-frame timestamps, read-ahead bounds, peeking, reset, partial-buffer
+loading positions and synthetic end-of-stream readiness:
 
 ```sh
 cd android

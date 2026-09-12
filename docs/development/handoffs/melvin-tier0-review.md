@@ -102,3 +102,77 @@ Prepared segments are stored in `Project.reviewSegments`. Automatic preview requ
 Camera-owned direct pickup targeting/launch and stop-to-review navigation still require Alwin's integration. Sabari must review the production coverage evidence handoff. Target-device validation must measure stop-to-first-frame separately from native preview `firstFrameMs`, and verify A/V synchronization, continuous multi-line audio, corrupt-media fallback, background/resume, and record → review → pickup → review. No device result is claimed by this handoff.
 
 Local behavior checks: `node --experimental-strip-types --test tests/clean-review.test.mjs tests/review-export-selection.test.mjs tests/review-source.test.mjs`. These cover deterministic selection, indivisible conflicts, cross-source timing/recency, and caption-source isolation; they do not establish native-device correctness.
+
+## PR stack audit and combined integration requirement
+
+Audited remote heads: #46 `5ba3e81`, #47 `1009593`, #48 `12bed10`, #50 `911e81f`, #54 `e28608a`, #56 `68d1589`, #55 `4d302dd`, and #57 `378a36c`. PRs #54–57 are authored by Sabari and supply the capture-side work discussed here.
+
+- PR #57 already contains the current heads of #46, #47, #48, #50 and #54, plus the earlier #49 receiving implementation at `b1c0f55`. Its base is `feat/t0-capture-dependencies` (`68d9fdb`), not `main`.
+- PR #56 is based on #54; PR #55 is based on #56 and contains both current heads. Neither #55 nor #56 is contained in #57.
+- Read-only `git merge-tree` found the audited #49 HEAD + #57 combination clean. Combining #57 and #55 reports a content conflict in `src/app/camera.tsx`. A clean merge is not behavioral acceptance, and the result does not include later uncommitted edits.
+
+Prepare an isolated worktree from a committed current #49 snapshot. Merge #57 there to include its dependency stack once, then merge #55 and have the capture owner resolve `camera.tsx` semantically, preserving recording durability, permission/interruption handling, input controls, coverage and optional vision setup. Do not resolve by taking the entire camera file from either side. Keep the working review/native-fix checkout unchanged. The direct pickup action below must not land into a build whose camera ignores its parameters.
+
+The root agent has created `/tmp/one-take-milestone1-integration` on `integration/milestone-1-review` with current #49 + #57. That combination passes 218 behavior tests, 19 sample checks and TypeScript checking. These results do not include #55/#56 conflict resolution or prove the direct pickup scenarios below.
+
+### Capture-owner corrections before direct launch
+
+References below are pinned to PR #57's audited commit `378a36c5cf51665640d6b2bc6b8a450cfe7bba24`.
+
+1. **Restore the target project's script identity.** The [pickup loader](https://github.com/AlwinSunil/one-take-expo/blob/378a36c5cf51665640d6b2bc6b8a450cfe7bba24/src/app/camera.tsx#L355) calls `loadAcceptedScriptDocument(routeScript || project.script)`, whose [implementation](https://github.com/AlwinSunil/one-take-expo/blob/378a36c5cf51665640d6b2bc6b8a450cfe7bba24/src/lib/script-draft.ts#L43) reads global `script_accepted_lines`. Another accepted script can change line IDs/cue state. Build the pickup document from `projectScriptLines(project)`, preserving IDs and action state; never substitute the latest global accepted document for an existing project's ledger.
+2. **Honor the saved requested subset.** The [record preparation](https://github.com/AlwinSunil/one-take-expo/blob/378a36c5cf51665640d6b2bc6b8a450cfe7bba24/src/app/camera.tsx#L465) recomputes every uncovered line and does not read `project.pickupRequest.lineIds`. Validate and use that saved subset, intersecting existing spoken IDs and retaining original IDs in the prompter. Recheck the current request at record start. The list of all script lines must remain available for whole-utterance matching and separate action status.
+3. **Use the same scoped coverage and explicit choices as review.** [deriveProjectCaptureCoverage](https://github.com/AlwinSunil/one-take-expo/blob/378a36c5cf51665640d6b2bc6b8a450cfe7bba24/src/features/capture/coverage.ts#L110) calls unscoped `deriveReviewState` without `project.reviewDecisions`. It therefore bypasses `eligibleLineIds` and creator choices and can disagree with the editor. Consume the receiving review adapter (`cleanReview`/scoped `projectReview`) for persisted-project coverage; retain pending/live capture state separately. Do not silently replace the editor's latest-recording ranking with source-relative earliest-take ranking.
+4. **Close the pickup lifecycle.** [Record preparation](https://github.com/AlwinSunil/one-take-expo/blob/378a36c5cf51665640d6b2bc6b8a450cfe7bba24/src/app/camera.tsx#L503) calls `beginProjectPickup`, and [successful completion](https://github.com/AlwinSunil/one-take-expo/blob/378a36c5cf51665640d6b2bc6b8a450cfe7bba24/src/app/camera.tsx#L588) calls `completeProjectPickup`; the route has no `cancelProjectPickup` call. Cancel a started-but-uncommitted request on abandoned capture/no returned media, preserving operations that have media waiting for recovery. Keep the same recording identity on save retry. Do not let **Retake** silently clear the target and create a separate project; its [current implementation](https://github.com/AlwinSunil/one-take-expo/blob/378a36c5cf51665640d6b2bc6b8a450cfe7bba24/src/app/camera.tsx#L624) resets `pickupTargetId`.
+5. **Checkpoint pickup media before final analysis.** The [early returned-media save](https://github.com/AlwinSunil/one-take-expo/blob/378a36c5cf51665640d6b2bc6b8a450cfe7bba24/src/app/camera.tsx#L522) runs only for a new primary project. A pickup waits through `captions.stop()` before its media URI reaches durable completion. Coordinate a receiving-store checkpoint if necessary so a process death in that interval does not leave a request journal without its returned recording URI. Final pending/failed recognition must not overwrite recoverable video.
+6. **Return and immediate-review behavior.** The [continue handler](https://github.com/AlwinSunil/one-take-expo/blob/378a36c5cf51665640d6b2bc6b8a450cfe7bba24/src/app/camera.tsx#L640) returns the saved `project.id`, which is compatible with editor reload. It currently pushes another editor only after a raw-preview modal and a user **Continue** action. This does not establish recording-stop → first clean frame. Preserve raw access but explicitly wire the desired immediate clean-review transition and measure it on device. Recognition starts before `recordAsync`; verify that supplied source timestamps account for that start offset before claiming cut/frame alignment.
+
+### Review launch patch for the combined worktree
+
+This patch is intentionally **not applied to the current source**. Current #49 camera code can ignore `pickupProjectId` and create a new recording project, so presenting this action before the consumer is integrated would be unsafe for the expected workflow. Apply it only after #57 plus the corrections above are present in the combined worktree. No environment feature flag is used.
+
+In `src/components/review/transcript-review.tsx`, add:
+
+```ts
+import { router } from 'expo-router';
+```
+
+Inside the existing `pickupLineIds(review).length > 0` section, add this action alongside the saved-list/attachment actions:
+
+```tsx
+<Pressable
+  accessibilityRole="button"
+  disabled={importing || progress !== null}
+  className="p-3 bg-white rounded-lg"
+  onPress={async () => {
+    setImporting(true);
+    try {
+      const current = latest.current;
+      const lineIds = pickupLineIds(cleanReview(current));
+      if (!lineIds.length) {
+        setMessage('No spoken lines need a pickup now.');
+        return;
+      }
+      if (!await change({
+        ...current,
+        pickupRequest: { lineIds, requestedAt: Date.now() },
+      })) return;
+      router.push({
+        pathname: '/camera',
+        params: {
+          mode: 'script',
+          script: current.script ?? '',
+          pickupProjectId: current.id,
+        },
+      });
+    } finally {
+      setImporting(false);
+    }
+  }}
+>
+  <Text className="text-black text-sm">Record requested pickups</Text>
+</Pressable>
+```
+
+After integrating the consumer, replace the unavailable-capture copy with a truthful description of recording the saved requested lines. The existing `change` function awaits the editor's serialized metadata save and returns false on failure, so this action cannot navigate before its request is durable. The existing `importing` guard blocks concurrent panel edits while saving. It intentionally does not call `beginProjectPickup`: the camera owns the stable recording ID and starts that journal immediately before capture.
+
+Combined-worktree checks should include a failing-save/no-navigation test, one requested line among several missing lines, a changed global accepted script, an explicit older-take choice, a scoped pickup containing extra words, cancelled preparation, interrupted returned-media save, and pickup retake. Run combined TypeScript/behavior tests, build the native capture/vision/input dependencies, then reproduce editor → record requested pickup → same editor with original media intact. Record actual stop-to-first-frame and A/V behavior separately. No combined-stack device result is claimed here.

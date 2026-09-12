@@ -29,7 +29,8 @@ export function normalizeProject(value: unknown): Project {
     || !Number.isFinite(p.pickupRequest.requestedAt))) throw new Error('Project pickup request is unreadable.');
   if (p.recordings?.some(recording => !recording || typeof recording.id !== 'string' || !recording.id
     || typeof recording.mediaUri !== 'string' || !recording.mediaUri || !Number.isFinite(recording.duration) || recording.duration < 0
-    || !Number.isFinite(recording.createdAt))) throw new Error('Project recordings are unreadable.');
+    || !Number.isFinite(recording.createdAt)
+    || (recording.evidenceStatus !== undefined && !['pending', 'complete'].includes(recording.evidenceStatus)))) throw new Error('Project recordings are unreadable.');
   if (p.recordings && new Set(p.recordings.map(recording => recording.id)).size !== p.recordings.length) throw new Error('Project recording identities are duplicated.');
   if (p.reviewSegments?.some(segment => !segment || typeof segment.uri !== 'string' || !segment.uri
     || !Number.isFinite(segment.t0) || !Number.isFinite(segment.t1) || segment.t0 < 0 || segment.t1 <= segment.t0
@@ -67,17 +68,23 @@ function isValidActionCue(value: unknown): value is {
     && typeof cue.resolved === 'boolean';
 }
 
+export const PENDING_PICKUP_MESSAGE = 'A pickup recording is safely saved, but its captions and coverage did not finish. Review the raw recording or record those lines again.';
+
 export interface PickupRecordingInput {
   videoUri: string;
   duration: number;
   transcript: Project['transcript'];
   takes: NonNullable<Project['takes']>;
   eligibleLineIds?: string[];
+  evidenceStatus?: 'pending' | 'complete';
 }
 
 /** Source times stay relative to each recording; only identities are namespaced. */
 export function mergePickupRecording(project: Project, recordingId: string, input: PickupRecordingInput, createdAt: number): Project {
-  if (project.recordings?.some(recording => recording.id === recordingId)) return project;
+  const existing = project.recordings?.find(recording => recording.id === recordingId);
+  if (existing && (existing.evidenceStatus !== 'pending' || input.evidenceStatus === 'pending')) return project;
+  if (existing && existing.mediaUri !== input.videoUri) throw new Error('This pickup evidence belongs to a different recording.');
+  if (input.evidenceStatus === 'pending' && (input.transcript.length || input.takes.length)) throw new Error('A media checkpoint cannot claim finalized caption or take evidence.');
   if (!recordingId || !Number.isFinite(input.duration) || input.duration <= 0 || !input.videoUri) throw new Error('The pickup recording is incomplete.');
   const segmentIds = new Map<string, string>();
   const transcript = input.transcript.map((segment, index) => {
@@ -114,17 +121,21 @@ export function mergePickupRecording(project: Project, recordingId: string, inpu
   const primary = project.videoUri ? [{ id: `${project.id}:original`, mediaUri: project.videoUri,
     duration: project.duration ?? Math.max(0, ...legacyTranscript.map(segment => segment.t1), ...legacyTakes.map(take => take.t1)), createdAt: project.createdAt }] : [];
   return normalizeProject({ ...project,
-    recordings: [...(project.recordings ?? primary), { id: recordingId, mediaUri: input.videoUri, duration: input.duration, createdAt }],
+    recordings: existing
+      ? project.recordings!.map(recording => recording.id === recordingId ? { ...recording, duration: input.duration, evidenceStatus: 'complete' as const } : recording)
+      : [...(project.recordings ?? primary), { id: recordingId, mediaUri: input.videoUri, duration: input.duration, createdAt, evidenceStatus: input.evidenceStatus ?? 'complete' }],
     transcript: [...legacyTranscript, ...transcript], takes: [...legacyTakes, ...takes],
-    pickupRequest: undefined, cutsReviewed: false, reviewSegments: undefined,
+    pickupRequest: input.evidenceStatus === 'pending' ? project.pickupRequest : undefined, cutsReviewed: false, reviewSegments: undefined,
+    recoveryMessage: existing?.evidenceStatus === 'pending' && project.recoveryMessage === PENDING_PICKUP_MESSAGE ? undefined : project.recoveryMessage,
     captionRevision: (project.captionRevision ?? 0) + 1,
   });
 }
 
 /** An editor opened before a pickup must not overwrite newly attached history. */
 export function preserveNewRecordings(current: Project, incoming: Project): Project {
-  const known = new Set(incoming.recordings?.map(recording => recording.id) ?? []);
-  const added = current.recordings?.filter(recording => !known.has(recording.id)) ?? [];
+  const known = new Map(incoming.recordings?.map(recording => [recording.id, recording]) ?? []);
+  const added = current.recordings?.filter(recording => !known.has(recording.id)
+    || (known.get(recording.id)?.evidenceStatus === 'pending' && recording.evidenceStatus !== 'pending')) ?? [];
   if (!added.length) return incoming;
   const addedIds = new Set(added.map(recording => recording.id));
   const addedUris = new Set(added.filter(recording => recording.mediaUri !== incoming.videoUri).map(recording => recording.mediaUri));
@@ -132,10 +143,13 @@ export function preserveNewRecordings(current: Project, incoming: Project): Proj
   const takes = incoming.takes ?? current.takes ?? [];
   const takeIds = new Set(takes.map(take => take.id));
   return { ...incoming,
-    recordings: [...(incoming.recordings ?? []), ...added],
+    recordings: [...(incoming.recordings ?? []).filter(recording => !addedIds.has(recording.id)), ...added],
     transcript: [...incoming.transcript, ...current.transcript.filter(segment => segment.recordingId && addedIds.has(segment.recordingId) && !captionIds.has(segment.id))],
     takes: [...takes, ...(current.takes ?? []).filter(take => take.mediaUri && addedUris.has(take.mediaUri) && !takeIds.has(take.id))],
     cutsReviewed: false, reviewSegments: undefined, pickupRequest: current.pickupRequest,
+    recoveryMessage: incoming.recoveryMessage === PENDING_PICKUP_MESSAGE && !current.recordings?.some(recording => recording.evidenceStatus === 'pending')
+      ? current.recoveryMessage === PENDING_PICKUP_MESSAGE ? undefined : current.recoveryMessage
+      : incoming.recoveryMessage,
     captionRevision: Math.max(current.captionRevision ?? 0, incoming.captionRevision ?? 0),
   };
 }

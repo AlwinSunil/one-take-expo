@@ -1,0 +1,13 @@
+{
+  "at": "2026-09-12T22:53:30.890Z",
+  "lines": [
+    "Start production 8-second two-source export tier0-1789253594621",
+    "PASS completed in 1063 ms: file:/data/user/0/com.anonymous.onetake/files/exports/tier0-1789253594621.mp4",
+    "PASS active export deletion settled",
+    "PASS missing source rejected",
+    "PASS gallery save content://media/external/video/media/166",
+    "PASS native output and app-created gallery copy deletion",
+    "PASS original preserved",
+    "RECOVERY {\"id\":\"tier0-1789251932858\",\"status\":\"failed\",\"progress\":100,\"error\":\"Export output is missing. Retry to create it again.\"}"
+  ]
+}

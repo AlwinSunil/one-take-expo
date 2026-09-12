@@ -73,6 +73,13 @@ export default function Tier0MediaChecks() {
       catch { rejected = true; }
       if (!rejected) throw new Error('Missing source was accepted');
       log('PASS missing source rejected');
+      new File(result.uri).delete();
+      const missingOutput = await media.getExport(id);
+      if (missingOutput.status !== 'failed' || missingOutput.uri) throw new Error('Missing output still reported as complete');
+      await media.startExport(prepared);
+      const retry = await waitFor(id);
+      if (retry.status !== 'completed' || !retry.uri || !new File(retry.uri).exists) throw new Error('Missing-output retry failed');
+      log('PASS missing output recovered as failed and retry recreated it');
       const gallery = await media.saveToGallery(id);
       log(`PASS gallery save ${gallery}`);
       await media.deleteExport(id, true);

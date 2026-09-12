@@ -116,7 +116,13 @@ internal class MediaExportRunner(
     }
     ensureNotCancelledOnMain(job.request.id)
 
-    val transformer = Transformer.Builder(context.applicationContext).build()
+    val transformer = Transformer.Builder(context.applicationContext)
+      .setAssetLoaderFactory(androidx.media3.transformer.ExoPlayerAssetLoader.Factory(
+        context.applicationContext,
+        androidx.media3.transformer.DefaultDecoderFactory.Builder(context.applicationContext).build(),
+        androidx.media3.common.util.Clock.DEFAULT,
+        DecodeAheadMediaSourceFactory(context.applicationContext),
+      )).build()
     val mainHandler = Handler(Looper.getMainLooper())
     val registered = AtomicBoolean(false)
     val progressJob: Job = CoroutineScope(currentCoroutineContext()).launch {

@@ -15,20 +15,20 @@ Branch: `feat/melvin-milestone-1`; draft PR #49. Issues #14, #17, #20, #21 and #
 - [Storage/pickup receiving API](handoffs/melvin-tier0-storage.md): exact lifecycle calls, cancellation barrier, durable saves, namespace rules and deletion semantics.
 - [Review return and native preview](handoffs/melvin-tier0-review.md): project fields, navigation and review behavior.
 
-Alwin still owns camera permissions, interruptions, recorder cancellation and calling these receiving APIs with real take evidence. No camera/script route was edited or duplicate recorder introduced. Sabari's available script/coverage handoff shapes were inspected; his unmerged branch changes were not silently merged into this PR.
+Sabari has raised capture PRs #54–57. The isolated #49 + #57 combination passes 218 tests, 19 sample checks and typecheck. The capture consumer still has the concrete contract gaps recorded in the review handoff, and #55/#56 require a semantic camera-route merge with #57. No camera/script route was edited in this lane.
 
 ## Actual validation
 
 | Command/check | Result |
 | --- | --- |
-| `npm test` | 69 passed |
+| `npm test` | 75 passed |
 | `npm run typecheck` | Passed |
 | `npm run test:samples` | 19 passed |
 | `EXPO_NO_DOTENV=1 npx expo export --platform android --output-dir /tmp/one-take-tier0-bundle` | Passed |
-| `JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home' ANDROID_HOME='/Users/melvin/Library/Android/sdk' ./android/gradlew -p android :one-take-media:testDebugUnitTest --console=plain` | Native production code compiled; 6 JVM tests passed |
+| `JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home' ANDROID_HOME='/Users/melvin/Library/Android/sdk' ./android/gradlew -p android :one-take-media:testDebugUnitTest --console=plain` | Native production code compiled; 10 JVM tests passed |
 | Home → Sample sessions · Dev → Run on-device storage checks | 17/17 passed on iQOO I2501, Android 16, serial `10BFAT1U1Q000XP` |
 
-The 17 storage checks use dedicated fixture projects with real SQLite/filesystem operations: legacy reopen, missing-source failure, coverage invalidation, independent pickup copy, idempotent completion, failed-cancellation retry, concurrent save/deletion, replay of an interrupted copy journal and preservation of another project/source. They use the existing installed debug APK with current Metro JavaScript. [Summary screenshot](evidence/milestone-1/storage.png), [detail screenshot](evidence/milestone-1/storage-detail.png), [captured results](evidence/milestone-1/storage-results.json).
+The 17 storage checks use dedicated fixture projects with real SQLite/filesystem operations: legacy reopen, missing-source failure, coverage invalidation, independent pickup copy, idempotent completion, failed-cancellation retry, concurrent save/deletion, replay of an interrupted copy journal and preservation of another project/source. They were repeated on the fresh APK after the deletion fixes: 17/17 passed ([fresh screenshot](evidence/milestone-1-native/storage-final.png)). [Summary screenshot](evidence/milestone-1/storage.png), [detail screenshot](evidence/milestone-1/storage-detail.png), [captured results](evidence/milestone-1/storage-results.json).
 
 ## Fresh native runtime and device checks
 
@@ -48,20 +48,24 @@ The fresh debug APK was exercised on the physical **iQOO I2501, Android 16, seri
 
 Evidence: [short export and deletion report](evidence/milestone-1-native/short-export.json), [background jobs](evidence/milestone-1-native/background-jobs.json), [before force-stop](evidence/milestone-1-native/interrupted-before.json), and [after reopening](evidence/milestone-1-native/interrupted-after.json). The gallery-query check and pre-deletion running-state check supplement the panel report. These are fixture device checks, not a complete real-creator acceptance run.
 
-## Render inspection and known cadence limitation
+## Render inspection and validated cadence correction
 
 The phone's unmodified 120-second export was pulled for host FFmpeg decoding and comparison with its synthetic source. [Render validation](evidence/milestone-1-native/render-validation.json) records the input hashes, streams, frame observations, 60 audio comparison windows across 15 cycles, and frame timestamps. The output displays at **720×1280** through rotation metadata; the encoded video is 1280×720 H.264, with AAC audio. Inspected [first-source frame](evidence/milestone-1-native/frame-001.png) and [second-source frame](evidence/milestone-1-native/frame-005.png) contain the expected scene and readable caption.
 
 The first/last voiced windows in each retained phrase correlate with the expected source at **0.87609 or higher**, with **20.5–34.0 ms** measured audio lag. This supports preservation of the synthetic speech sequence through the two-minute output. The exploratory audio-to-audio measurement is not a human lip-sync test or a direct audio-to-video landmark comparison.
 
-A separate cadence problem remains: the 120-second output contains **3,570 decoded frames**, with a **100 ms inter-frame gap at each of the 15 first-source → second-source cuts**. The source itself has regular approximately 33.33 ms spacing. Two nominal frames are absent at each such boundary, holding the previous image for 100 ms. Source packet ordering and Media3 1.9.0 clipping code strongly indicate B-frame termination at the clip endpoint; this is a source-code/packet-order diagnosis, not an instrumented decoder trace. No verified app-only correction has been applied. Padding clips would change the selected audio/video interval and is not an accepted fix. This limitation prevents claiming frame-continuous cut acceptance despite the small measured audio lag.
+The original output lost two B-frames at each first-source → second-source cut (3,570 frames and 100 ms holds). The shared native source factory now reads bounded H.264/HEVC reference packets beyond a cut as pre-start decoder timestamps, preserving retained-frame timestamps and the exact audio/caption interval. It uses the same factory in preview and Transformer and does not pad selected cuts.
+
+The fresh phone-rendered 120-second output contains **3,600 decoded frames**, maximum interval **33.334 ms**, and **zero gaps above 50 ms**. The previously missing frames at 3.933333 and 3.966667 seconds are restored at all 15 splices. Decoded audio PCM is byte-identical to the earlier export; the timing comparison above is unchanged. [Correction evidence](evidence/milestone-1-native/decode-ahead-validation.json), [restored frame](evidence/milestone-1-native/decode-ahead-restored-frame.png), [native preview](evidence/milestone-1-native/decode-ahead-preview.json), [lifecycle regression](evidence/milestone-1-native/decode-ahead-lifecycle.json). This validates the H.264 fixture regression in #53; HEVC/device breadth and human lip sync are separate acceptance.
+
+The new APK also passed short export, running cancellation, missing input, missing-output failure and same-ID retry, gallery removal (row168 verified absent), and native preview/replay. Native first-frame callback measured129ms; this is not recording-stop latency. Deletion now waits for every cancellation callback after a failure, protects equivalent local-file URIs, removes stale references to deleted pickup/cache files, and verifies gallery absence when Android reports zero deletions.
 
 ## Remaining acceptance
 
-Alwin's direct record → review → targeted pickup → same-project return still needs integration with real take evidence. Actual recording-stop-to-first-frame latency, human on-device playback/lip-sync review, denied-permission behavior and low-storage recovery remain unverified. The B-frame cut-boundary cadence problem needs a validated fix or an explicit product/reviewer decision; it is not hidden by the passing export lifecycle checks.
+Alwin's direct record → review → targeted pickup → same-project return still needs integration with real take evidence. Actual recording-stop-to-first-frame latency, human on-device playback/lip-sync review, denied-permission behavior and low-storage recovery remain unverified. The B-frame fixture defect is corrected in this PR; the capture contract and physical acceptance gaps remain explicit.
 
 Sabari's named reproduction, both peers' shared-handoff/deletion review and the five-session #34 gate remain separate requirements. The native build and fixture device evidence have advanced; they do not close all acceptance boxes. Issues and the milestone remain open.
 
 ### Final editor validation
 
-On the fresh Android build, the synthetic original-plus-pickup fixture loaded 2/2 spoken lines and played an eight-second native cut. Fixed the nested Android review scroller that hid lower controls; preparation, acceptance, actual editor export and the system share chooser now work. No share was sent. Output and chooser evidence are in `evidence/milestone-1-native/`. The remaining B-frame cadence defect is tracked in [#53](https://github.com/AlwinSunil/one-take-expo/issues/53). This is still Melvin-owned follow-up work, not an Alwin dependency.
+On the fresh Android build, the synthetic original-plus-pickup fixture loaded 2/2 spoken lines and played an eight-second native cut. Fixed the nested Android review scroller that hid lower controls; preparation, acceptance, actual editor export and the system share chooser now work. No share was sent. Output and chooser evidence are in `evidence/milestone-1-native/`. The B-frame correction for [#53](https://github.com/AlwinSunil/one-take-expo/issues/53) is implemented and device-verified in this PR, awaiting review/merge.

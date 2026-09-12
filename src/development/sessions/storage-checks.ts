@@ -1,6 +1,6 @@
 import { Directory, File, Paths } from 'expo-file-system';
 import * as SQLite from 'expo-sqlite';
-import { beginProjectPickup, completeProjectPickup, deleteProject, getDraft, getProject, listProjects, registerProjectFile, registerProjectWork, saveProject, saveProjectMetadata } from '@/lib/store';
+import { beginProjectPickup, checkpointProjectPickup, completeProjectPickup, deleteProject, getDraft, getProject, listProjects, registerProjectFile, registerProjectWork, saveProject, saveProjectMetadata } from '@/lib/store';
 import { projectReview, projectScriptLines } from '@/lib/project-workflow';
 import type { Project } from '@/lib/session';
 
@@ -57,6 +57,30 @@ export async function runStorageChecks(): Promise<{ name: string; passed: boolea
       && !!pickupUri && pickupUri !== originalUri && new File(pickupUri).exists && merged.transcript.length === 2);
     const repeated = await completeProjectPickup(saved.id, pickupId, pickupInput);
     record('Repeated pickup completion is idempotent after reopen', repeated.transcript.length === 2 && repeated.takes?.length === 2);
+    const checkpointId = `${prefix}:checkpoint`;
+    await beginProjectPickup(saved.id, checkpointId, projectScriptLines(saved).map(line => line.id));
+    const checkpoint = await checkpointProjectPickup(saved.id, checkpointId, { videoUri: source.uri, duration: 12 });
+    const checkpointUri = checkpoint.recordings?.find(recording => recording.id === checkpointId)?.mediaUri;
+    if (checkpointUri) savedFiles.push(checkpointUri);
+    const checkpointReopened = await getProject(saved.id);
+    record('Raw pickup checkpoint reopens durably without inventing caption evidence', !!checkpointUri
+      && new File(checkpointUri).exists && new File(checkpointUri).size === source.size
+      && checkpointReopened?.recordings?.find(recording => recording.id === checkpointId)?.evidenceStatus === 'pending'
+      && checkpointReopened.transcript.length === repeated.transcript.length
+      && checkpointReopened.takes?.length === repeated.takes?.length);
+    const finalized = await completeProjectPickup(saved.id, checkpointId, pickupInput);
+    const finalizeRetry = await completeProjectPickup(saved.id, checkpointId, pickupInput);
+    record('Final evidence upgrades the same checkpoint once and preserves its source', finalized.recordings?.find(recording => recording.id === checkpointId)?.mediaUri === checkpointUri
+      && finalized.recordings?.find(recording => recording.id === checkpointId)?.evidenceStatus === 'complete'
+      && finalized.recordings.length === checkpoint.recordings?.length
+      && finalized.transcript.length === repeated.transcript.length + 1
+      && finalizeRetry.transcript.length === finalized.transcript.length);
+    await saveProjectMetadata({ ...checkpoint, trim: { start: 1, end: 3 } });
+    const afterStaleSave = await getProject(saved.id);
+    record('An editor holding the pending checkpoint cannot erase finalized evidence', afterStaleSave?.recordings?.find(recording => recording.id === checkpointId)?.evidenceStatus === 'complete'
+      && afterStaleSave.transcript.length === finalized.transcript.length
+      && afterStaleSave.takes?.length === finalized.takes?.length
+      && !afterStaleSave.recoveryMessage?.includes('captions and coverage did not finish'));
     const attachment = new File(Paths.document, 'videos', `${prefix}-attachment.txt`);
     attachment.write('Dedicated deletion fixture');
     savedFiles.push(attachment.uri);
@@ -99,6 +123,9 @@ export async function runStorageChecks(): Promise<{ name: string; passed: boolea
       for (const id of ids) await db.runAsync('DELETE FROM deleted_projects WHERE id = ?', id);
       for (const id of ids) await db.runAsync('DELETE FROM project_operations WHERE project_id = ?', id);
       for (const id of ids) await db.runAsync('DELETE FROM deletion_options WHERE project_id = ?', id);
+      for (const row of await db.getAllAsync<{ key: string }>('SELECT key FROM kv')) {
+        if (ids.some(id => row.key.startsWith(`pickup:${encodeURIComponent(id)}:`))) await db.runAsync('DELETE FROM kv WHERE key = ?', row.key);
+      }
       for (const uri of savedFiles) { const fresh = new File(uri); if (fresh.exists) fresh.delete(); }
     } catch (error) { results.push({ name: 'Dedicated fixture cleanup', passed: false, error: String(error) }); }
     finally { await db.closeAsync(); }
