@@ -68,11 +68,11 @@ test('a bad reread never erases an earlier clean take and never lands on the wro
   assert.deepEqual(result.cuts, [{ takeId: 'take-2', lineIds: ['line-1', 'line-2'], t0: 9, t1: 15.5 }]);
 });
 
-test('an off-frame take loses to an otherwise suitable in-frame take taken later', () => {
+test('an off-frame or unobserved take loses to an otherwise suitable in-frame take taken later', () => {
   const result = runScenario(createScenario('off-frame-vs-in-frame'));
 
   assert.equal(coverageOf(result, 'line-1').selectedTakeId, 'in-frame-take');
-  assert.deepEqual(historyOf(result, 'line-1'), ['off-frame-take', 'in-frame-take']);
+  assert.deepEqual(historyOf(result, 'line-1'), ['off-frame-take', 'in-frame-take', 'unobserved-take']);
 });
 
 test('scratched takes are excluded from coverage and retained in history', () => {

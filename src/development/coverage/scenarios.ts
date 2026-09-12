@@ -332,15 +332,17 @@ export function createScenario(id: ScenarioId): CoverageScenario {
       return {
         id,
         title: 'Off-frame against in-frame',
-        description: 'A later in-frame take wins over an earlier, otherwise suitable off-frame take.',
+        description: 'A later in-frame take wins over an earlier off-frame take and an unobserved one.',
         lines: [{ id: 'line-1', text: LINE_ONE }],
         segments: [
           finalSegment('s-1', 0.5, 4, LINE_ONE),
           finalSegment('s-2', 6, 9.5, LINE_ONE),
+          finalSegment('s-3', 11, 13, LINE_ONE),
         ],
         takes: [
           { ...cleanTake('off-frame-take', 0.5, 4, ['s-1'], ['line-1']), framing: 'off-frame' },
           cleanTake('in-frame-take', 6, 9.5, ['s-2'], ['line-1']),
+          { ...cleanTake('unobserved-take', 11, 13, ['s-3'], ['line-1']), framing: 'unobserved' },
         ],
         expected: {
           coverage: [covered('line-1', 'in-frame-take')],
