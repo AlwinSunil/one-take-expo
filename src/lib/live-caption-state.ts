@@ -3,6 +3,7 @@ export interface CaptionUpdate {
   sequence: number;
   text: string;
   isFinal: boolean;
+  segments?: { id: string; t0: number; t1: number; text: string; isFinal: boolean }[];
 }
 
 export function captionState(sessionId: string): CaptionUpdate {

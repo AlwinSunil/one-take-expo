@@ -5,8 +5,12 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useVideoPlayer, VideoView, type VideoThumbnail } from 'expo-video';
 import { Image } from 'expo-image';
 import { ArrowLeft, Images, ChevronLeft, ChevronRight, Grid3X3, SlidersHorizontal, SwitchCamera, X, Sparkles } from 'lucide-react-native';
-import { getSetting, saveProject, saveSetting } from '@/lib/store';
+import { beginRecording, getSetting, saveProject, saveProjectMetadata, saveSetting } from '@/lib/store';
+import type { Project } from '@/lib/session';
+import { projectScriptLines } from '@/lib/project-workflow';
 import { useLiveCaptions } from '@/hooks/use-live-captions';
+import { LOCAL_VIDEO_BUFFER } from '@/lib/video-buffer';
+import { LiveCaptions } from '@/components/captions/live-captions';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, AppState, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -41,12 +45,12 @@ function IconButton({ icon, label, onPress, disabled = false }: {
 }
 
 function PreviewPlayer({ uri }: { uri: string }) {
-  const player = useVideoPlayer(uri, p => { p.loop = true; p.play(); });
+  const player = useVideoPlayer(uri, p => { p.bufferOptions = LOCAL_VIDEO_BUFFER; p.loop = true; p.play(); });
   return <VideoView style={{ flex: 1 }} player={player} nativeControls contentFit="contain" />;
 }
 
 function LatestThumb({ uri, onPress }: { uri: string; onPress: () => void }) {
-  const player = useVideoPlayer(uri);
+  const player = useVideoPlayer(uri, p => { p.bufferOptions = LOCAL_VIDEO_BUFFER; });
   const [thumb, setThumb] = useState<VideoThumbnail | null>(null);
   const { status } = useEvent(player, 'statusChange', { status: player.status });
   useEffect(() => {
@@ -103,6 +107,8 @@ export default function CameraScreen() {
   const [previewUri, setPreviewUri] = useState<string | null>(null);
   const [previewDuration, setPreviewDuration] = useState(0);
   const [lastUri, setLastUri] = useState<string | null>(null);
+  const [recordedProject, setRecordedProject] = useState<Project | null>(null);
+  const interrupted = useRef(false);
   const chunks = (script ?? '').match(/[^.!?\n]+[.!?]?/g)?.map(s => s.trim()).filter(Boolean) ?? [];
 
   useEffect(() => {
@@ -110,16 +116,19 @@ export default function CameraScreen() {
     const subscription = AppState.addEventListener('change', state => {
       activeScreen.current = state === 'active';
       if (state !== 'active') {
+        if (busy.current) interrupted.current = true;
         recordingGeneration.current++;
         if (busy.current) camera.current?.stopRecording();
-        void captions.stop();
+        void captions.stop().catch(() => {});
       }
     });
     return () => {
       activeScreen.current = false;
+      if (busy.current) interrupted.current = true;
       recordingGeneration.current++;
       subscription.remove();
       camera.current?.stopRecording();
+      void captions.stop().catch(() => {});
     };
   }, [captions.stop]);
 
@@ -178,30 +187,65 @@ export default function CameraScreen() {
     if (busy.current) {
       setSaving(true);
       camera.current?.stopRecording();
-      void captions.stop();
+      void captions.stop().catch(() => {});
       return;
     }
     if (!ready || !camera.current) return;
     busy.current = true;
+    interrupted.current = false;
+    const project: Project = { id: `recording-${Date.now()}`, mode: isScript ? 'script' : 'assisted',
+      script: isScript && typeof script === 'string' ? script : undefined,
+      videoUri: null, transcript: [], clips: [], createdAt: Date.now(), schemaVersion: 2 };
     const generation = ++recordingGeneration.current;
     setSeconds(0); setError(''); setPreparing(true);
+    let captionFailure: string | undefined;
     try {
-      await captions.start();
+      await beginRecording(project);
+      const startResult = await captions.start();
+      if (!startResult.ok) captionFailure = startResult.message;
       if (!activeScreen.current || generation !== recordingGeneration.current || !camera.current) return;
       setPreparing(false);
       startedAt.current = Date.now();
       setRecording(true);
       const result = await camera.current.recordAsync();
       if (!result) throw new Error('No video was returned. Please try again.');
-      setPreviewDuration(Math.floor((Date.now() - startedAt.current) / 1000));
-      setPreviewUri(result.uri);
-      setLastUri(result.uri);
-      saveSetting('last_video_uri', result.uri).catch(() => {});
+      const duration = (Date.now() - startedAt.current) / 1000;
+      setSaving(true);
+      let transcript = captions.transcript.current;
+      try {
+        transcript = await captions.stop();
+      } catch (e) {
+        // Keep the video and any segments already observed, but mark the
+        // project for saved-audio caption recovery instead of claiming a
+        // complete transcript.
+        captionFailure = e instanceof Error && e.message ? e.message : 'Could not finish captions.';
+        transcript = captions.transcript.current;
+      }
+      const recoveryMessages = [
+        interrupted.current ? 'Recording was interrupted. Review this take before using it.' : undefined,
+        captionFailure ? `Live captions need recovery: ${captionFailure} Recheck the saved audio in the editor.` : undefined,
+      ].filter((value): value is string => !!value);
+      const captured: Project = { ...project, videoUri: result.uri, duration,
+        recordingStatus: interrupted.current ? 'interrupted' : 'complete',
+        recoveryMessage: recoveryMessages.length ? recoveryMessages.join(' ') : undefined,
+        scriptLines: isScript ? projectScriptLines(project) : undefined,
+        transcript: transcript.map(segment => ({ ...segment, rawText: segment.text, timingSource: 'live-estimate' as const })),
+      };
+      await saveProjectMetadata({ ...captured, recoveryMessage: [
+        'Recording is available in temporary storage. Open and save it to preserve it.',
+        ...recoveryMessages,
+      ].join(' ') });
+      const saved = await saveProject(captured);
+      setRecordedProject(saved);
+      setPreviewDuration(Math.floor(duration));
+      setPreviewUri(saved.videoUri);
+      setLastUri(saved.videoUri);
+      saveSetting('last_video_uri', saved.videoUri!).catch(() => {});
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Recording failed. Please try again.');
     } finally {
       setSaving(true);
-      await captions.stop();
+      await captions.stop().catch(() => {});
       busy.current = false; setRecording(false); setSaving(false); setPreparing(false);
     }
   }
@@ -214,13 +258,13 @@ export default function CameraScreen() {
     const uri = previewUri;
     const duration = previewDuration;
     try {
-      const project = await saveProject({
+      const project = recordedProject ?? await saveProject({
         id: uri.split('/').pop() ?? `${Date.now()}`,
         mode: isScript ? 'script' : 'assisted',
         script: isScript && typeof script === 'string' ? script : undefined,
         videoUri: uri,
         clips: [],
-        transcript: [],
+        transcript: captions.transcript.current,
         createdAt: Date.now(),
       });
     setLastUri(project.videoUri);
@@ -289,13 +333,7 @@ export default function CameraScreen() {
         <View className="self-center mt-4 bg-white rounded px-3 py-1.5">
           <Text className="text-black text-xs font-bold">{preparing ? 'PREPARING CAPTIONS' : recording ? `${saving ? 'SAVING' : 'REC'}  ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}` : `VIDEO · ${videoQuality}`}</Text>
         </View>
-        {(preparing || recording) && <View pointerEvents="none" className="mx-4 mt-4 rounded-xl bg-black/75 px-4 py-3">
-          <Text className="text-neutral-300 text-[10px] mb-1">LIVE CAPTIONS · ENGLISH</Text>
-          <Text accessibilityLabel="Live caption text" numberOfLines={3} className="text-white text-base leading-6">
-            {captions.text || (captions.status === 'error' ? 'Captions unavailable. Video will still record.' : preparing ? 'Getting ready…' : 'Speak to see captions…')}
-          </Text>
-          {captions.status === 'error' && !!captions.message && <Text className="text-amber-200 text-xs mt-2">{captions.message}</Text>}
-        </View>}
+        {(preparing || recording) && <LiveCaptions text={captions.text} isFinal={captions.isFinal} status={captions.status} />}
         {isScript && <View className="absolute bottom-3 left-3 right-3 bg-black/70 rounded-xl px-3 py-2">
           <Text numberOfLines={2} className="text-white text-base leading-6">{chunks[chunk] ?? 'No script'}</Text>
           <View className="flex-row justify-between items-center">

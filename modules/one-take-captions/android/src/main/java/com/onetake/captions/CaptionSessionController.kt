@@ -56,6 +56,9 @@ internal class CaptionSessionController(
     var lastText: String? = null
     var lastFinal = false
     var firstCaptionLogged = false
+    var processedSamples = 0L
+    var delayed = false
+    var transcript: List<Map<String, Any>> = emptyList()
   }
 
   private val context = context.applicationContext
@@ -66,6 +69,8 @@ internal class CaptionSessionController(
   private var current: Session? = null
   private var closed = false
   private var closeJob: Job? = null
+  private var lastResult: Pair<String, List<Map<String, Any>>>? = null
+  fun isActive(): Boolean = synchronized(lock) { current != null }
 
   /** Resolves after the model and microphone are ready for camera recording. */
   suspend fun start(sessionId: String) {
@@ -92,9 +97,11 @@ internal class CaptionSessionController(
         prepare(session)
       }
       session.preparationJob = preparation
+      // Publish PREPARING while the state lock is held. A lifecycle stop that
+      // wins after this point must therefore be observed after this event.
+      emitStatusMessage(session.id, "preparing")
     }
 
-    emitStatus(session, "preparing")
     preparation.start()
     preparation.join()
 
@@ -109,14 +116,14 @@ internal class CaptionSessionController(
   }
 
   /** Stops the requested session and waits until final events have been sent. */
-  suspend fun stop(sessionId: String) {
+  suspend fun stop(sessionId: String): List<Map<String, Any>> {
     require(sessionId.isNotBlank()) { "Caption session ID must not be empty" }
 
     val session: Session
     val shouldStop: Boolean
     synchronized(lock) {
       when (state.stop(sessionId)) {
-        CaptionSessionState.StopResult.AlreadyStopped -> return
+        CaptionSessionState.StopResult.AlreadyStopped -> return lastResult?.takeIf { it.first == sessionId }?.second ?: emptyList()
         CaptionSessionState.StopResult.Stale -> {
           throw IllegalArgumentException("Stale caption session: $sessionId")
         }
@@ -127,6 +134,8 @@ internal class CaptionSessionController(
         CaptionSessionState.StopResult.Stopping -> {
           session = current ?: throw IllegalStateException("Caption session is unavailable")
           session.stopRequested = true
+          // Keep the state transition and its event atomic with preparation.
+          emitStatusMessage(session.id, "stopping")
           shouldStop = true
         }
       }
@@ -134,14 +143,14 @@ internal class CaptionSessionController(
 
     if (!shouldStop) {
       awaitStop(session)
-      return
+      return session.transcript
     }
 
-    emitStatus(session, "stopping")
     session.microphone.requestStop()
     session.preparationJob?.cancel()
     scheduleCleanup(session)
     awaitStop(session)
+    return session.transcript
   }
 
   /** Called by Expo activity lifecycle callbacks. */
@@ -203,11 +212,16 @@ internal class CaptionSessionController(
       val accepted = synchronized(lock) {
         if (session.stopRequested || !state.isActive(session.id)) {
           false
+        } else if (!state.markListening(session.id)) {
+          false
         } else {
           session.engine = engine
           session.inferenceJob = inference
           engineInstalled = true
-          state.markListening(session.id)
+          // Starting the sibling job under the state lock closes the race in
+          // which stop cancels preparation after acceptance but before start.
+          check(inference.start()) { "Could not start caption inference" }
+          true
         }
       }
       if (!accepted) {
@@ -215,8 +229,7 @@ internal class CaptionSessionController(
         return
       }
 
-      inference.start()
-      emitStatus(session, "listening")
+      emitStatusIfPhase(session, CaptionSessionState.Phase.LISTENING, "listening")
       preparedEngine = null
     } catch (cancelled: CancellationException) {
       // A normal stop cancels preparation. Its stop job owns the final state
@@ -246,6 +259,23 @@ internal class CaptionSessionController(
     try {
       for (samples in session.microphone.chunks()) {
         engine.addAudio(samples)
+        session.processedSamples += samples.size
+        val lagMs = ((session.microphone.capturedSamples - session.processedSamples).coerceAtLeast(0) * 1000 / LiveMicrophone.SAMPLE_RATE)
+        val delayed = recognitionDelayed(session.delayed, lagMs)
+        val statusChanged = synchronized(lock) {
+          if (session.stopRequested || !state.isActive(session.id) || delayed == session.delayed) {
+            false
+          } else {
+            session.delayed = delayed
+            // Hold the state lock through emission so stopping cannot be
+            // observed before this already-accepted listening update.
+            emitStatusMessage(session.id, if (session.delayed) "delayed" else "listening")
+            true
+          }
+        }
+        if (statusChanged) {
+          Log.i(TAG, "processing_lag session=${session.id} lag_ms=$lagMs processor=CPU")
+        }
         publishSnapshot(session, engine)
       }
     } catch (cancellation: CancellationException) {
@@ -273,6 +303,7 @@ internal class CaptionSessionController(
           emitImmediately = true,
         )
       }
+      session.transcript = engine.transcript().map { it.event() }
     }
   }
 
@@ -303,14 +334,16 @@ internal class CaptionSessionController(
         false
       } else {
         session.stopCompleted = true
+        lastResult = session.id to session.transcript
         state.finish(session.id)
         if (current === session) current = null
+        // Keep stopped ahead of any subsequent session's preparing event.
+        emitStatusMessage(session.id, "stopped")
         true
       }
     }
     if (!shouldComplete) return
 
-    emitStatus(session, "stopped")
     session.stopFinished.complete(Unit)
   }
 
@@ -362,6 +395,7 @@ internal class CaptionSessionController(
         "text" to snapshot.text,
         "isFinal" to snapshot.isFinal,
         "sequence" to sequence,
+        "segments" to snapshot.segments.map { it.event() },
       )
     }
 
@@ -375,6 +409,28 @@ internal class CaptionSessionController(
   private fun ensurePreparationCanContinue(session: Session) {
     if (synchronized(lock) { session.stopRequested || !state.isActive(session.id) }) {
       throw CancellationException("Caption session stopped during preparation")
+    }
+  }
+
+  private fun emitStatusIfPhase(
+    session: Session,
+    expectedPhase: CaptionSessionState.Phase,
+    status: String,
+    message: String? = null,
+  ) {
+    synchronized(lock) {
+      if (!canEmitSessionStatus(
+          active = state.isActive(session.id),
+          stopRequested = session.stopRequested,
+          phase = state.phase(),
+          expectedPhase = expectedPhase,
+        )
+      ) {
+        return
+      }
+      // The check and callback are one critical section. A concurrent stop
+      // cannot publish stopping before this event after it has been accepted.
+      emitStatusMessage(session.id, status, message)
     }
   }
 
@@ -438,9 +494,9 @@ internal class CaptionSessionController(
 
   private fun emitStatusMessage(sessionId: String, status: String, message: String? = null) {
     val event = if (message == null) {
-      mapOf<String, Any?>("sessionId" to sessionId, "status" to status)
+      mapOf<String, Any?>("sessionId" to sessionId, "status" to status, "processor" to "cpu")
     } else {
-      mapOf<String, Any?>("sessionId" to sessionId, "status" to status, "message" to message)
+      mapOf<String, Any?>("sessionId" to sessionId, "status" to status, "message" to message, "processor" to "cpu")
     }
     synchronized(eventLock) {
       runCatching { onStatus(event) }
@@ -454,3 +510,10 @@ internal class CaptionSessionController(
     }
   }
 }
+
+internal fun canEmitSessionStatus(
+  active: Boolean,
+  stopRequested: Boolean,
+  phase: CaptionSessionState.Phase,
+  expectedPhase: CaptionSessionState.Phase,
+): Boolean = active && !stopRequested && phase == expectedPhase

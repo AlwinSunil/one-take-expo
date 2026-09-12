@@ -1,0 +1,33 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'com.onetake.media'
+version = '0.1.0'
+
+android {
+  namespace 'com.onetake.media'
+
+  defaultConfig {
+    versionCode 1
+    versionName '0.1.0'
+    minSdkVersion 24
+    consumerProguardFiles 'proguard-rules.pro'
+  }
+
+  compileOptions {
+    sourceCompatibility JavaVersion.VERSION_11
+    targetCompatibility JavaVersion.VERSION_11
+  }
+}
+
+dependencies {
+  // Media3 1.11.0 is the current stable release documented by Android.
+  // Keep every Media3 artifact on exactly the same version.
+  implementation 'androidx.media3:media3-transformer:1.11.0'
+  implementation 'androidx.media3:media3-effect:1.11.0'
+  implementation 'androidx.media3:media3-common:1.11.0'
+  implementation 'androidx.core:core-ktx:1.17.0'
+  testImplementation 'junit:junit:4.13.2'
+}

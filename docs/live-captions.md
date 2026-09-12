@@ -3,8 +3,10 @@
 The React Native camera screen displays live English captions from a local Kotlin Expo module.
 `expo-camera` owns CameraX video recording, including the saved video's audio.
 The caption module owns a separate 16 kHz mono microphone stream and a serial Moonshine recognizer.
-Only caption text and session status cross into JavaScript.
-Live captions are display-only in this first integration; they are not burned into the video or persisted as video-aligned transcript segments.
+Caption text, utterance timing, finality and session status cross into JavaScript.
+Recordings retain the live transcript with estimated timing.
+The editor can recheck saved audio offline, correct captions, review coverage and cuts, and export a separate captioned video through the Kotlin Media3 module.
+Saved-audio timing is tied to the decoded media clock; live timing remains explicitly approximate.
 
 ## Runtime provenance
 
@@ -19,12 +21,14 @@ The original local benchmark and reproduction notes are in the Kotlin worktree a
 The verified native artifacts currently exist at `/tmp/moonshine-benchmark/android-harness/app/src/main/jniLibs/arm64-v8a`.
 Those are machine-local build outputs, not remotely published dependencies.
 A fresh machine needs the matching rebuilt runtime before it can reproduce this build.
+See [runtime reproduction](research/moonshine-runtime.md) and `tools/rebuild_moonshine.py` for the pinned source build.
+The optional `--with-small` flag stages the larger streaming comparison model; live captions still use Tiny.
 
 Stage the verified artifacts before building:
 
 ```sh
 python3 tools/prepare_moonshine.py \
-  --native-dir /tmp/moonshine-benchmark/android-harness/app/src/main/jniLibs/arm64-v8a
+  --native-dir /tmp/moonshine-benchmark/android-harness/app/src/main/jniLibs/arm64-v8a --with-small
 ```
 
 The script downloads the pinned model files, verifies every hash, and generates a Java-only Moonshine AAR with the incompatible stock native libraries removed.
@@ -61,14 +65,14 @@ Verify caption text changes before Stop, save the recording, and play it back to
 Repeat recording to exercise cleanup and ensure the previous transcript does not return.
 Also check silence, backgrounding during preparation and recording, and a caption initialization failure.
 Compare sustained performance separately before claiming the earlier file-fed benchmark latency also applies to camera capture.
-Human-speech accuracy, long-session thermal behavior, saved-caption alignment, and captioned export require separate validation.
+Human-speech accuracy, long-session thermal behavior, saved-caption alignment, and captioned export still require device validation.
+The user performs recording tests personally.
 
-## Current build verification
+## Workflow checks
 
-On September 13, 2026, the arm64 debug APK built successfully and installed on the connected iQOO I2501.
-TypeScript validation, four JavaScript caption-state tests, and two Kotlin session-state tests passed.
-The APK verifier confirmed all three native libraries and eight model files match the pinned SHA-256 hashes.
-The app-level `android.packagingOptions.doNotStrip` setting preserves those exact native bytes; library-level packaging options alone do not.
+Run `npm test`, `npm run typecheck`, `npm run samples`, and `python3 tests/speech-evaluation.test.py`.
+Run the two native module unit-test tasks with the Android app build.
+The app-level `android.packagingOptions.doNotStrip` setting preserves the exact native bytes; library-level packaging options alone do not.
 The generated Java-only AAR retains the original `ai.moonshine.voice` manifest package required by Android's resource transform.
-Simultaneous recording, microphone recognition, and saved audio are pending the user's manual test.
-No live camera accuracy or latency result is claimed by these build checks.
+See [media export](media-export.md), [transcript workflow](transcript-workflow.md), and [speech evaluation](research/speech-evaluation.md) for contracts and remaining validation.
+No live camera accuracy or latency result is claimed by build checks.

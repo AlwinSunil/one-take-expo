@@ -37,4 +37,16 @@ class CaptionSessionStateTest {
     assertEquals(CaptionSessionState.StopResult.AlreadyStopped, state.stop("session"))
     assertFalse(state.isActive("session"))
   }
+
+  @Test
+  fun `stopping during preparation cannot be promoted to listening`() {
+    val state = CaptionSessionState()
+
+    assertEquals(CaptionSessionState.StartResult.Started, state.start("session"))
+    assertEquals(CaptionSessionState.Phase.PREPARING, state.phase())
+    assertEquals(CaptionSessionState.StopResult.Stopping, state.stop("session"))
+    assertEquals(CaptionSessionState.Phase.STOPPING, state.phase())
+    assertFalse(state.markListening("session"))
+    assertEquals(CaptionSessionState.Phase.STOPPING, state.phase())
+  }
 }

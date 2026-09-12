@@ -11,7 +11,10 @@ def verify(apk: Path, manifest: Path) -> None:
     hashes = json.loads(manifest.read_text())
     with zipfile.ZipFile(apk) as archive:
         entries = archive.namelist()
-        for group, prefix in (("native", "lib/arm64-v8a/"), ("models", "assets/moonshine-tiny/")):
+        groups = [("native", "lib/arm64-v8a/"), ("models", "assets/moonshine-tiny/")]
+        if any(entry.startswith('assets/moonshine-small/') for entry in entries):
+            groups.append(('refinementSmall', 'assets/moonshine-small/'))
+        for group, prefix in groups:
             for name, expected in hashes[group].items():
                 path = prefix + name
                 if entries.count(path) != 1:

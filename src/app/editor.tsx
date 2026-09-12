@@ -4,11 +4,14 @@ import { router, useNavigation, useLocalSearchParams } from 'expo-router';
 import { useVideoPlayer, VideoView, type VideoThumbnail } from 'expo-video';
 import { ArrowLeft, Pause, Play, RotateCcw, Scissors } from 'lucide-react-native';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, PanResponder, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, PanResponder, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { Project } from '@/lib/session';
-import { getProject, saveProject } from '@/lib/store';
+import { getProject, saveProject, saveProjectMetadata } from '@/lib/store';
+import { LOCAL_VIDEO_BUFFER } from '@/lib/video-buffer';
+import { ExportControls } from '@/components/review/export-controls';
+import { TranscriptReview } from '@/components/review/transcript-review';
 
 const time = (seconds: number) => `${Math.floor(seconds / 60)}:${Math.floor(seconds % 60).toString().padStart(2, '0')}`;
 
@@ -38,9 +41,25 @@ function TrimHandle({ value, duration, width, onChange }: {
   </View>;
 }
 
-function VideoEditor({ project, uri }: { project: Project | null; uri: string }) {
+function VideoEditor({ project: initialProject, uri }: { project: Project | null; uri: string }) {
+  const [project, setProject] = useState(initialProject);
+  const persistence = useRef(Promise.resolve());
+  const [pendingWrites, setPendingWrites] = useState(0);
+  const [persistenceError, setPersistenceError] = useState('');
+  async function changeProject(next: Project, preserveMedia = false) {
+    setProject(next);
+    setPendingWrites(count => count + 1);
+    const pending = persistence.current.catch(() => {}).then(async () => {
+      if (preserveMedia) await saveProject(next);
+      else await saveProjectMetadata(next);
+    });
+    persistence.current = pending;
+    try { await pending; setPersistenceError(''); }
+    catch (error) { setPersistenceError('Edits are not saved. Retry Save before exporting.'); throw error; }
+    finally { setPendingWrites(count => count - 1); }
+  }
   const navigation = useNavigation();
-  const player = useVideoPlayer(uri, p => { p.timeUpdateEventInterval = 0.1; });
+  const player = useVideoPlayer(uri, p => { p.bufferOptions = LOCAL_VIDEO_BUFFER; p.timeUpdateEventInterval = 0.1; });
   const { status, error: playbackError } = useEvent(player, 'statusChange', { status: player.status });
   const source = useEvent(player, 'sourceLoad');
   const progress = useEvent(player, 'timeUpdate');
@@ -53,8 +72,14 @@ function VideoEditor({ project, uri }: { project: Project | null; uri: string })
   const [thumbnails, setThumbnails] = useState<VideoThumbnail[]>([]);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
+  const [previewOriginal, setPreviewOriginal] = useState(false);
+  const cutIndex = useRef(0);
+  const previewCuts = !previewOriginal ? project?.cuts : undefined;
+  const previewFullSource = previewOriginal || project?.cuts?.length === 0;
   const limit = end || duration;
   const valid = Number.isFinite(duration) && duration > 0;
+  const visibleCaption = project?.transcript.find(s => s.isFinal !== false && currentTime >= s.t0 && currentTime < s.t1);
+  const captionText = visibleCaption ? (visibleCaption.manualCorrection ?? visibleCaption.correctedText ?? visibleCaption.text) : '';
 
   useEffect(() => navigation.addListener('blur', () => player.pause()), [navigation, player]);
 
@@ -67,14 +92,29 @@ function VideoEditor({ project, uri }: { project: Project | null; uri: string })
   }, [player, status, duration, valid]);
 
   useEffect(() => {
-    if (isPlaying && (currentTime >= limit || currentTime < start)) {
-      player.pause();
-      player.currentTime = start;
+    if (!isPlaying) return;
+    if (previewCuts?.length) {
+      const cut = previewCuts[cutIndex.current] ?? previewCuts[0];
+      if (currentTime >= cut.t1) {
+        const next = cutIndex.current + 1;
+        if (next < previewCuts.length) { cutIndex.current = next; player.currentTime = previewCuts[next].t0; }
+        else { player.pause(); cutIndex.current = 0; player.currentTime = previewCuts[0].t0; }
+      }
+    } else if (currentTime >= (previewFullSource ? duration : limit) || currentTime < (previewFullSource ? 0 : start)) {
+      player.pause(); player.currentTime = previewFullSource ? 0 : start;
     }
-  }, [player, isPlaying, currentTime, start, limit]);
+  }, [player, isPlaying, currentTime, start, limit, duration, previewFullSource, previewCuts]);
 
   function seek(value: number) {
     player.pause();
+    if (previewFullSource) { player.currentTime = Math.max(0, Math.min(duration, value)); return; }
+    if (previewCuts?.length) {
+      let index = previewCuts.findIndex(cut => value >= cut.t0 && value < cut.t1);
+      if (index < 0) index = previewCuts.reduce((best, cut, i) => Math.abs(cut.t0 - value) < Math.abs(previewCuts[best].t0 - value) ? i : best, 0);
+      cutIndex.current = index;
+      player.currentTime = Math.max(previewCuts[index].t0, Math.min(previewCuts[index].t1 - 0.01, value));
+      return;
+    }
     player.currentTime = Math.max(start, Math.min(limit, value));
   }
 
@@ -82,7 +122,7 @@ function VideoEditor({ project, uri }: { project: Project | null; uri: string })
     if (!project || saving || !valid) return;
     setSaving(true); setMessage('');
     try {
-      await saveProject({ ...project, trim: { start, end: limit } });
+      await changeProject({ ...project, trim: { start, end: limit } }, true);
       setMessage('Saved. Your original video is preserved.');
     } catch (e) {
       setMessage(`Could not save edits: ${e instanceof Error ? e.message : String(e)}`);
@@ -101,15 +141,22 @@ function VideoEditor({ project, uri }: { project: Project | null; uri: string })
     </View>
     <View className="flex-1 bg-neutral-950">
       <VideoView style={{ flex: 1 }} player={player} nativeControls={false} contentFit="contain" />
+      {!!captionText && !previewOriginal && <View pointerEvents="none" style={{ position: 'absolute', bottom: '17%', left: '10%', right: '10%', alignItems: 'center' }}>
+        <Text style={{ color: 'white', backgroundColor: '#000b', textAlign: 'center', fontWeight: 'bold', fontSize: 18, padding: 6 }}>{captionText}</Text>
+      </View>}
       {status === 'loading' && <ActivityIndicator style={{ position: 'absolute', alignSelf: 'center', top: '50%' }} color="white" />}
     </View>
     {status === 'error' && <Text accessibilityRole="alert" className="text-red-300 px-6 py-3">{playbackError?.message ?? 'This video could not be opened. The file may no longer be available.'}</Text>}
-    <View className="px-6 pt-4 pb-6 w-full self-center" style={{ maxWidth: 600 }}>
+    <ScrollView className="px-6 pt-4 pb-6 w-full self-center" style={{ maxWidth: 600, maxHeight: '55%' }}>
       <View className="flex-row items-center justify-between mb-5">
         <Text className="text-neutral-300 text-xs">{time(currentTime)} / {time(valid ? duration : 0)}</Text>
         <Pressable disabled={!valid || status === 'error'} accessibilityRole="button" accessibilityLabel={isPlaying ? 'Pause' : 'Play'} className="p-3 bg-neutral-800 rounded-full" onPress={() => {
           if (isPlaying) player.pause();
-          else { if (player.currentTime < start || player.currentTime >= limit) player.currentTime = start; player.play(); }
+          else {
+            if (previewCuts?.length) { cutIndex.current = 0; player.currentTime = previewCuts[0].t0; }
+            else if (player.currentTime < (previewFullSource ? 0 : start) || player.currentTime >= (previewFullSource ? duration : limit)) player.currentTime = previewFullSource ? 0 : start;
+            player.play();
+          }
         }}>
           {isPlaying ? <Pause size={22} color="white" /> : <Play size={22} color="white" />}
         </Pressable>
@@ -117,6 +164,9 @@ function VideoEditor({ project, uri }: { project: Project | null; uri: string })
           <RotateCcw size={20} color="#a3a3a3" />
         </Pressable>
       </View>
+      <Pressable className="py-3" onPress={() => { player.pause(); setPreviewOriginal(v => !v); }}>
+        <Text className="text-white text-xs">{previewOriginal ? 'Preview edits' : 'Compare original video'}</Text>
+      </Pressable>
       {valid && <View onLayout={e => setWidth(e.nativeEvent.layout.width)} style={{ height: 56, marginHorizontal: 12 }}>
         <View onStartShouldSetResponder={() => true} onMoveShouldSetResponder={() => true}
           onResponderGrant={e => { if (width) seek(e.nativeEvent.locationX / width * duration); }}
@@ -147,7 +197,12 @@ function VideoEditor({ project, uri }: { project: Project | null; uri: string })
       <View className="items-center mt-6"><Scissors size={20} color="white" /><Text className="text-white text-xs mt-2">Trim</Text></View>
       <Text className="text-neutral-500 text-xs text-center mt-3">Drag the ends to trim. Slide across the filmstrip to preview.</Text>
       {!!message && <Text accessibilityRole="alert" className="text-neutral-200 text-sm mt-3 text-center">{message}</Text>}
-    </View>
+      {project && <TranscriptReview project={project} duration={valid ? duration : undefined} onChange={changeProject} onSeek={value => {
+        setPreviewOriginal(true); player.pause(); player.currentTime = Math.max(0, Math.min(duration, value));
+      }} />}
+      {!!persistenceError && <Text accessibilityRole="alert" className="text-red-300 py-3">{persistenceError}</Text>}
+      {project && valid && !persistenceError && pendingWrites === 0 && <ExportControls project={project} start={start} end={limit} onMessage={setMessage} />}
+    </ScrollView>
   </SafeAreaView>;
 }
 
@@ -168,6 +223,11 @@ export default function Editor() {
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [projectId]);
+  if (!loading && project && (!project.videoUri || project.mediaMissing)) return <SafeAreaView className="flex-1 bg-black px-6">
+    <Pressable onPress={() => router.back()} className="py-4"><Text className="text-white">Back</Text></Pressable>
+    <Text className="text-amber-200">{project.recoveryMessage ?? 'The original recording is unavailable. Your saved transcript is still here.'}</Text>
+    <TranscriptReview project={project} onChange={async next => { setProject(next); await saveProjectMetadata(next); }} onSeek={() => {}} />
+  </SafeAreaView>;
   const uri = project?.videoUri ?? videoUri;
   if (loading || error || !uri) return <SafeAreaView className="flex-1 bg-black items-center justify-center px-6">
     {loading ? <ActivityIndicator color="white" /> : <Text className="text-white text-center">{error || 'No video selected.'}</Text>}

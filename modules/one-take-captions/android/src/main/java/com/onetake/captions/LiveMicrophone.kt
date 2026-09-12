@@ -30,8 +30,10 @@ internal class LiveMicrophone(private val context: Context) : AutoCloseable {
   companion object {
     const val SAMPLE_RATE = 16_000
     const val FRAME_SAMPLES = 320 // 20 ms, matching the benchmark input pacing.
+    const val READ_MODE = AudioRecord.READ_NON_BLOCKING
     private const val QUEUE_CAPACITY_FRAMES = 400 // Eight seconds of PCM.
     private const val EMPTY_READ_LIMIT = 100
+    private const val EMPTY_READ_DELAY_MS = 10L
   }
 
   private val lock = Any()
@@ -43,6 +45,8 @@ internal class LiveMicrophone(private val context: Context) : AutoCloseable {
   private var stopRequested = false
   private var runningState = false
   private var failureState: String? = null
+  @Volatile var capturedSamples = 0L
+    private set
 
   /** Creates and starts AudioRecord synchronously for camera/capture handoff. */
   fun start(): Boolean = synchronized(lock) {
@@ -179,9 +183,13 @@ internal class LiveMicrophone(private val context: Context) : AutoCloseable {
     val pending = FloatArray(FRAME_SAMPLES)
     var pendingCount = 0
     var emptyReads = 0
+    var lastRoute: Int? = null
+    var routeCheck = 0
     try {
       while (!isStopRequested(record)) {
-        val read = record.read(readBuffer, 0, readBuffer.size, AudioRecord.READ_BLOCKING)
+        // Polling keeps stop bounded by the small idle delay even if a vendor
+        // AudioRecord implementation does not wake a blocking read reliably.
+        val read = record.read(readBuffer, 0, readBuffer.size, READ_MODE)
         if (read < 0) {
           if (!isStopRequested(record)) {
             setFailure("AudioRecord read failed: $read")
@@ -193,10 +201,22 @@ internal class LiveMicrophone(private val context: Context) : AutoCloseable {
             setFailure("AudioRecord stopped producing samples")
             break
           }
-          delay(10)
+          delay(EMPTY_READ_DELAY_MS)
           continue
         }
         emptyReads = 0
+        capturedSamples += read
+        if (++routeCheck % 50 == 0) {
+          val route = record.routedDevice
+          if (route != null) {
+            if (lastRoute != null && lastRoute != route.id) {
+              setFailure("Microphone route changed. Finish this take and start another for captions.")
+              break
+            }
+            if (lastRoute == null) android.util.Log.i("MoonshineCaptions", "audio_route type=${route.type} id=${route.id} sample_rate=$SAMPLE_RATE processor=CPU")
+            lastRoute = route.id
+          }
+        }
 
         var sourceIndex = 0
         while (sourceIndex < read) {

@@ -130,6 +130,7 @@ def main() -> None:
         type=Path,
         help="Optional path to the downloaded Moonshine 0.1.5 AAR",
     )
+    parser.add_argument('--with-small', action='store_true', help='Also stage the optional Small Streaming refinement candidate')
     args = parser.parse_args()
 
     project_root = Path(__file__).resolve().parent.parent
@@ -149,6 +150,12 @@ def main() -> None:
 
     for name, expected in manifest["native"].items():
         stage_file(native_root / name, args.native_dir / name, expected)
+
+    if args.with_small:
+        for name, expected in manifest['refinementSmall'].items():
+            target = cache_root / 'assets/moonshine-small' / name
+            if not target.is_file() or digest(target) != expected:
+                stage_bytes(target, download_bytes(MODEL_URL.replace('tiny-streaming-en', 'small-streaming-en') + name), expected)
 
     aar_path = args.moonshine_aar or find_cached_aar()
     if aar_path is not None:

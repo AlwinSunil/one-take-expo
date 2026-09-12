@@ -36,8 +36,10 @@ export default function Projects() {
               onPress={() => router.push({ pathname: '/editor', params: { projectId: item.id } })}
               className="bg-neutral-900 border border-neutral-800 px-4 py-3.5 active:opacity-70">
               <Text className="text-white text-sm font-semibold">
-                {item.mode === 'script' ? 'Script' : 'Assisted'} · {item.clips.length} clips
+                {item.mode === 'script' ? 'Script' : 'Assisted'} · {item.transcript.length} caption segments
               </Text>
+              {!!item.recoveryMessage && <Text className="text-amber-200 text-xs mt-2">{item.recoveryMessage}</Text>}
+              <Text className="text-neutral-300 text-xs mt-2">{item.mediaMissing ? 'Review saved text' : 'Review recording'}</Text>
               <Text className="text-neutral-500 text-xs mt-0.5">
                 {new Date(item.createdAt).toLocaleString()}
               </Text>

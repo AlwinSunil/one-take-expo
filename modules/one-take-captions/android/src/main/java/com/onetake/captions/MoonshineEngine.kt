@@ -8,14 +8,17 @@ import ai.moonshine.voice.TranscriptLine
 import java.io.File
 
 /** A single serial Moonshine stream. Methods are called by the inference job. */
-internal class MoonshineEngine(directory: File) : AutoCloseable {
+internal class MoonshineEngine(directory: File, architecture: Int = JNI.MOONSHINE_MODEL_ARCH_TINY_STREAMING) : AutoCloseable {
   companion object {
     private const val SAMPLE_RATE = LiveMicrophone.SAMPLE_RATE
     private const val TRANSCRIPTION_INTERVAL_SECONDS = "0.2"
     private const val MAX_DISPLAY_LINES = 3
   }
 
-  data class Snapshot(val text: String, val isFinal: Boolean)
+  data class Segment(val id: String, val t0: Double, val t1: Double, val text: String, val isFinal: Boolean) {
+    fun event(): Map<String, Any> = mapOf("id" to id, "t0" to t0, "t1" to t1, "text" to text, "isFinal" to isFinal)
+  }
+  data class Snapshot(val text: String, val isFinal: Boolean, val segments: List<Segment>)
 
   private data class Line(val text: String, val startTime: Float, val duration: Float, val complete: Boolean)
 
@@ -53,7 +56,7 @@ internal class MoonshineEngine(directory: File) : AutoCloseable {
     try {
       transcriber.loadFromFiles(
         directory.absolutePath + File.separator,
-        JNI.MOONSHINE_MODEL_ARCH_TINY_STREAMING,
+        architecture,
       )
       transcriber.setUpdateInterval(0.2)
       transcriber.addListener(listener)
@@ -94,15 +97,19 @@ internal class MoonshineEngine(directory: File) : AutoCloseable {
   }
 
   /** Returns the latest three non-empty model lines for display. */
+  fun transcript(): List<Segment> = synchronized(lock) {
+    lines.entries.map { (id, line) ->
+      Segment(id.toString(), line.startTime.toDouble().coerceAtLeast(0.0),
+        (line.startTime + line.duration).toDouble().coerceAtLeast(line.startTime.toDouble()), line.text, line.complete)
+    }.sortedBy { it.t0 }
+  }
+
   fun snapshot(forceFinal: Boolean = false): Snapshot = synchronized(lock) {
-    val visibleLines = lines.entries
-      .map { it.value }
-      .filter { it.text.isNotEmpty() }
-      .sortedWith(compareBy<Line> { it.startTime }.thenBy { it.duration })
-      .takeLast(MAX_DISPLAY_LINES)
+    val visibleLines = transcript().takeLast(MAX_DISPLAY_LINES)
     Snapshot(
       text = visibleLines.joinToString(separator = "\n") { it.text },
-      isFinal = forceFinal || (visibleLines.isNotEmpty() && visibleLines.all { it.complete }),
+      isFinal = visibleLines.isNotEmpty() && visibleLines.all { it.isFinal },
+      segments = visibleLines,
     )
   }
 

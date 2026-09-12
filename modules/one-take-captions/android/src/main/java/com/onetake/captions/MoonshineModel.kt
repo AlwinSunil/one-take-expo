@@ -30,18 +30,19 @@ internal object MoonshineModel {
     "tokenizer.bin" to "6884b35fd6377d4c4d32336a0bc152f36b64d1e45b6503683cdc238250a8472d",
     "frontend.model.ort" to "5121b561417b638afce0c6c31b760e37c93cf97f80d9b0031aad1fe7b6f25d61",
   )
-  private var prepared: File? = null
+  private val prepared = mutableMapOf<Boolean, File>()
 
-  suspend fun directory(context: Context): File = withContext(Dispatchers.IO) {
+  suspend fun directory(context: Context, small: Boolean = false): File = withContext(Dispatchers.IO) {
     lock.withLock {
-      prepared?.takeIf { directory -> hasAllFiles(directory) }?.let { return@withLock it }
+      val selectedHashes = if (small) SmallMoonshineHashes.values else hashes
+      prepared[small]?.takeIf { directory -> hasAllFiles(directory, selectedHashes) }?.let { return@withLock it }
 
-      val directory = File(context.noBackupFilesDir, MODEL_DIRECTORY)
+      val directory = File(context.noBackupFilesDir, if (small) "moonshine-small-26-08-21" else MODEL_DIRECTORY)
       check(directory.isDirectory || directory.mkdirs()) {
         "Could not create the offline Moonshine model directory"
       }
 
-      for ((name, expectedHash) in hashes) {
+      for ((name, expectedHash) in selectedHashes) {
         currentCoroutineContext().ensureActive()
         val destination = File(directory, name)
         if (destination.isFile && digest(destination) == expectedHash) {
@@ -50,7 +51,7 @@ internal object MoonshineModel {
 
         val temporary = File(directory, "$name.part")
         try {
-          context.assets.open("$ASSET_DIRECTORY/$name").use { input ->
+          context.assets.open("${if (small) "moonshine-small" else ASSET_DIRECTORY}/$name").use { input ->
             temporary.outputStream().use { output -> input.copyTo(output) }
           }
           check(digest(temporary) == expectedHash) {
@@ -72,13 +73,13 @@ internal object MoonshineModel {
         }
       }
 
-      prepared = directory
+      prepared[small] = directory
       directory
     }
   }
 
-  private fun hasAllFiles(directory: File): Boolean =
-    directory.isDirectory && hashes.all { (name, expectedHash) ->
+  private fun hasAllFiles(directory: File, selectedHashes: Map<String, String>): Boolean =
+    directory.isDirectory && selectedHashes.all { (name, expectedHash) ->
       val file = File(directory, name)
       file.isFile && digest(file) == expectedHash
     }

@@ -4,6 +4,7 @@ import { Platform } from 'react-native';
 export type CaptionStatus =
   | 'preparing'
   | 'listening'
+  | 'delayed'
   | 'stopping'
   | 'stopped'
   | 'error';
@@ -13,7 +14,10 @@ export type CaptionEvent = {
   text: string;
   isFinal: boolean;
   sequence: number;
+  segments?: CaptionSegment[];
 };
+
+export type CaptionSegment = { id: string; t0: number; t1: number; text: string; isFinal: boolean };
 
 export type CaptionStatusEvent = {
   sessionId: string;
@@ -24,11 +28,14 @@ export type CaptionStatusEvent = {
 export type OneTakeCaptionsEvents = {
   onCaption(event: CaptionEvent): void;
   onStatus(event: CaptionStatusEvent): void;
+  onRefinement(event: { id: string; progress: number; status: string; quietIntervals?: { t0: number; t1: number }[] }): void;
 };
 
 export declare class OneTakeCaptionsModule extends NativeModule<OneTakeCaptionsEvents> {
   start(sessionId: string): Promise<void>;
-  stop(sessionId: string): Promise<void>;
+  stop(sessionId: string): Promise<CaptionSegment[]>;
+  refine(id: string, sourceUri: string, model: 'tiny' | 'small'): Promise<CaptionSegment[]>;
+  cancelRefinement(id: string): Promise<void>;
 }
 
 /**
