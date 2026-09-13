@@ -8,6 +8,8 @@ import nativeVision, {
   type VisionStatusEvent,
 } from '../../../modules/one-take-vision';
 
+import { startVisionBinding } from './binding';
+
 import {
   beginVisionSession,
   createVisionState,
@@ -42,6 +44,7 @@ export interface UseVisionResult {
 }
 
 let generatedSessionId = 0;
+let bindingGeneration = 0;
 
 function monotonicNowMs(): number {
   return typeof performance !== 'undefined' && typeof performance.now === 'function'
@@ -123,16 +126,20 @@ export function useVision({
 
     if (recording || activeIdentity.current?.key === key) return;
 
-    const startIdentity = { key, sessionId };
+    // Never reuse native identity after background/resume or front/back/front.
+    // Keep this binding attached throughout recording; source IDs are separate.
+    const nativeSessionId = `${sessionId}:binding:${++bindingGeneration}`;
+    const startIdentity = { key, sessionId: nativeSessionId };
     activeIdentity.current = startIdentity;
-    updateState(beginVisionSession(stateRef.current, sessionId, lensFacing));
+    clockOffsetMs.current = null;
+    updateState(beginVisionSession(stateRef.current, nativeSessionId, lensFacing));
 
     if (!nativeVision) {
       updateState(reduceVisionEvent(
         stateRef.current,
         {
           type: 'status',
-          sessionId,
+          sessionId: nativeSessionId,
           lensFacing,
           status: 'unavailable',
           reason: 'unsupported-device',
@@ -144,9 +151,13 @@ export function useVision({
       return;
     }
 
-    let cancelled = false;
-    void nativeVision.start(sessionId, lensFacing).then(result => {
-      if (cancelled || activeIdentity.current?.key !== key) return;
+    const module = nativeVision;
+    void startVisionBinding(
+      () => module.start(nativeSessionId, lensFacing),
+      () => activeIdentity.current === startIdentity,
+      () => module.stop(nativeSessionId),
+    ).then(result => {
+      if (!result || activeIdentity.current !== startIdentity) return;
       if (result.status === 'unavailable') {
         updateState(reduceVisionEvent(
           stateRef.current,
@@ -163,12 +174,12 @@ export function useVision({
         ));
       }
     }).catch(() => {
-      if (cancelled || activeIdentity.current?.key !== key) return;
+      if (activeIdentity.current !== startIdentity) return;
       updateState(reduceVisionEvent(
         stateRef.current,
         {
           type: 'status',
-          sessionId,
+          sessionId: nativeSessionId,
           lensFacing,
           status: 'unavailable',
           reason: 'unknown',
@@ -179,17 +190,14 @@ export function useVision({
       ));
     });
 
-    return () => {
-      cancelled = true;
-    };
   }, [enabled, ready, recording, key, sessionId, lensFacing]);
 
   useEffect(() => {
     return () => {
       const active = activeIdentity.current;
-      if (active && nativeVision) {
+      if (active) {
         activeIdentity.current = null;
-        void nativeVision.stop(active.sessionId).catch(() => undefined);
+        void nativeVision?.stop(active.sessionId).catch(() => undefined);
       }
     };
   }, [key]);
@@ -197,9 +205,10 @@ export function useVision({
   useEffect(() => {
     if (enabled && ready) return;
     const active = activeIdentity.current;
-    if (active && nativeVision) {
+    if (active) {
       activeIdentity.current = null;
-      void nativeVision.stop(active.sessionId).catch(() => undefined);
+      void nativeVision?.stop(active.sessionId).catch(() => undefined);
+      updateState(beginVisionSession(stateRef.current, sessionId, lensFacing));
     }
   }, [enabled, ready]);
 
@@ -231,13 +240,15 @@ export function useVision({
   useEffect(() => {
     if (!nativeVision) return;
     const statusSubscription = nativeVision.addListener('onVisionStatus', event => {
-      if (activeIdentity.current?.key !== identityKey(event.sessionId, event.lensFacing)) {
+      if (activeIdentity.current?.sessionId !== event.sessionId
+        || stateRef.current.lensFacing !== event.lensFacing) {
         return;
       }
       updateState(reduceVisionEvent(stateRef.current, toStateStatusEvent(event), monotonicNowMs()));
     });
     const frameSubscription = nativeVision.addListener('onVisionFrame', event => {
-      if (activeIdentity.current?.key !== identityKey(event.sessionId, event.lensFacing)) {
+      if (activeIdentity.current?.sessionId !== event.sessionId
+        || stateRef.current.lensFacing !== event.lensFacing) {
         return;
       }
       if (stateRef.current.sessionId !== event.sessionId
