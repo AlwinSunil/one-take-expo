@@ -11,6 +11,7 @@ const fileSystem = {
   failCopy: false,
   copyAsEmpty: false,
   failMove: false,
+  moveThenThrow: false,
   failDelete: false,
 };
 const mediaState = { deletedExports: [] };
@@ -143,6 +144,10 @@ export class File {
     if (!source) throw new Error('mock source is missing');
     state.files.set(destination.uri, { data: new Uint8Array(source.data) });
     state.files.delete(this.uri);
+    if (state.moveThenThrow) {
+      state.moveThenThrow = false;
+      throw new Error('mock move completed before SQL commit');
+    }
   }
 
   delete() {
@@ -263,6 +268,7 @@ function resetFaults() {
   fsState.failCopy = false;
   fsState.copyAsEmpty = false;
   fsState.failMove = false;
+  fsState.moveThenThrow = false;
   fsState.failDelete = false;
   fsState.availableDiskSpace = Number.MAX_SAFE_INTEGER;
 }
@@ -427,6 +433,63 @@ test('real store durability harness covers capture, journals, concurrent pickup/
     checkpointProjectSource(sourceCheckpointId, 'source-checkpoint:duration-change', { ...durableSource, durationSeconds: 5 }),
     /duration/i,
   );
+
+  const crashId = 'store:canonical-before-sql';
+  const crashSource = fileUri(cacheRoot, 'capture-canonical-before-sql.mp4');
+  setSource(crashSource, 'canonical-before-sql-payload');
+  await beginRecording(project(crashId, crashSource));
+  const crashProject = await initializeDurableProject(crashId);
+  fsState.moveThenThrow = true;
+  await assert.rejects(
+    saveProjectMetadata({ ...crashProject, videoUri: crashSource }),
+    /move completed before SQL commit/i,
+  );
+  const crashPart = `${originalUri(crashId)}.part`;
+  assert.equal(fsModule.__mockFileSystem.hasFile(originalUri(crashId)), true, 'the canonical file must remain after the move/SQL crash window');
+  assert.equal(fsModule.__mockFileSystem.hasFile(crashPart), false, 'the completed move must consume the .part');
+  assert.equal(JSON.parse(operationRows(crashId)[0].data).phase, 'ready');
+  assert.equal(JSON.parse(row(crashId).data).recordingStatus, 'interrupted');
+
+  // The first durable initialization with a pending media journal must return,
+  // while save metadata replays that journal before applying the caller edit.
+  const initializedWhilePending = await initializeDurableProject(crashId);
+  await saveProjectMetadata({ ...initializedWhilePending, videoUri: crashSource });
+  assert.equal(operationRows(crashId).length, 0);
+  assert.equal((await getProject(crashId)).videoUri, originalUri(crashId));
+
+  const corruptSizeId = 'store:pending-size-mismatch';
+  const corruptSizeSource = fileUri(cacheRoot, 'capture-pending-size-mismatch.mp4');
+  setSource(corruptSizeSource, 'pending-size-mismatch-payload');
+  const corruptSizeCapture = { ...project(corruptSizeId, corruptSizeSource), trim: { start: 0.2, end: 2.8 } };
+  await beginRecording(corruptSizeCapture);
+  const corruptSizeProject = await initializeDurableProject(corruptSizeId);
+  fsState.moveThenThrow = true;
+  await assert.rejects(
+    saveProjectMetadata({ ...corruptSizeProject, ...corruptSizeCapture, videoUri: corruptSizeSource }),
+    /move completed before SQL commit/i,
+  );
+  const corruptSizeRow = operationRows(corruptSizeId)[0];
+  const corruptSizeOperation = JSON.parse(corruptSizeRow.data);
+  sqliteDatabase.prepare('UPDATE project_operations SET data = ? WHERE id = ?').run(
+    JSON.stringify({ ...corruptSizeOperation, expectedSize: corruptSizeOperation.expectedSize + 1 }),
+    corruptSizeRow.id,
+  );
+  const priorCorruptProject = JSON.parse(row(corruptSizeId).data);
+  await assert.rejects(
+    saveProjectMetadata({ ...corruptSizeProject, ...corruptSizeCapture, videoUri: corruptSizeSource }),
+    /saved recording is incomplete/i,
+  );
+  assert.equal(operationRows(corruptSizeId).length, 1);
+  assert.equal(JSON.parse(row(corruptSizeId).data).recordingStatus, priorCorruptProject.recordingStatus);
+  assert.deepEqual(JSON.parse(row(corruptSizeId).data).trim, priorCorruptProject.trim);
+  assert.ok(fsModule.__mockFileSystem.getFileSize(originalUri(corruptSizeId)) > 0);
+  assert.ok(fsModule.__mockFileSystem.getFileSize(corruptSizeSource) > 0);
+  sqliteDatabase.prepare('UPDATE project_operations SET data = ? WHERE id = ?').run(
+    JSON.stringify(corruptSizeOperation),
+    corruptSizeRow.id,
+  );
+  await saveProjectMetadata({ ...corruptSizeProject, ...corruptSizeCapture, videoUri: corruptSizeSource });
+  assert.equal(operationRows(corruptSizeId).length, 0);
 
   const durable = await initializeDurableProject(projectId);
   const staleEditor = await getProject(projectId);

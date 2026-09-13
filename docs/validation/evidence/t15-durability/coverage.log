@@ -1,0 +1,34 @@
+
+> one-take@1.0.0 coverage:report
+> node --experimental-strip-types tools/speech-fixtures/precision-report.mjs
+
+(node:77683) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/src/development/coverage/scenarios.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Coverage verdict report (synthetic fixtures, not human held-out data)
+
+Scenario replay
+  clean: Clean read
+    line-1: covered (clean-take) take=take-1
+    line-2: covered (clean-take) take=take-2
+    cuts in script order: take-1[line-1] -> take-2[line-2]
+    identical on replay: true; matches expectation: true
+  flub-reread: Flub and re-read
+    line-1: covered (clean-take) take=take-2
+    line-2: covered (clean-take) take=take-2
+    cuts in script order: take-2[line-1, line-2]
+    identical on replay: true; matches expectation: true
+
+Fixture rows: 16 (synthetic fixtures, not human held-out data)
+  verdict   predicted  expected  correct  precision  recall
+  covered          11        11       11      1.000   1.000
+  pending           0         0        0        n/a     n/a
+  needed            5         5        5      1.000   1.000
+
+Held-out eligibility
+  held-out rows: 10; consented human rows: 0
+  eligible clean rows: 0 of 60 required; eligible flub rows: 0 of 30 required
+  This report is synthetic and remains ineligible for a design-target accuracy claim.
+
+PASSED 2 scenarios and 16 synthetic fixture rows.

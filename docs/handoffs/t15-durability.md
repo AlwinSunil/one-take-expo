@@ -153,7 +153,7 @@ type TimelineCommand = {
 type TimelineHistory = {
   entries: TimelineCommand[]; cursor: number; abandonedEntries: TimelineCommand[];
   initialSnapshot?: TimelineSnapshot;
-  archive?: { kind: 'timeline-command' };
+  archive?: { kind: 'timeline-command'; pageIds: string[] };
 };
 // TimelineClip also requires utteranceIds: string[].
 commitTimeline(projectId, expectedFullVector, operationId, { timeline, history, reasons }): Promise<Project>
@@ -183,3 +183,35 @@ The ordinary observation checkpoint limit still rejects oversized producer pages
 `state` contains `phase`, `message`, `canOpenEditor`, and optional `retryJob: { id, attempt }`.
 The component never runs analysis, navigates, exports or deletes media on its own.
 The caller owns those callbacks and must show rejected save/retry errors.
+
+
+## Published implementation and final review corrections
+
+Initial executable foundation: `de00de0`, draft [PR #75](https://github.com/AlwinSunil/one-take-expo/pull/75).
+Recovery/archive/reference validation increment: `0209195` on the same branch.
+Read the PR head for later verification-only updates.
+`checkpointProjectSource(projectId, operationId, source: SourceRecord)` registers source provenance after `beginRecording` or `beginProjectPickup`, permits a pending URI/duration to become known from the existing journal-owned Project, and rejects rewriting a known duration.
+Capture should checkpoint the pending pickup source before streaming its observations and checkpoint the durable URI after save.
+No producer or capture code is imported or edited by this API publication.
+
+An instantaneous observation uses equal `t0` and `t1`; it is evidence, never an exportable clip.
+Capture-clock observations may extend past the probed media duration because their record-request clock is not calibrated PTS; presentation-clock samples still validate against media duration.
+Their clock/provenance/uncertainty must remain explicit.
+B's proposed nearest-millisecond timeline endpoints are retained exactly by persistence; A does not re-quantize observations or transcripts.
+Legacy seeding retains legacy trim/cut values; B must publish any explicit first-command normalization when the B/C precision agreement is finalized.
+
+Analysis result references must resolve to existing same-project evidence of the declared kind and correct source, or valid inline typed snapshot records.
+Checkpoint proposal/reason/observation records before returning their IDs in a result.
+Missing references reject completion instead of producing a fabricated Ready state.
+Cancelled or stale results still preserve evidence when their reference envelope is valid.
+Versioned extensions use `(key, version)` identity, so a newer unsupported version can coexist with its retained predecessor.
+Archive `pageIds` must resolve to command pages and cover all commands removed from the active/abandoned window.
+
+Existing cache-original metadata checkpoints now replay any pending original journal before treating a moved canonical file as committed.
+A duplicate journal with a changed source or payload fails visibly; SQL compare-and-swap also protects the journal row.
+Known file-size receipts reject empty/truncated canonical originals without overwriting the last metadata or valid cache source.
+The record-copy commit uses an exclusive transaction for metadata, receipt and journal removal.
+Caption/timeline/asset adapter retries retain the original caller intent, so retrying a correction cannot append it twice even after the first commit succeeded.
+
+Run `node --experimental-strip-types tests/t15-fixture-replay.mjs` for exact source/timeline/history/caption/job/result transport envelopes.
+The output is also captured in `docs/validation/evidence/t15-durability/canonical-envelopes.json`.

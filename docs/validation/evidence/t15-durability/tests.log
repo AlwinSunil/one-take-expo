@@ -1,0 +1,756 @@
+
+> one-take@1.0.0 test
+> node --experimental-strip-types --test tests/*.test.mjs
+
+(node:77685) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/src/lib/live-caption-state.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ synthetic caption replay is deterministic and preserves utterance timing (3.118291ms)
+✔ every recorded session is present, synthetic and self-consistent (0.113959ms)
+✔ replaying a recorded session twice produces byte-identical merged output (0.150917ms)
+✔ late or duplicated stale events cannot change the replayed transcript (0.113375ms)
+✔ the noisy recording exercises stale events from another session and an older revision (0.883041ms)
+✔ quiet and noisy reads produce final utterances with timing (0.182ms)
+✔ an empty recording never produces a final segment with text (0.093417ms)
+✔ the loading and delayed states of a read are visible through the status reducer (0.20675ms)
+✔ a failed model stays unavailable with its reason after the session stops (0.246583ms)
+✔ an interrupted take keeps its recognized utterance and recovers on the next start (0.170542ms)
+✔ recorded timing events replay to the same separated durations (0.519667ms)
+(node:77686) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/src/lib/caption-status-store.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ a store starts idle and reports no retry path (0.554125ms)
+✔ publishing the same status keeps the snapshot and does not notify (0.085125ms)
+✔ a changed reason or timing report replaces the snapshot (0.055ms)
+✔ an unsubscribed listener stops hearing about changes (0.055291ms)
+✔ resetting returns the store to the idle status (0.050583ms)
+(node:77687) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/src/lib/caption-timing.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ the three stage durations are reported separately (0.820083ms)
+✔ an incomplete utterance reports only the durations it can measure (0.073833ms)
+✔ finalization is delayed only above the threshold (0.459666ms)
+✔ coverage processing is delayed only above the threshold (0.067458ms)
+✔ a slow pause detection alone is not a delayed state (0.050083ms)
+✔ the reported state follows the most recent utterance (0.066042ms)
+✔ each completed utterance produces one caption-timing log line (10.277875ms)
+✔ a repeated stage keeps the first timestamp and the same state object (0.308333ms)
+✔ timing events that move backwards are rejected (0.215459ms)
+✔ malformed timing events are rejected (0.123583ms)
+✔ an utterance with no pause source still logs a line with n/a stages (0.076042ms)
+✔ each caption-timing line is logged exactly once when utterances complete out of order (0.098792ms)
+✔ stage timestamps share the audio-stream clock (0.079917ms)
+✔ only a listening session is relabelled as delayed by timing (0.055208ms)
+✔ coverage produces a new timing line without pause detection (0.097375ms)
+(node:77688) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/src/features/capture/capture-controls.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ native volume and camera keys map to capture commands without claiming a remote (0.394375ms)
+✔ commands are ignored while capture is inactive and after it ends (0.563917ms)
+✔ one native key event is emitted once, while distinct presses remain usable (0.160458ms)
+✔ a queued event from a previous take cannot affect the next take (0.28975ms)
+(node:77689) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/src/features/capture/coverage.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:77689) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/modules/one-take-media/timeline.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/modules/one-take-media/package.json.
+✔ recording-time coverage stays pending until a real saved URI exists (1.585792ms)
+✔ a final transcript and playable URI feed the shared coverage engine (0.617375ms)
+✔ missing media, provisional speech, and scratched takes never claim coverage (0.34325ms)
+✔ required action cues remain a separate manual wrap gate (0.14525ms)
+(node:77690) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/src/features/capture/project-handoff.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:77690) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/modules/one-take-media/timeline.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/modules/one-take-media/package.json.
+✔ pickup script reconstructs persisted identities and cues independently of accepted draft (5.09925ms)
+✔ capture coverage honors explicit choices and pickup eligibility (0.755667ms)
+✔ audio start offset is removed and truncated boundary captions remain provisional (0.097541ms)
+✔ launch waits for durable request and never navigates after failed persistence (0.150375ms)
+(node:77691) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/src/features/capture/reliability.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ permission guidance distinguishes loading, requestable, and settings recovery (2.002667ms)
+✔ storage preflight blocks exhaustion, warns before recording becomes risky, and tolerates unknown values (0.263ms)
+✔ capture failures become actionable for busy camera, storage, permission, and interruption paths (0.697ms)
+✔ rapid stop requests are idempotent and preserve the first reason (0.162917ms)
+(node:77692) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/src/lib/project-workflow.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:77692) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/modules/one-take-media/timeline.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/modules/one-take-media/package.json.
+✔ latest clean attempts play in script order, excluding scratched and pending (11.831459ms)
+✔ one breath take stays whole and appears once (0.346208ms)
+✔ manual selection wins over latest attempt (0.583541ms)
+✔ missing, pending and no-speech recordings never claim a clean cut (0.974584ms)
+✔ out-of-range and foreign media are reported instead of played (0.294625ms)
+✔ conflicting whole-take choices require review instead of repeating a line (0.264833ms)
+✔ multiple recordings do not pretend source-relative times establish recency (0.178125ms)
+✔ pickup source timestamps stay local while recording recency chooses replacement (1.273333ms)
+✔ prepared multi-source selections preserve whole takes and reject duration overrun (1.388167ms)
+✔ pickup matching an unrequested line cannot replace its existing take (0.263333ms)
+✔ pickup eligibility never hides repeated words inside a whole take (0.255709ms)
+✔ unclear caption temporarily gates explicit whole-take coverage and restores original quality on unmark (0.204083ms)
+✔ listening annotation invalidates accepted exports without mutating recorded evidence (0.100166ms)
+(node:77693) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/src/features/coach/policy.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ chooses the highest-priority measured cue with actionable copy (0.781166ms)
+✔ requires the proposed stable issue and fresh-frame windows (4.657ms)
+✔ shows all-good only after every requested cue is explicitly clear and stable (0.182416ms)
+✔ keeps unsupported lighting and background analysis honest (0.204208ms)
+✔ shows a measured cue when a later requested cue is unavailable (0.102833ms)
+✔ never accepts an uncalibrated issue as a real automatic cue (0.084292ms)
+✔ requires face detector confidence at the researched floor (0.09375ms)
+✔ waits for a real between-lines signal and quiet speech while recording (0.122041ms)
+✔ requires a creator intent and suppresses face advice for product intent (0.130666ms)
+✔ uses an explicitly selected subject for subject intent (0.16025ms)
+✔ intentional look disables automatic advice without making a quality claim (0.098958ms)
+✔ mutes a dismissed cue for the take and promotes the next measured cue (0.09825ms)
+✔ enforces the cooldown between distinct prompts (0.106125ms)
+✔ keeps the shown cue stable while cooling down and gates a different cue (0.121958ms)
+✔ resets take-local dismissals synchronously when the take key changes (0.136792ms)
+✔ represents pending and unavailable vision without blocking the shot (0.096875ms)
+(node:77694) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/src/development/coverage/scenarios.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ scenario clean replays twice with identical coverage and cut order (69.20875ms)
+✔ scenario flub-reread replays twice with identical coverage and cut order (5.63675ms)
+✔ scenario pending-timer replays twice with identical coverage and cut order (0.51275ms)
+✔ scenario out-of-order replays twice with identical coverage and cut order (1.49725ms)
+✔ scenario missing-file replays twice with identical coverage and cut order (0.364542ms)
+✔ scenario two-lines-one-breath replays twice with identical coverage and cut order (0.138291ms)
+✔ scenario off-frame-vs-in-frame replays twice with identical coverage and cut order (0.263417ms)
+✔ scenario scratched-take replays twice with identical coverage and cut order (0.939834ms)
+✔ scenario script-edit-after-coverage replays twice with identical coverage and cut order (0.64525ms)
+✔ scenario required-action replays twice with identical coverage and cut order (0.491625ms)
+✔ every selected cut plays in script order, never in recording order (0.316042ms)
+✔ a pending line stays pending however far the clock advances past the analysis timeout (0.381875ms)
+✔ a bad reread never erases an earlier clean take and never lands on the wrong line (0.296625ms)
+✔ an off-frame or unobserved take loses to an otherwise suitable in-frame take taken later (0.305916ms)
+✔ scratched takes are excluded from coverage and retained in history (0.237583ms)
+✔ a take whose file disappears after recording moves its line back to needed (0.177ms)
+✔ editing, deleting and adding script lines updates coverage without discarding takes (0.245291ms)
+✔ an unresolved required action cue blocks safe to wrap even when every line is covered (0.155167ms)
+✔ a clean read covers every line and keeps one cut per take (0.166458ms)
+✔ two lines read in one breath share a single unbroken cut (0.118042ms)
+(node:77695) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/src/lib/coverage-updates.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ the coverage ledger keeps every take of a line, including the rejected attempts (41.70375ms)
+✔ editing a covered line resets it to needed and retains its take history (3.067583ms)
+✔ deleting a line retires it with its takes instead of destroying the evidence (0.536416ms)
+✔ added lines start as needed and never inherit another line take (0.731209ms)
+✔ a reorder keeps every line id and its coverage, and a mismatched reorder is rejected (0.40775ms)
+✔ a take whose media disappears moves its line to needed with reason media-missing (0.593917ms)
+✔ missing media falls back to a remaining eligible take instead of losing the line (0.715667ms)
+✔ two lines read in one breath stay one cut, and cuts follow script order not recording order (0.342417ms)
+✔ a media loss never re-covers a line the creator just edited (0.330542ms)
+✔ a media loss never replaces an explicit take choice or promotes a pending line (0.20425ms)
+✔ a later off-frame retake never displaces an earlier in-frame clean take (0.087042ms)
+✔ a take covering non-adjacent lines is played once, at its first script position (0.354458ms)
+(node:77696) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/src/lib/caption-timeline.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:77696) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/modules/one-take-media/timeline.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/modules/one-take-media/package.json.
+✔ uses the selected trim, preserves corrected display text, and filters draft captions (51.400583ms)
+✔ explicit project cuts override the current trim and retain their output order (22.42175ms)
+✔ unreviewed project cuts cannot be sent to native export (0.203917ms)
+✔ saved-audio timing is exportable without an estimated-timing warning (0.07025ms)
+✔ a blank manual correction intentionally omits that caption (5.747375ms)
+✔ caption gaps are retained while overlapping intervals are partitioned into cues (0.780583ms)
+✔ caption partitioning skips drafts and blanks and keeps active text stable (0.369959ms)
+✔ caption partitioning rejects invalid source times without clamping them (0.209541ms)
+✔ nonfinite ranges and missing source media fail before an export request can start (0.147208ms)
+✔ empty explicit cuts mean the complete source, as defined by the native export contract (0.31375ms)
+✔ action directions and standalone scratch commands never become captions (0.187417ms)
+✔ reviewed multi-source segments preserve source-local captions and selection order (10.773666ms)
+✔ reviewed pickup segments keep supplied captions when no transcript belongs to that source (0.250916ms)
+✔ single-source export requires an explicitly inventoried media URI (0.531458ms)
+✔ legacy export excludes overlapping pickup captions using recording and take ownership (0.169458ms)
+(node:77697) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/src/features/vision/framing.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ development fixture replay is deterministic and every expected state validates (63.718458ms)
+✔ framing defaults remain disabled and return an explicit original-frame fallback (2.00775ms)
+✔ talking-head and moving-vlog crops use one temporal union with bounded zoom (0.278541ms)
+✔ product-demo crop preserves the selected product and every relevant hand (0.166ms)
+✔ multiple subjects are preserved when possible and fall back when the union is unsafe (3.365125ms)
+✔ missing, off-frame, uncertain, discontinuous and product-without-hands inputs fall back safely (0.292375ms)
+✔ the selected interval is half-open and requires coverage through its temporal boundary (0.182291ms)
+✔ track identity and immutable request changes invalidate stale framing results (2.638ms)
+✔ validators enforce provenance, max zoom, crop shape and explicit fallback semantics (0.782333ms)
+✔ target-aspect conversion remains an original-frame fallback until validated (20.193583ms)
+✔ tracks cannot be reinterpreted in another orientation or source geometry (6.298167ms)
+✔ explicitly selected hands override a negative relevance suggestion (0.241833ms)
+✔ malformed object requests produce complete diagnostic fallbacks without invented usable identity (0.173167ms)
+✔ malformed JSON crop dimensions are rejected without coercion exceptions (9.172ms)
+(node:77705) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/src/lib/live-caption-state.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ a previous recording cannot overwrite the new recording captions (0.844959ms)
+✔ partial revisions replace text and older revisions cannot undo final output (0.10625ms)
+✔ a new utterance can follow a completed utterance within the same recording (0.368542ms)
+✔ starting another recording clears prior text and sequence (0.554625ms)
+✔ a missing model asset is a distinct recoverable reason (0.327625ms)
+✔ a hash mismatch is reported as a corrupt model, not a missing one (0.142709ms)
+✔ an unclassified preparation failure is an initialization failure (0.173584ms)
+✔ an unsupported device is not offered as a retry (0.114333ms)
+✔ audio focus loss and route changes are interruptions rather than unavailability (0.150334ms)
+✔ a native reason wins over message guessing and an unknown one falls back to the message (0.185208ms)
+✔ a new session starts preparing and carries no earlier failure (0.15775ms)
+✔ a failed preparation reports the reason and stays visible through stop (0.158ms)
+✔ an interruption clears once recognition is listening again (0.092125ms)
+✔ a stale session or an unknown status cannot change the reported state (0.055458ms)
+✔ segment revisions merge by id in source time order (0.190709ms)
+✔ replaying a session ignores stale sequences and other sessions (0.139208ms)
+✔ an audio format failure is retryable and does not blame the device (0.090667ms)
+✔ the native status decides the interrupted split even with no reason or message (0.09425ms)
+✔ a retry keeps the utterances recognized before the failure (0.38225ms)
+✔ retry offsets stay fixed across revisions and accumulate across attempts (0.205625ms)
+(node:77713) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/modules/one-take-media/timeline.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/modules/one-take-media/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ maps source captions onto ordered non-adjacent output cuts (0.816ms)
+✔ rejects overlapping source cuts but preserves explicit output order (0.128667ms)
+✔ does not invent captions in removed gaps and rejects ambiguous caption overlap (0.074792ms)
+(node:77714) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/src/lib/project-data.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:77714) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/modules/one-take-media/timeline.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/modules/one-take-media/package.json.
+✔ pickup preserves legacy original, captions and trim while namespacing collisions (5.172541ms)
+✔ replaying a committed pickup is idempotent (1.760666ms)
+✔ pickup rejects foreign source, invalid intervals and dangling evidence (0.808ms)
+✔ pickup retains earlier manual decisions and required action state (0.260083ms)
+✔ corrupt recording or review source metadata is rejected without dropping originals (0.72925ms)
+✔ an older editor snapshot cannot overwrite a concurrently attached pickup (0.703542ms)
+✔ a pickup can only replace requested lines while its whole take remains intact (86.599417ms)
+✔ a raw checkpoint survives while the same recording gains final evidence exactly once (113.348792ms)
+✔ finalizing a checkpoint preserves later recordings and survives an older editor save (0.794459ms)
+✔ checkpoint preserves the requested subset and finalization clears only its own recovery warning (0.537917ms)
+✔ reused pickup identity validates the complete duplicate payload (0.385792ms)
+(node:77715) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/src/lib/project-data.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ legacy projects retain original media and trim and gain stable caption identity (0.559042ms)
+✔ interrupted refinement preserves manual captions and becomes recoverable (0.179917ms)
+✔ invalid metadata fails clearly and invalid timing cannot enter caption export (0.332542ms)
+✔ malformed action cues reject project metadata while valid cues remain safe for review (0.458125ms)
+✔ persisted take boundaries and action status survive normalization (0.181583ms)
+✔ malformed persisted takes cannot supply coverage (0.069084ms)
+✔ temporary missing media does not permanently change take playability (0.081458ms)
+✔ durable copy preserves explicit capture interruption but clears stale successful-save errors (0.11975ms)
+(node:77716) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/src/lib/project-deletion.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ native path aliases have one identity for shared-file protection (0.668041ms)
+✔ encoded traversal cannot turn a private-file association into database deletion (1.249334ms)
+✔ failed cancellation still waits for all remaining writers to settle (5.129292ms)
+(node:77717) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/src/lib/project-edit-merge.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ fast legacy keystrokes retain the latest caption and intervening action confirmation (1.071833ms)
+✔ top Save and wrap snapshots preserve earlier caption corrections (0.625625ms)
+✔ edits to different caption identities preserve each other (0.250875ms)
+✔ stale row edit preserves intervening additions and removals (0.136125ms)
+✔ stale caption corrections cannot resurrect transcript rows removed by refinement (0.1055ms)
+(node:77718) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/src/lib/project-workflow.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ cross-job segmentation cannot overwrite a manually corrected interval (1.339875ms)
+✔ a review annotation retains the entire current timeline and current decisions (0.173375ms)
+✔ an empty refinement keeps usable captions and stores the empty candidate (0.102792ms)
+✔ a valid unannotated refinement replaces the current timeline and preserves history (0.175042ms)
+✔ malformed refinement payloads are rejected before project state changes (0.602875ms)
+(node:77719) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/src/lib/retake-prompts.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ a needed verdict inside the pause budget asks for the line again (0.780791ms)
+✔ a verdict that misses the 1200 ms budget batches the line for after the take (0.094417ms)
+✔ a verdict that lands after the next line started never interrupts mid-line (0.06475ms)
+✔ an in-budget verdict is still held back while the creator is speaking (0.059125ms)
+✔ a delayed engine forces batched mode even when the timing would fit (0.05825ms)
+✔ covered and pending lines never produce a prompt (0.033541ms)
+✔ an again prompt stops showing once its hold window has passed (0.042917ms)
+✔ the most recent eligible pause wins when two verdicts are live (0.057708ms)
+✔ every prompter sample session produces its documented decision (0.312625ms)
+✔ the action sample keeps cues out of the spoken lines and unresolved until confirmed (0.128958ms)
+✔ the long-line sample keeps one long spoken line the prompter must truncate (0.254667ms)
+✔ the timing evaluator reports prompts shown before the next line (0.452625ms)
+✔ the timing evaluator fails the target at 17 of 20 and refuses small samples (0.160292ms)
+✔ a delayed engine reports batched mode and never meets the live target (0.199166ms)
+✔ covered line ends are counted separately from the ones needing a prompt (0.069084ms)
+✔ a line end with no verdict at all is reported as missed (0.062959ms)
+✔ the evaluator reports the sample sessions without claiming device evidence (0.106125ms)
+✔ an unconfirmed line waits quietly during the take and is only listed after it (0.098958ms)
+✔ the deferred count never names a line or asks for a retake mid-take (0.065542ms)
+✔ a needed verdict landing as recording stops is listed, never asked for again (0.084583ms)
+✔ prompt numbers are the line numbers the strip shows, not array positions (0.090709ms)
+✔ a verdict that predates its own line end is never promptable (0.070333ms)
+✔ coverage cells carry a label and a shape, never colour alone (0.076542ms)
+✔ the coverage summary counts every status in words (0.105375ms)
+✔ action cue labels say what to do and whether it is still open (0.085042ms)
+✔ the current line never renders below 16 sp however small or scaled the screen is (0.0755ms)
+✔ large system text shows fewer lines rather than clipping them (0.070833ms)
+✔ the strip keeps the current line visible and reports what it hid (0.110709ms)
+✔ strip capacity shrinks on narrow screens and at large text (0.066333ms)
+(node:77720) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/src/lib/review-cuts.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ removing a reviewed interval preserves remaining cut order and source timestamps (1.580458ms)
+(node:77721) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/src/lib/review-export-selection.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ automatic cuts require preparation before export (0.592125ms)
+✔ manual trim and original exports override prepared cuts without changing project (0.676083ms)
+(node:77722) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/src/lib/review-media-inventory.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ failed pickup is unavailable in both legacy review and Tier 1 inventory (2.377042ms)
+✔ explicit empty inventory overrides a stale primary presence flag (0.491958ms)
+✔ saving a review projection retains stored playability for later file recovery (1.247667ms)
+(node:77723) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/src/lib/review-source.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ source-local overlapping timestamps do not mix captions in raw/manual preview (1.189041ms)
+✔ legacy take references disambiguate source and unknown recording ids stay excluded (0.170833ms)
+✔ source-aware refinement guard permits legacy recording and blocks merged projects (0.606917ms)
+(node:77724) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/src/lib/script-lines.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ pasted text splits the same way the camera prompter chunks it (12.809166ms)
+✔ editing one line keeps the ids and the order of the untouched lines (0.361458ms)
+✔ inserting a line keeps existing ids and mints one new id (0.244583ms)
+✔ deleting a line keeps the deleted line in history and reports the intent (0.617917ms)
+✔ reordering keeps every line id and reports the previous order (0.964916ms)
+✔ spoken word count excludes action cue text and read time uses 150 words per minute (0.321ms)
+✔ read time formats minutes and zero padded seconds (0.095792ms)
+✔ an inline bracket becomes an action cue and leaves the spoken words intact (0.139125ms)
+✔ a standalone bracketed line is an action-only line (0.138292ms)
+✔ multiple brackets in one line become separate cues with distinct ids (0.207125ms)
+✔ an unclosed bracket stays spoken text and is flagged ambiguous (0.202792ms)
+✔ nested and empty brackets never lose content (0.133625ms)
+✔ an ambiguous bracket can be corrected to an action cue (0.213ms)
+✔ an ambiguous bracket can be marked actually spoken (0.0905ms)
+✔ an actions only script asks for a spoken line (0.14875ms)
+✔ cues are optional until the creator marks them required (0.280083ms)
+✔ required cue done and skipped statuses are manual and never inferred (0.126417ms)
+✔ cue required and status survive an edit to another line (0.107833ms)
+✔ a saved draft restores text, line ids, order and cue statuses (0.451041ms)
+✔ the raw draft text wins when the stored structure is missing or unreadable (0.19925ms)
+✔ a stale stored structure never overrides the raw draft text (0.127ms)
+✔ five thousand words parse in under 100 ms (4.443709ms)
+✔ re-parsing a long script after one edit stays under 100 ms and keeps ids (24.1225ms)
+✔ the text handed to the camera route always chunks back into the same lines (2.493167ms)
+✔ correcting an unclosed bracket that ends a sentence leaves one clean line (1.0095ms)
+✔ a question or exclamation around an unclosed bracket survives the correction (0.319375ms)
+✔ typing and retyping a line never manufactures deleted history (0.994917ms)
+✔ clearing the whole script keeps no deleted history until a line is deleted on purpose (0.37525ms)
+✔ a failing structure read still restores the creator text (0.137208ms)
+✔ a stale stored counter never mints a duplicate line id (0.067625ms)
+(node:77725) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/src/lib/t1-caption-edit.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:77725) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/modules/one-take-media/timeline.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/modules/one-take-media/package.json.
+✔ word tokens expose source ranges while leaving punctuation in the caption (95.276375ms)
+✔ saving a word correction changes only the display correction and keeps raw evidence (0.34875ms)
+✔ a saved correction survives project-style serialization and reopen (0.133042ms)
+✔ the saved display correction is the caption text supplied to export (3.374292ms)
+✔ stale recognition revisions cannot receive a word correction prepared for an older segment (0.399459ms)
+✔ a changed display correction is stale even when its recognition revision is unchanged (0.141583ms)
+✔ undo restores the previous correction and never rewrites spoken evidence (0.140875ms)
+✔ undo rejects an edit after a newer correction has replaced it (0.124084ms)
+✔ clearing a persisted correction restores recognized display after reopen (7.859292ms)
+✔ word saves require a single non-empty replacement and a real segment (11.740917ms)
+(node:77726) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/src/lib/t1-cleanup-review.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ cleanup review displays producer reason/evidence and accepts only a prepared safe removal (3.377292ms)
+✔ reset restores the original prepared sequence while retaining original media and evidence (0.513833ms)
+✔ explicit keep or undo dismisses a prepared removal and restores the base sequence (0.57975ms)
+✔ missing current media inventory leaves the evidence reviewable but cannot accept removal (0.308417ms)
+✔ stale fingerprint and foreign recording cannot accept a cleanup removal (0.311208ms)
+✔ recognition-only or mid-sentence marks stay review marks and never create a guessed splice (0.281666ms)
+✔ without an explicit prepared review sequence the report asks the user to prepare takes first (0.147417ms)
+✔ pickup media remains reviewable when the missing primary source is unavailable (0.142958ms)
+✔ malformed producer decisions fail closed without crashing the review (0.225625ms)
+✔ persisted recognition-only proof cannot be promoted by a malformed safe flag (0.264417ms)
+✔ reset preserves an independently changed prepared sequence (0.1975ms)
+✔ stale speech revision reset restores an unchanged applied sequence and clears state (0.183417ms)
+✔ malformed persisted cleanup state fails closed and can be cleared (0.136417ms)
+✔ duplicate suggestion IDs require recording-scoped dismiss and undo (0.1875ms)
+(node:77727) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/src/features/speech-control/cleanup.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ cleanup replay records long silence but preserves deliberate pauses and original segments (2.08575ms)
+✔ only explicit independent boundary records can prepare a silence removal (0.215625ms)
+✔ cleanup rejects empty observation ids and recording identities outside the input scope (0.459416ms)
+✔ restart and suitable repeat candidates use concrete transcript evidence but never claim safe ASR boundaries (0.355667ms)
+✔ cleanup never compares separate recording identities or chooses an uncertain later repeat (0.177167ms)
+✔ uncertainty, mumble and mid-sentence filler stay review marks without invented removals (0.250042ms)
+✔ unknown sentence placement keeps filler and mumble marks review-only (0.17575ms)
+✔ explicitly verified filler boundaries still require a reversible creator decision (0.290042ms)
+✔ recording identity is carried into decisions so an old accept cannot remove a new recording (0.163417ms)
+✔ a changed interval cannot inherit an old accept even when the suggestion id is reused (0.249334ms)
+✔ changed mark evidence invalidates an old accept fingerprint (0.154375ms)
+✔ same suggestion ids from different recordings keep separate decisions (0.132375ms)
+✔ cleanup plan is deterministic and carries prior decisions while retaining all observations (0.151958ms)
+(node:77728) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/src/lib/t1-framing-integrated.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ actual portrait producer fixture validates and fails closed at the consumer proof seam (1.687125ms)
+✔ actual moving and product fixtures remain original without inferred completeness or movement (7.739333ms)
+✔ actual producer fallback remains an honest consumer fallback (1.407791ms)
+✔ fixture integration stays disabled unless the producer receives explicit opt-in (0.312916ms)
+✔ producer bridge preserves the actual request and track identities (0.405792ms)
+✔ the exported gap report names every consumer field missing from the merged producer result (0.1185ms)
+(node:77729) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/src/lib/t1-framing-provider.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ published producer shape fails closed until union, region, movement, coverage, and caption proof are published (1.23475ms)
+✔ an enriched stable union converts milliseconds exactly and is consumable by the framing plan (1.865417ms)
+✔ stale source, take, analysis, revision, interval, or frame identity rejects the provider crop (0.358292ms)
+✔ boundary proof and caption safe area are mandatory even when the crop is geometrically valid (0.198125ms)
+✔ producer original fallback remains original without pretending it is a usable crop (0.16375ms)
+(node:77730) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/src/lib/t1-framing-selection.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:77730) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/modules/one-take-media/timeline.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/modules/one-take-media/package.json.
+✔ preview and export reuse identical static crop and reset retains original media (2.098417ms)
+✔ missing media and changed cut intervals fall back without reusing an old crop (0.189125ms)
+(node:77731) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/src/lib/t1-framing.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ deterministic framing fixtures accept only safe static crops (6.382958ms)
+✔ the default plan is original footage and explicit opt-in is required (0.10325ms)
+✔ one cut receives one frozen crop decision shared by preview and export (0.707458ms)
+✔ a lower-third caption must not cover a protected product or hand (0.155708ms)
+✔ native crop projection maps top-left upright coordinates to Media3 coordinates (0.161834ms)
+✔ suggestion validation rejects malformed geometry and non-fixture provenance (41.746417ms)
+✔ a malformed provider row can never become a playable reframed decision (0.243208ms)
+✔ missing source media and overlapping suggestions preserve the original frame (0.157458ms)
+✔ unavailable producer evidence can omit crop geometry and still falls back honestly (0.39675ms)
+(node:77732) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/src/lib/t1-gates.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ all Tier 1 features require explicit development opt-in and cannot enable release (0.790625ms)
+✔ legacy project normalization preserves original and has no Tier 1 evidence (0.258542ms)
+(node:77733) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/src/features/speech-control/live-transcript.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ replay keeps provisional text, accepts final text, and suppresses stale events (1.696166ms)
+✔ delayed, unavailable, and no-speech states remain honest and separate from coverage (0.20375ms)
+✔ large text and long sessions stay bounded for the live surface (1.96525ms)
+✔ reducer bounds megabyte event and segment text while preserving truncation metadata (0.444709ms)
+✔ final segment state stays final if a later provisional update arrives (0.128375ms)
+✔ a new provisional utterance clears the global final label while the prior final remains sticky (0.126625ms)
+✔ an unavailable recognizer remains unavailable after the native stop event (0.106458ms)
+✔ a final stop with partial text is labeled incomplete, and no text is not claimed as no speech (0.102667ms)
+✔ large unbounded segment props are projected from the latest bounded slice (2.833708ms)
+(node:77734) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/src/features/speech-control/must-say.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ safe normalization removes surface punctuation but does not alias or paraphrase wording (2.788041ms)
+✔ only raw final speech can satisfy a must-say requirement (3.313167ms)
+✔ a provisional exact read stays pending until final recognition arrives (4.165166ms)
+✔ surrounding words are accepted only when capture explicitly links a multi-line utterance (1.166708ms)
+✔ a line edit and revert cannot reuse evidence captured for an older revision (0.222375ms)
+✔ an exact final phrase without playable clean media stays unresolved (0.41775ms)
+✔ final wording without an explicit take identity stays unresolved (0.3475ms)
+✔ a later clean take can satisfy the line after an earlier scratched matching take (39.837083ms)
+✔ metadata follows stable line ids, archives deleted lines, and invalidates changed wording (1.173375ms)
+✔ serialization round trips metadata and malformed present data fails closed (1.426625ms)
+✔ toggle labels expose optional, pending, covered and unavailable states (2.74525ms)
+✔ stale raw evidence is not relabeled with the current requirement revision (0.235584ms)
+✔ merged script document ids carry must-say intent through edits, reorder and serialized reopen (17.632709ms)
+✔ current provisional speech stays pending beside an old matching final read (0.124583ms)
+(node:77735) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/src/lib/t1-review.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:77735) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/modules/one-take-media/timeline.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/modules/one-take-media/package.json.
+✔ take choice preserves original and raw evidence, and requires reviewed cuts again (1.77675ms)
+✔ missing, foreign and out-of-range footage cannot be previewed or selected (1.204084ms)
+✔ stale URI marked missing cannot start an export (0.311792ms)
+✔ prepared multi-source export picks reopened word corrections rather than stale caption snapshots (0.926375ms)
+✔ pickup evidence resolves only through the refreshed source inventory (0.121083ms)
+(node:77736) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/src/lib/t1-script-draft.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ atomic snapshot preserves raw text, reordered line and cue identity, and must-say revisions (4.645542ms)
+✔ snapshot reconciliation keeps enabled intent and increments a wording revision on restore (0.224125ms)
+✔ present malformed or stale structure and identity fail closed (0.369083ms)
+✔ missing enabled requirement never becomes a disabled requirement during restore (0.183958ms)
+✔ malformed must-say metadata is rejected instead of falling back to disabled state (0.375709ms)
+✔ legacy missing snapshot returns null and leaves the caller raw text untouched (0.117625ms)
+✔ the persisted structure remains the existing script serializer output (0.282209ms)
+(node:77737) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/src/features/speech-control/cleanup.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ the merged producers adapt to Tier1 evidence while preserving IDs, raw wording, timing, and cleanup decisions (63.459417ms)
+✔ producer reasons are carried as supplied and point to the durable take interval (28.907958ms)
+✔ voice scratch preserves the producer command segment and applied state (5.185958ms)
+✔ manual scratch preserves its explicit source and null command segment (1.711667ms)
+✔ old requirement revisions remain unresolved instead of being stamped with current metadata (2.67475ms)
+✔ pending media and recognition stay honest and never become covered (0.664458ms)
+✔ project, script, source, and payload mismatches fail closed (9.594125ms)
+✔ missing segment provenance fails closed instead of inferring a take or requirement revision (3.971708ms)
+(node:77738) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/src/lib/t1-speech-review.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ malformed present speech envelope cannot reuse an older all-clear snapshot (0.448084ms)
+✔ gated and legacy projects preserve their existing review path (0.145833ms)
+(node:77739) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/src/features/speech-control/take-decisions.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ command fixtures accept only a final standalone command and protect literal dialogue (8.643459ms)
+✔ a take has an allocated durable identity and retains raw transcript evidence separately from reasons (2.664792ms)
+✔ reason evidence explains a restart and keeps uncertain speech honest (0.30825ms)
+✔ voice scratch targets the take active at command time even when its event arrives after a newer take (0.517084ms)
+✔ manual and voice scratch produce the same reversible take outcome while history remains append-only (0.448375ms)
+✔ a restore can only undo an earlier scratch event and cannot cancel a later event (0.267458ms)
+✔ replaying an event or applying an event from another source/session is idempotent and cannot scratch a take (0.220416ms)
+✔ the same voice segment cannot create a second scratch and cannot fall back to an earlier good take (0.363333ms)
+✔ a final exact phrase without explicit standalone context stays ambiguous (0.138875ms)
+✔ a one-breath multi-line read is checked as one utterance and ordinary try-again dialogue is not a restart flag (0.323125ms)
+✔ script action cues stay out of spoken reason matching, and inferred restarts stay uncertain (0.296708ms)
+✔ provisional, uncertain, noisy, short, ordinary cut, and scripted scratch phrases never make voice scratch events (0.218917ms)
+(node:77740) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/src/lib/t1-wrap.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ all-covered fixture reports conservative coverage, supplied must-say evidence, takes, and exact timing (2.116292ms)
+✔ must-say missing blocks all-clear even when baseline spoken coverage is covered (0.93775ms)
+✔ pending evidence remains pending and cannot produce an unqualified all-clear (1.351875ms)
+✔ required actions remain separate from speech and only manual confirmation resolves them (0.912208ms)
+✔ optional action-only lines stay out of speech coverage while their action remains visible (36.824166ms)
+✔ flag lookup preserves line IDs that contain colons (2.030625ms)
+✔ missing media never appears playable or covered (0.478167ms)
+✔ malformed or project-mismatched evidence fails closed without throwing (3.640333ms)
+✔ missing or stale script snapshots cannot produce an all-clear (0.533167ms)
+✔ changing wording invalidates an existing Wrap anyway acknowledgement (0.458541ms)
+✔ changing source identity or action semantics invalidates a prior acknowledgement (1.739375ms)
+✔ multi-source evidence links resolve pickup footage while an unavailable primary stays unplayable (0.246125ms)
+✔ pending pickup evidence cannot appear playable or covered (0.125458ms)
+✔ legacy acknowledgements without context are retained as stale flags (0.161292ms)
+✔ omitted media state is unknown and cannot appear playable or covered (0.091167ms)
+✔ unknown timing is explicit when capture omits either endpoint (15.246958ms)
+✔ clearing a stale acknowledgement starts a fresh review and preserves exact elapsed formatting (0.44425ms)
+(node:77741) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/src/lib/t15-schema.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ legacy trim invalidates analysis while retaining the current canonical sequence (2.163125ms)
+✔ legacy caption correction does not overwrite recognized speech or remove revision history (0.254084ms)
+✔ new pickup sources and transcript history survive concurrent durable timeline state (0.652084ms)
+✔ legacy script changes preserve the captured script snapshot (0.203708ms)
+(node:77742) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/src/lib/t15-lifecycle.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ saved original remains accessible during analysis and no analysis is invented for legacy data (2.841166ms)
+✔ failure, cancellation, interrupted jobs expose a stable retry attempt without percentages (0.788625ms)
+✔ missing media and pending pickup evidence remain partial rather than analysis success (0.124417ms)
+(node:77764) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/src/lib/t15-persistence.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ initializing a legacy project seeds additive foundation and preserves legacy fields (3.585708ms)
+✔ creator commit uses an atomic revision CAS, idempotent operation IDs, and keeps sources immutable (12.30175ms)
+✖ large caption commits retain complete script evidence in bounded audit chunks (14.322416ms)
+✔ history moved out of the active window remains addressable from the evidence archive (4.287458ms)
+✔ checkpoint pages are bounded, idempotent, mismatch-safe, and fully recoverable (12.151542ms)
+✔ the foundation and evidence survive reopening the same SQLite database (3.837833ms)
+✔ analysis enqueue/start/finish is idempotent and a compatible result awaits creator review (2.054542ms)
+✔ late results remain historical after an edit, and cancelled jobs keep late evidence without reopening (3.294833ms)
+✔ startup recovery invalidates process leases and retry creates a new captured attempt (2.459625ms)
+✔ missing durable source blocks analysis through the source assertion hook (1.285ms)
+✔ a failed metadata update rolls back the operation and retains the last durable project and evidence (1.95325ms)
+✔ a tombstoned project cannot be recreated by a late row or checkpoint (0.848875ms)
+(node:77772) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/src/lib/t15-schema.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ legacy migration creates stable root and pickup sources while keeping the recording alias (5.551166ms)
+✔ migration preserves immutable legacy transcript, takes and unknown defaults (0.425583ms)
+✔ source-relative framing adapter converts milliseconds once and retains uncertainty provenance (0.258625ms)
+✔ canonical payload equality ignores object insertion order but preserves array order (0.140042ms)
+✔ revision equality includes source transcript revisions and rejects malformed vectors (0.088833ms)
+✔ timeline keeps source-local intervals and excluded rows without source deletion (6.9235ms)
+✔ paged transcript and observation evidence validate without loading a giant payload (22.162ms)
+✔ invalid states fail closed without changing legacy project data (0.596833ms)
+✔ reopen does not regenerate stable identities from mutable text (13.19825ms)
+(node:77780) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/src/lib/store.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ real store durability harness covers capture, journals, concurrent pickup/edit, and deletion (12.524458ms)
+(node:77802) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/src/features/coach/tier1-policy.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ Tier 1 coaching is disabled by default (2.877167ms)
+✔ maps Tier 1 shot intent to the existing Tier 0 coach vocabulary (0.214416ms)
+✔ requires explicit intent and keeps intentional looks quiet (0.189542ms)
+✔ required work and speech silence intentional-look status during a take (0.086875ms)
+✔ coverage and required actions outrank optional coaching (0.046584ms)
+✔ does not treat missing or stale priority as permission to coach while recording (0.055833ms)
+✔ keeps optional coaching quiet while recording speech or waiting for a line break (0.061125ms)
+✔ suppresses stale or cross-take transcript signals (0.051166ms)
+✔ delegates only the mapped intent and preserves the transcript seam (0.051083ms)
+✔ manual setup tips cover framing, background and lighting without automatic evidence (0.233917ms)
+✔ development fixtures route by intent while remaining manual-only (0.112708ms)
+✔ manual tips are shown one at a time and dismissal is scoped to intent (0.068291ms)
+✔ invalid clocks and missing speech evidence fail closed while setup remains available (0.058208ms)
+✔ malformed enable and recording booleans cannot bypass coaching gates (0.046291ms)
+(node:77803) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/src/lib/transcript-workflow.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ manual caption edits survive a later refinement while the stable segment id and raw text remain (1.73575ms)
+✔ script matching uses whole normalized token sequences for numbers and common brand forms (0.945875ms)
+✔ one final utterance can cover consecutive script lines as one media take (1.082666ms)
+✔ script edits preserve explicit line ids and do not delete historical takes (0.377958ms)
+✔ coverage distinguishes needed, pending and covered and retains an earlier clean take after a bad reread (0.488542ms)
+✔ a take linked to mixed final and provisional utterances stays pending only for the provisional line (0.139583ms)
+✔ missing media and scratched takes never establish playable coverage (0.109291ms)
+✔ an in-frame clean take wins over an otherwise suitable off-frame take (0.112958ms)
+✔ required action cues remain separate from speech and block safe-to-wrap until manually resolved (0.135542ms)
+✔ cue-only script lines do not create an ambiguous spoken match (0.093708ms)
+✔ silence and repeated-attempt suggestions are review-only and retain original transcript segments (0.123417ms)
+✔ take selection is explicit, reversible and rejects unavailable media (0.201209ms)
+(node:77804) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/src/features/vision/state.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ accepts a current-session frame and exposes stable face presence (0.816042ms)
+✔ ignores late frames from a previous session or lens (0.262209ms)
+✔ stale frames clear face presence and become unavailable to consumers (0.104666ms)
+✔ preserves the explicit unavailable reason when NPU execution is blocked (0.056375ms)
+ℹ tests 454
+ℹ suites 0
+ℹ pass 453
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1206.323666
+
+✖ failing tests:
+
+test at tests/t15-persistence.test.mjs:236:1
+✖ large caption commits retain complete script evidence in bounded audit chunks (14.322416ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+  +   [Object: null prototype] {
+  -   {
+        id: 'archive:operation:large-caption-script:0'
+      },
+  +   [Object: null prototype] {
+  -   {
+        id: 'archive:operation:large-caption-script:1'
+      },
+  +   [Object: null prototype] {
+  -   {
+        id: 'archive:operation:large-caption-script:10'
+      },
+  +   [Object: null prototype] {
+  -   {
+        id: 'archive:operation:large-caption-script:2'
+      },
+  +   [Object: null prototype] {
+  -   {
+        id: 'archive:operation:large-caption-script:3'
+      },
+  +   [Object: null prototype] {
+  -   {
+        id: 'archive:operation:large-caption-script:4'
+      },
+  +   [Object: null prototype] {
+  -   {
+        id: 'archive:operation:large-caption-script:5'
+      },
+  +   [Object: null prototype] {
+  -   {
+        id: 'archive:operation:large-caption-script:6'
+      },
+  +   [Object: null prototype] {
+  -   {
+        id: 'archive:operation:large-caption-script:7'
+      },
+  +   [Object: null prototype] {
+  -   {
+        id: 'archive:operation:large-caption-script:8'
+      },
+  +   [Object: null prototype] {
+  -   {
+        id: 'archive:operation:large-caption-script:9'
+      }
+    ]
+  
+      at TestContext.<anonymous> (file:///Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/tests/t15-persistence.test.mjs:283:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ { id: 'archive:operation:large-caption-script:0' }, { id: 'archive:operation:large-caption-script:1' }, { id: 'archive:operation:large-caption-script:10' }, { id: 'archive:operation:large-caption-script:2' }, { id: 'archive:operation:large-caption-script:3' }, { id: 'archive:operation:large-caption-script:4' }, { id: 'archive:operation:large-caption-script:5' }, { id: 'archive:operation:large-caption-script:6' }, { id: 'archive:operation:large-caption-script:7' }, { id: 'archive:operation:large-caption-script:8' }, { id: 'archive:operation:large-caption-script:9' } ],
+    expected: [ { id: 'archive:operation:large-caption-script:0' }, { id: 'archive:operation:large-caption-script:1' }, { id: 'archive:operation:large-caption-script:10' }, { id: 'archive:operation:large-caption-script:2' }, { id: 'archive:operation:large-caption-script:3' }, { id: 'archive:operation:large-caption-script:4' }, { id: 'archive:operation:large-caption-script:5' }, { id: 'archive:operation:large-caption-script:6' }, { id: 'archive:operation:large-caption-script:7' }, { id: 'archive:operation:large-caption-script:8' }, { id: 'archive:operation:large-caption-script:9' } ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

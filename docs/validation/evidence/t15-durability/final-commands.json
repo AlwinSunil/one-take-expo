@@ -1,0 +1,69 @@
+{
+  "commit": "020919506f8df9ed776715433b32747ea4ab585e",
+  "commands": [
+    {
+      "command": [
+        "npm",
+        "test"
+      ],
+      "environment": {
+        "EXPO_NO_DOTENV": "1"
+      },
+      "exitCode": 0,
+      "log": "docs/validation/evidence/t15-durability/tests-final.log"
+    },
+    {
+      "command": [
+        "npm",
+        "run",
+        "typecheck"
+      ],
+      "environment": {
+        "EXPO_NO_DOTENV": "1"
+      },
+      "exitCode": 0,
+      "log": "docs/validation/evidence/t15-durability/typecheck-final.log"
+    },
+    {
+      "command": [
+        "node",
+        "--experimental-strip-types",
+        "tests/t15-fixture-replay.mjs"
+      ],
+      "environment": {
+        "EXPO_NO_DOTENV": "1"
+      },
+      "exitCode": 0,
+      "log": "docs/validation/evidence/t15-durability/envelopes-final.log"
+    },
+    {
+      "command": [
+        "python3",
+        "tools/verify_moonshine_apk.py",
+        "android/app/build/outputs/apk/debug/app-debug.apk"
+      ],
+      "environment": {
+        "EXPO_NO_DOTENV": "1"
+      },
+      "exitCode": 0,
+      "log": "docs/validation/evidence/t15-durability/apk-hashes.log"
+    },
+    {
+      "command": [
+        "npx",
+        "expo",
+        "export",
+        "--platform",
+        "android",
+        "--output-dir",
+        "/tmp/t15-durable-final-export",
+        "--clear"
+      ],
+      "environment": {
+        "EXPO_NO_DOTENV": "1"
+      },
+      "exitCode": 0,
+      "log": "docs/validation/evidence/t15-durability/export-final.log"
+    }
+  ]
+}

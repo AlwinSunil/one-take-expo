@@ -1,0 +1,10 @@
+Expo SDK 57 export evidence
+Run date: 2026-09-13
+
+Command: EXPO_NO_DOTENV=1 npx expo export --platform android --output-dir /tmp/t15-android-export --clear
+Exit code: 0
+Result: Android export completed successfully.
+Bundle: _expo/static/js/android/entry-7215a96917474554dc37818ca87818f6.hbc (7.1 MB).
+Bundling: expo-router/entry.js, 3830 modules, completed in 12090 ms.
+Export directory: /tmp/t15-android-export.
+The command explicitly disabled dotenv loading and did not read any .env file.

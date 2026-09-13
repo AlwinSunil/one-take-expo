@@ -1,0 +1,216 @@
+(node:74074) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/src/lib/t15-schema.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+{
+  "version": 1,
+  "sources": [
+    {
+      "id": "fixture-project",
+      "kind": "original",
+      "mediaUri": "file:///fixture-original.mp4",
+      "aliases": [
+        "fixture-project:original"
+      ],
+      "durationSeconds": 4,
+      "durationProvenance": {
+        "origin": "legacy-migration",
+        "producer": "legacy-project",
+        "version": "project-v2",
+        "clock": "source-presentation",
+        "timingMethod": "legacy-source-relative",
+        "inputUnit": "seconds",
+        "uncertaintySeconds": null,
+        "processor": "unknown"
+      },
+      "availability": "unknown",
+      "timing": {
+        "origin": "legacy-migration",
+        "producer": "legacy-project",
+        "version": "project-v2",
+        "clock": "source-presentation",
+        "timingMethod": "legacy-source-relative",
+        "inputUnit": "seconds",
+        "uncertaintySeconds": null,
+        "processor": "unknown"
+      }
+    },
+    {
+      "id": "source:pickup",
+      "kind": "pickup",
+      "mediaUri": "file:///fixture-pickup.mp4",
+      "aliases": [],
+      "durationSeconds": 2,
+      "durationProvenance": {
+        "origin": "legacy-migration",
+        "producer": "legacy-project",
+        "version": "project-v2",
+        "clock": "source-presentation",
+        "timingMethod": "legacy-source-relative",
+        "inputUnit": "seconds",
+        "uncertaintySeconds": null,
+        "processor": "unknown"
+      },
+      "availability": "unknown",
+      "timing": {
+        "origin": "legacy-migration",
+        "producer": "legacy-project",
+        "version": "project-v2",
+        "clock": "source-presentation",
+        "timingMethod": "legacy-source-relative",
+        "inputUnit": "seconds",
+        "uncertaintySeconds": null,
+        "processor": "unknown"
+      }
+    }
+  ],
+  "timeline": {
+    "revision": 0,
+    "clips": [
+      {
+        "id": "take:A",
+        "sourceId": "fixture-project",
+        "t0": 0,
+        "t1": 2,
+        "spanIds": [],
+        "pointIds": [],
+        "utteranceIds": [],
+        "included": true,
+        "reasonIds": [],
+        "takeId": "take:A",
+        "availability": "unknown"
+      },
+      {
+        "id": "take:B",
+        "sourceId": "source:pickup",
+        "t0": 0,
+        "t1": 2,
+        "spanIds": [],
+        "pointIds": [],
+        "utteranceIds": [],
+        "included": true,
+        "reasonIds": [],
+        "takeId": "take:B",
+        "availability": "unknown"
+      },
+      {
+        "id": "take:C",
+        "sourceId": "fixture-project",
+        "t0": 2,
+        "t1": 4,
+        "spanIds": [],
+        "pointIds": [],
+        "utteranceIds": [],
+        "included": true,
+        "reasonIds": [],
+        "takeId": "take:C",
+        "availability": "unknown"
+      }
+    ]
+  },
+  "captions": {
+    "showInEditor": true,
+    "burnIntoExport": true
+  },
+  "history": {
+    "initialSnapshot": {
+      "revision": 0,
+      "clips": [
+        {
+          "id": "take:A",
+          "sourceId": "fixture-project",
+          "t0": 0,
+          "t1": 2,
+          "spanIds": [],
+          "pointIds": [],
+          "utteranceIds": [],
+          "included": true,
+          "reasonIds": [],
+          "takeId": "take:A",
+          "availability": "unknown"
+        },
+        {
+          "id": "take:B",
+          "sourceId": "source:pickup",
+          "t0": 0,
+          "t1": 2,
+          "spanIds": [],
+          "pointIds": [],
+          "utteranceIds": [],
+          "included": true,
+          "reasonIds": [],
+          "takeId": "take:B",
+          "availability": "unknown"
+        },
+        {
+          "id": "take:C",
+          "sourceId": "fixture-project",
+          "t0": 2,
+          "t1": 4,
+          "spanIds": [],
+          "pointIds": [],
+          "utteranceIds": [],
+          "included": true,
+          "reasonIds": [],
+          "takeId": "take:C",
+          "availability": "unknown"
+        }
+      ]
+    },
+    "entries": [],
+    "cursor": 0,
+    "abandonedEntries": []
+  },
+  "request": {
+    "id": "job:fixture:1",
+    "projectId": "fixture-project",
+    "sourceId": "fixture-project",
+    "attempt": 1,
+    "idempotencyKey": "fixture:analysis:1",
+    "base": {
+      "projectRevision": 0,
+      "scriptRevision": 0,
+      "timelineRevision": 0,
+      "captionRevision": 0,
+      "transcriptRevision": {
+        "fixture-project": 0,
+        "source:pickup": 0
+      }
+    },
+    "producer": "fixture",
+    "producerVersion": "1"
+  },
+  "producerScope": {
+    "projectId": "fixture-project",
+    "sourceId": "fixture-project",
+    "scriptRevision": "0",
+    "editRevision": "0",
+    "transcriptRevision": "0"
+  },
+  "result": {
+    "id": "result:fixture:1",
+    "jobId": "job:fixture:1",
+    "attempt": 1,
+    "projectId": "fixture-project",
+    "sourceId": "fixture-project",
+    "base": {
+      "projectRevision": 0,
+      "scriptRevision": 0,
+      "timelineRevision": 0,
+      "captionRevision": 0,
+      "transcriptRevision": {
+        "fixture-project": 0,
+        "source:pickup": 0
+      }
+    },
+    "status": "partial",
+    "observationIds": [],
+    "proposalIds": [],
+    "reasonIds": [],
+    "payload": {
+      "version": 1,
+      "status": "not-collected",
+      "note": "No model ran in this fixture."
+    }
+  }
+}
