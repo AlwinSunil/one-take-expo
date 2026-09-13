@@ -155,3 +155,49 @@ Synthetic output cannot prove real capture A/V correctness.
 Native build, final test counts, published PR and A/B evidence delivery are recorded below when run.
 Named NarayanaSabari review, both peer reproductions, integrated iQOO full flows, ten-clap spread, two-minute drift/listening, low-storage/denied-permission and large-text requirements remain pending.
 A owns `docs/validation/T1.5.md`; C will send exact evidence through the issue handoff rather than edit it.
+
+## Verification checkpoint and delivery
+
+Draft [PR #74](https://github.com/AlwinSunil/one-take-expo/pull/74) publishes this lane.
+`0f394dd` publishes controls and integration instructions; `bec6f99` adds native revision safety and stable-ID caption alias protection.
+The native optional `timelineRevision` must be a nonnegative JavaScript safe integer and requires nonempty explicit segments.
+It is stored with the exact native request and returned by `getExport`; legacy unmarked jobs keep their prior empty-cut behavior.
+No changes to native capture/build/manifest integration were needed.
+
+| Exact command | Actual result |
+| --- | --- |
+| `npm run typecheck` | Passed |
+| `npm test` | 441 passed, zero failed (424 baseline + 8 mapping + 9 component cases) |
+| `npm run samples` | Passed synthetic caption replay |
+| `npm run test:samples` | 19/19 passed |
+| `python3 tests/speech-evaluation.test.py` | 12 passed |
+| `python3 tests/t1-speech-evaluation.test.py` | 11 passed |
+| `python3 tools/speech-fixtures/run_synthetic.py` | 16 synthetic rows, no eligible held-out human accuracy claim |
+| `EXPO_NO_DOTENV=1 npx expo export --platform android --output-dir /tmp/t15-c-android-export` | Passed Android Hermes bundle |
+| `python3 tools/prepare_moonshine.py --native-dir /tmp/t1-moonshine-native/arm64-v8a --with-small` | Pinned model/native artifacts staged and verified in this worktree |
+| Full Gradle command below | Passed, 16 media + 15 caption JVM tests and arm64 debug APK |
+| `python3 tools/verify_moonshine_apk.py android/app/build/outputs/apk/debug/app-debug.apk` | 3 native + 8 Tiny + 8 Small packaged hashes match |
+| `shasum -a 256 android/app/build/outputs/apk/debug/app-debug.apk` | `4c18ea2510dd04db18e38e2b6b1a909fb673176505be6c1810659c2d11be0c48` |
+
+```sh
+EXPO_NO_DOTENV=1 JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home' ANDROID_HOME=/Users/sabari/Library/Android/sdk ./android/gradlew -p android :app:assembleDebug :one-take-captions:testDebugUnitTest :one-take-media:testDebugUnitTest -PreactNativeArchitectures=arm64-v8a --console=plain
+```
+
+The first native test run failed in five new tests because JVM Android stubs cannot execute `Uri.parse` or `JSONObject.put`.
+One proposed empty-segment test also accidentally retained nonempty segments.
+Those tests were corrected to exercise the pure request invariant without adding test dependencies/configuration.
+Native parser/JSON roundtrip is implemented but still requires Android runtime verification; constructor tests do not prove persistence or process-death recovery.
+The successful build log is local `/tmp/t15-c-native-build-final.log`; bundle log is `/tmp/t15-c-bundle.log`.
+The debug APK verifies native packaging/build, not a shipped standalone JS release or installed editor integration.
+
+`tests/t15-export-controls.test.mjs` executes actual transpiled components and production export-plan helpers with a small test hook renderer and mocked native/store boundaries.
+It checks empty disabling, burn-off alerts, confirmation freezing across edits/navigation, whole-proposal export, gallery/open/share, cancel/retry and missing-output recovery.
+It also checks independent switch callbacks.
+These are component behavior tests, not React Native rendering, SQLite reopen, Android accessibility or device lifecycle evidence.
+
+A/B remain responsible for merged schema/type imports and explicit development route integration.
+Fresh physical exports with burn-in on/off, decoded frame/audio/order/duration comparison, original before/after hashes and integrated capture/pickup remain unrun.
+Native composition continues to use one audio/video sequence with only the caption overlay conditional; that source observation is not measured render parity.
+
+Evidence sent to A in [#65 comment](https://github.com/AlwinSunil/one-take-expo/issues/65#issuecomment-5649980767) and integration instructions sent to B in [#67 comment](https://github.com/AlwinSunil/one-take-expo/issues/67#issuecomment-5649980828).
+No response, named reviewer approval or completed integration is inferred from those messages.
