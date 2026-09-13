@@ -101,3 +101,14 @@ Typecheck, all 378 tests, 19 sample checks and Android JavaScript export pass ag
 The producer diff against current main still contains only Session 1 modules/components/tests and its own handoff/evidence documents.
 PR #58 remains open and is not incorporated.
 GitHub checks on producer revision `5947706` passed in runs `34729312771` and `34729311115`; subsequent head checks are separate from these local results.
+
+## Rebase onto updated main
+
+Rebased without conflicts onto `3da03c4`, which includes merged PR #58.
+Earlier references to #58 being open describe the historical checks above and are no longer current.
+The producer diff remains additive and does not modify Alwin's existing UI files.
+`npm run typecheck`, `npm run test:samples` (19/19) and `EXPO_NO_DOTENV=1 npx expo export --platform android --output-dir /tmp/one-take-t15-rebase-export` pass.
+The first full suite had 474 passes and one timing-threshold failure: the existing five-thousand-word parser test took 138.2 ms while export ran concurrently.
+The isolated script suite and a subsequent `npm test` both pass; the full retry has 475/475 passing tests.
+No test threshold or implementation was changed to obtain that result.
+Owner consumer integration and device/human acceptance remain pending; this rebase does not claim they are completed.
