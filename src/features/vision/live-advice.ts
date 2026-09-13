@@ -53,3 +53,12 @@ export function useLiveVisualAdvice(evidence: VisionEvidence, enabled: boolean) 
   }, [evidence, enabled]);
   return message;
 }
+
+export function visualSuggestionSummary(evidence: VisionEvidence, advice: string | null): string {
+  if (evidence.status === 'unavailable') return 'Lighting and framing checks are unavailable. Reopen the camera to retry.';
+  if (evidence.status !== 'ready' || !evidence.faceStable || evidence.facePresence === 'unknown') return 'Checking lighting and framing…';
+  const current = advice ?? visualAdvice(evidence);
+  if (current) return current;
+  if (!evidence.exposure || ![evidence.exposure.mean, evidence.exposure.clipped, evidence.exposure.dark].every(value => Number.isFinite(value) && value >= 0 && value <= 1) || evidence.exposure.clipped + evidence.exposure.dark > 1.01) return 'Framing checked. Still measuring lighting…';
+  return 'No lighting or framing issues detected. Checks stay on while you record.';
+}

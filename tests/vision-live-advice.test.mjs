@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { visualAdvice } from '../src/features/vision/live-advice.ts';
+import { visualSuggestionSummary, visualAdvice } from '../src/features/vision/live-advice.ts';
 const frame = { status: 'ready', faceStable: true, facePresence: 'present', faces: [{ left: 0.2, right: 0.8, top: 0.2, bottom: 0.8 }], exposure: { mean: 0.5, clipped: 0.02, dark: 0.02 } };
 test('visual advice requires stable present-face exposure evidence', () => {
   assert.equal(visualAdvice(frame), null);
@@ -43,4 +43,13 @@ test('a single bad frame, stale stream, disabled coach, and new camera session c
 test('invalid exposure measurements cannot generate a lighting warning', () => {
  assert.equal(visualAdvice({ ...frame, exposure: { mean: NaN, clipped: 0.9, dark: 0 } }), null);
  assert.equal(visualAdvice({ ...frame, exposure: { mean: 0.8, clipped: 0.9, dark: 0.9 } }), null);
+});
+
+test('release suggestions show current measured checks instead of a build restriction', () => {
+  assert.match(visualSuggestionSummary(frame, null), /No lighting or framing issues/);
+  assert.match(visualSuggestionSummary({ ...frame, exposure: { mean: 0.8, clipped: 0.3, dark: 0 } }, null), /Harsh light/);
+  assert.match(visualSuggestionSummary({ ...frame, exposure: undefined }, null), /Still measuring lighting/);
+  assert.match(visualSuggestionSummary({ ...frame, exposure: { mean: 2, clipped: 0, dark: 0 } }, null), /Still measuring lighting/);
+  assert.match(visualSuggestionSummary({ ...frame, status: 'pending' }, 'Old hint'), /Checking/);
+  assert.match(visualSuggestionSummary({ ...frame, status: 'unavailable' }, 'Old hint'), /Reopen the camera/);
 });

@@ -29,7 +29,7 @@ import { NativeCutPreview } from '../../modules/one-take-media';
 import { LOCAL_VIDEO_BUFFER } from '@/lib/video-buffer';
 import { LiveCaptions } from '@/components/captions/live-captions';
 import { VisualHint } from '@/components/capture/visual-hint';
-import { useLiveVisualAdvice } from '@/features/vision/live-advice';
+import { useLiveVisualAdvice, visualSuggestionSummary } from '@/features/vision/live-advice';
 import { useScriptAnalysis } from '@/features/local-ai/use-script-analysis';
 import { matchLocalSpeech, type SemanticMatch } from '@/features/local-ai/script-model';
 import { canAutoRetake, liveScriptCoverage, missedImportantLine } from '@/features/capture/live-script';
@@ -53,7 +53,6 @@ import {
 import { setCaptureInputActive, subscribeCaptureInput } from '@/features/capture/input';
 import { loadAcceptedScriptDocument } from '@/lib/script-draft';
 import { parseScript, setCueStatus, type ScriptDocument } from '@/lib/script-lines';
-import { basicVisualCheck, type BasicVisualCheck } from '@/features/vision/basic-check';
 import { createGazeCollector } from '@/features/vision/gaze';
 import { useVision } from '@/features/vision/use-vision';
 import { createSuggestionJobController } from '@/features/coach/suggestion-job';
@@ -227,7 +226,6 @@ export default function CameraScreen() {
   const [requestingPermission, setRequestingPermission] = useState(false);
   const [appInForeground, setAppInForeground] = useState(AppState.currentState === 'active');
   const [suggestionsVisible, setSuggestionsVisible] = useState(false);
-  const [basicCheck, setBasicCheck] = useState<BasicVisualCheck | null>(null);
   const [suggestionJobs] = useState(createSuggestionJobController);
   const [suggestionSnapshot, setSuggestionSnapshot] = useState(suggestionJobs.getSnapshot);
   const [cameraSessionId] = useState(() => `camera:${uuid.v4()}`);
@@ -239,7 +237,7 @@ export default function CameraScreen() {
     lensFacing: facing,
     recording: preparing || recording || saving,
   });
-  const visualAdvice = useLiveVisualAdvice(vision.evidence, isScript && isFocused && appInForeground && ready && previewUri === null && !saving);
+  const visualAdvice = useLiveVisualAdvice(vision.evidence, isFocused && appInForeground && ready && previewUri === null && !saving);
   const localAi = useScriptAnalysis(scriptDocument, isScript && scriptDocumentLoaded);
   const scriptAnalysisRef = useRef(localAi.analysis);
   scriptAnalysisRef.current = localAi.analysis;
@@ -263,7 +261,7 @@ export default function CameraScreen() {
     intent: shotIntent,
   }), [cameraSessionId, recording, preparing, facing, cameraRetry, zoom, shotIntent, vision.evidence.sessionId]);
   useEffect(() => suggestionJobs.subscribe(setSuggestionSnapshot), [suggestionJobs]);
-  useEffect(() => { suggestionJobs.bind(suggestionIdentity); setBasicCheck(null); }, [suggestionIdentity, suggestionJobs]);
+  useEffect(() => { suggestionJobs.bind(suggestionIdentity); }, [suggestionIdentity, suggestionJobs]);
   useEffect(() => {
     if (!isFocused || !appInForeground || !ready || previewUri) {
       suggestionJobs.cancel(!appInForeground ? 'background' : 'navigation');
@@ -272,16 +270,12 @@ export default function CameraScreen() {
     return () => { suggestionJobs.cancel('route-exit'); };
   }, [isFocused, appInForeground, ready, previewUri, suggestionJobs]);
   const dismissSuggestions = useCallback(() => {
-    setBasicCheck(null);
     suggestionJobs.cancel('dismissed');
     setSuggestionsVisible(false);
   }, [suggestionJobs]);
   function requestSuggestions() {
     setSuggestionsVisible(true);
-    if (!showDevelopmentCoaching) {
-      if (__DEV__) setBasicCheck(basicVisualCheck(latestVisionEvidence.current, performance.now()));
-      return;
-    }
+    if (!showDevelopmentCoaching) return;
     suggestionJobs.bind(suggestionIdentity);
     suggestionJobs.start({ ...suggestionIdentity, requestedAtMs: performance.now(), evidence: coachEvidence });
   }
@@ -1029,9 +1023,12 @@ export default function CameraScreen() {
     <View className="flex-row items-center justify-between px-4 h-16 bg-black/40">
       <IconButton icon="arrow_back" label="Back" disabled={preparing || recording || saving} onPress={() => router.back()} />
       <Text className="text-white text-xs tracking-widest">{isScript ? 'AI Teleprompter' : 'ASSISTED'}</Text>
+      <View className="flex-row items-center">
+      {isScript && <IconButton icon="tune" label="Camera settings" disabled={preparing || recording || saving} onPress={() => { dismissSuggestions(); setSheet('settings'); }} />}
       {lastUri && !preparing && !recording && !saving
         ? <LatestThumb uri={lastUri} onPress={() => router.push('/projects')} />
         : <IconButton icon="photo_library" label="Projects" disabled={preparing || recording || saving} onPress={() => router.push('/projects')} />}
+      </View>
     </View>
 
     <View className="flex-1">
@@ -1078,12 +1075,9 @@ export default function CameraScreen() {
           onRetry={requestSuggestions} onDismiss={dismissSuggestions}
           intent={shotIntent} onIntentChange={setShotIntent}
           diagnostics={__DEV__ ? suggestionJobs.getDiagnostics() : undefined} /> : <View>
-          {__DEV__ ? <View>
-            <Text accessibilityRole="header" className="text-white text-sm font-semibold">Basic face check · Preview</Text>
-            <Text accessibilityLiveRegion="polite" className="text-neutral-200 text-sm mt-2">{basicCheck?.message ?? 'The camera changed. Tap Check again for a fresh result.'}</Text>
-            <Text className="text-neutral-400 text-xs mt-2">Snapshot from your last tap. Face detection only; lighting, background and eye contact are not assessed.</Text>
-            <Pressable accessibilityRole="button" accessibilityLabel="Check face framing again" onPress={requestSuggestions} className="min-h-12 justify-center"><Text className="text-amber-200">Check again</Text></Pressable>
-          </View> : <Text className="text-neutral-300 text-sm">Visual analysis is not enabled in this build.</Text>}
+          <Text accessibilityRole="header" className="text-white text-sm font-semibold">Visual Suggestions</Text>
+          <Text accessibilityLiveRegion="polite" className="text-neutral-200 text-sm mt-2">{visualSuggestionSummary(vision.evidence, visualAdvice)}</Text>
+          {vision.status === 'unavailable' && !preparing && !recording && !saving && <Pressable accessibilityRole="button" accessibilityLabel="Retry visual analysis" onPress={() => { setReady(false); setCameraRetry(value => value + 1); }} className="min-h-12 justify-center"><Text className="text-amber-200">Try again</Text></Pressable>}
           <Pressable accessibilityRole="button" accessibilityLabel="Dismiss Visual Suggestions" onPress={dismissSuggestions} className="min-h-12 justify-center"><Text className="text-white">Dismiss</Text></Pressable>
         </View>}
         {__DEV__ && <Text selectable className="text-neutral-500 text-xs mt-3">
@@ -1109,12 +1103,10 @@ export default function CameraScreen() {
         <View className="flex-1 items-center border-l border-neutral-800"><IconButton icon="tune" label="Camera settings" disabled={preparing || recording || saving} onPress={() => { dismissSuggestions(); setSheet('settings'); }} /></View>
       </View>}
       <View className="flex-row items-center py-5">
-        {isScript ? <View className="flex-1 items-center">
-          <IconButton icon="tune" label="Camera settings" disabled={preparing || recording || saving} onPress={() => setSheet('settings')} />
-        </View> : <Pressable accessibilityRole="button" accessibilityLabel="Visual Suggestions" disabled={preparing || saving} accessibilityState={{ disabled: preparing || saving }} onPress={requestSuggestions} className="flex-1 items-center py-2 active:opacity-60" style={{ opacity: preparing || saving ? 0.4 : 1 }}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Visual Suggestions" disabled={preparing || saving} accessibilityState={{ disabled: preparing || saving }} onPress={requestSuggestions} className="flex-1 items-center py-2 active:opacity-60" style={{ opacity: preparing || saving ? 0.4 : 1 }}>
           <View className="bg-amber-400 rounded-full px-5 py-2"><Sparkles size={20} strokeWidth={1.75} color="black" /></View>
           <Text className="text-neutral-500 text-[11px] mt-2 tracking-widest font-semibold">SUGGESTIONS</Text>
-        </Pressable>}
+        </Pressable>
         <View className="flex-1 items-center">
           <Pressable accessibilityRole="button" accessibilityLabel={preparing ? 'Cancel recording preparation' : recording ? 'Stop recording' : 'Start recording'} disabled={!ready || saving || storageBlocked || !scriptDocumentLoaded || (!!requestedPickupProjectId && !pickupProject)} onPress={record}
             style={{ width: 84, height: 64, borderRadius: 40, borderWidth: 3, borderColor: 'white', padding: 5, opacity: !ready || saving || storageBlocked ? 0.4 : 1 }}>
