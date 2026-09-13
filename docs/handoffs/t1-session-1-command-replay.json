@@ -1,0 +1,103 @@
+{
+  "synthetic": true,
+  "humanAccuracyEvidence": false,
+  "reasonExample": [
+    {
+      "id": "durable-example-take:reason:missing-words:welcome",
+      "takeId": "durable-example-take",
+      "code": "missing-words",
+      "message": "Line “Welcome to the studio today.” was not found in the transcript. Missing words: today. Listen before choosing a replacement.",
+      "status": "available",
+      "scriptEvidence": [
+        {
+          "lineId": "welcome",
+          "text": "Welcome to the studio today."
+        }
+      ],
+      "transcriptEvidence": [
+        {
+          "segmentId": "reason-example",
+          "rawText": "Welcome to the studio",
+          "t0": 0,
+          "t1": 1.5,
+          "status": "available"
+        }
+      ]
+    }
+  ],
+  "cases": 10,
+  "falseTriggers": 0,
+  "missedCommands": 0,
+  "results": [
+    {
+      "id": "standalone-final",
+      "expected": true,
+      "detected": true,
+      "playbackExclusion": "pending-review",
+      "safeForSplice": false
+    },
+    {
+      "id": "standalone-punctuated",
+      "expected": true,
+      "detected": true,
+      "playbackExclusion": "pending-review",
+      "safeForSplice": false
+    },
+    {
+      "id": "cut-is-dialogue",
+      "expected": false,
+      "detected": false,
+      "playbackExclusion": null,
+      "safeForSplice": false
+    },
+    {
+      "id": "scratch-is-dialogue",
+      "expected": false,
+      "detected": false,
+      "playbackExclusion": null,
+      "safeForSplice": false
+    },
+    {
+      "id": "split-dialogue-segment-is-ambiguous",
+      "expected": false,
+      "detected": false,
+      "playbackExclusion": null,
+      "safeForSplice": false
+    },
+    {
+      "id": "script-literal-is-protected",
+      "expected": false,
+      "detected": false,
+      "playbackExclusion": null,
+      "safeForSplice": false
+    },
+    {
+      "id": "provisional-is-not-command",
+      "expected": false,
+      "detected": false,
+      "playbackExclusion": null,
+      "safeForSplice": false
+    },
+    {
+      "id": "uncertain-is-not-command",
+      "expected": false,
+      "detected": false,
+      "playbackExclusion": null,
+      "safeForSplice": false
+    },
+    {
+      "id": "noisy-is-not-command",
+      "expected": false,
+      "detected": false,
+      "playbackExclusion": null,
+      "safeForSplice": false
+    },
+    {
+      "id": "short-is-not-command",
+      "expected": false,
+      "detected": false,
+      "playbackExclusion": null,
+      "safeForSplice": false
+    }
+  ]
+}
