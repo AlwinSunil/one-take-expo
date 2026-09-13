@@ -1,0 +1,28 @@
+
+> one-take@1.0.0 test:samples
+> node --experimental-strip-types scripts/check-samples.mjs
+
+(node:46053) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/src/development/sessions/checks.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS clean: valid handoff
+PASS reread: valid handoff
+PASS pending: valid handoff
+PASS missing-media: valid handoff
+PASS action-cue: valid handoff
+PASS off-frame: valid handoff
+PASS failure: valid handoff
+PASS Two lines in one breath retain one audio segment
+PASS Re-read excludes flagged audio and preserves its reason
+PASS Pending verdict cannot declare safe to wrap
+PASS Required action blocks wrap until manually confirmed
+PASS Missing media preserves the ledger
+PASS Optional framing hint cannot reject clean speech
+PASS Failed export preserves the original duration and cut
+PASS Fresh replay discards prior edits
+PASS Dangling coverage is rejected and never counts as covered
+PASS Action cues cannot be speech takes
+PASS Out-of-range and repeated audio cuts are rejected
+PASS Empty and unavailable analysis never declare safe to wrap
+19/19 checks passed
