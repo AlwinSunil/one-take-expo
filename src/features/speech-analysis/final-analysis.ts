@@ -64,7 +64,7 @@ export interface FinalAnalysisControls {
 }
 
 export interface FinalAnalysisInput {
-  scope: AnalysisScope;
+  scope: AnalysisScope & { transcriptRevision: string };
   jobId: string;
   /** Monotonic result revision allocated by the job owner. */
   revision?: number;

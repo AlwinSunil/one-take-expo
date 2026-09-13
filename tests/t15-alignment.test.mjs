@@ -43,10 +43,10 @@ test('the English matcher accepts contractions, a generic paraphrase, and the ap
     'The guide will demonstrate the result.',
   ).score >= 0.8);
   assert.equal(matchEnglish('Save the clip on your device.', 'Store the clip locally.').verdict, 'matched');
-  assert.equal(matchEnglish(
+  assert.notEqual(matchEnglish(
     'You can review the recording before sharing it.',
     'Before you share, you can check the recording.',
-  ).verdict, 'matched');
+  ).verdict, 'matched'); // Clause reordering is outside this conservative baseline.
 });
 
 test('meaning-bearing changes never become a normal match', () => {
@@ -302,4 +302,12 @@ test('manual navigation without a clock holds delayed speech until an explicit t
   state = reanchorAlignment(state, lines[1].id, 3);
   state = reduceAlignment(state, segment('fresh-clock', lines[1].text, { t0: 3.1, t1: 4 }));
   assert.equal(state.cursor, 2);
+});
+
+test('temporal role reversal, possessive changes and new meaning-bearing modifiers are not paraphrases', () => {
+  for (const [script, spoken] of [
+    ['We record before we export.', 'We export before we record.'],
+    ['The camera records video.', 'The camera records corrupted video.'],
+    ['My camera records audio.', 'Your camera records audio.'],
+  ]) assert.notEqual(matchEnglish(script, spoken).verdict, 'matched');
 });

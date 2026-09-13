@@ -164,7 +164,7 @@ const OPTIONAL_SPOKEN_EXTRAS = new Set(['app', 'application']);
 // First/second-person and human pronouns affect who did what. Neutral `it`
 // is omitted because ASR commonly drops a repeated object without changing
 // the spoken idea (for example, "share it" -> "share").
-const PRONOUNS = new Set(['i', 'me', 'you', 'we', 'they', 'he', 'she', 'them']);
+const PRONOUNS = new Set(['i', 'me', 'you', 'we', 'they', 'he', 'she', 'them', 'my', 'mine', 'your', 'yours', 'our', 'ours', 'their', 'theirs', 'his', 'her', 'hers', 'its']);
 
 const MODAL_WORDS = new Set(['will', 'would', 'could', 'should', 'may', 'might', 'shall', 'can', 'must', 'need']);
 
@@ -220,11 +220,10 @@ const SYNONYMS: Record<string, string> = {
   check: 'review', inspect: 'review', examines: 'review', examine: 'review',
   result: 'outcome', results: 'outcome', outcome: 'outcome', outcomes: 'outcome',
   save: 'store', stores: 'store', storing: 'store', preserve: 'keep', retains: 'keep', retain: 'keep',
-  device: 'local', locally: 'local', local: 'local',
+  locally: 'local', local: 'local',
   original: 'original',
 };
 
-const CLAUSE_REORDER_MARKERS = new Set(['before', 'after', 'when', 'while', 'because', 'although']);
 
 const OPPOSITES: Record<string, string> = {
   first: 'last', last: 'first', before: 'after', after: 'before', above: 'below', below: 'above',
@@ -300,7 +299,8 @@ function numberCanonical(norm: string): string | null {
 }
 
 function tokenize(text: string): MatchToken[] {
-  const source = text.normalize('NFKC').replace(/[–—]/gu, '-');
+  const source = text.normalize('NFKC').replace(/[–—]/gu, '-')
+    .replace(/\bon (?:your|the|this) device\b/giu, 'locally');
   const result: MatchToken[] = [];
   // Keep decimal/comma numbers as one protected lexeme. Splitting `1.5` into
   // `1` and `5` would let a changed fact pass through a bag-of-words score.
@@ -420,70 +420,6 @@ function weightedLcs(script: readonly MatchToken[], spoken: readonly MatchToken[
   return { matched, matchedWeight, scriptWeight, unmatchedSpokenWeight };
 }
 
-function sameMultiset(script: readonly MatchToken[], spoken: readonly MatchToken[]): boolean {
-  const used = new Set<number>();
-  for (const expected of script) {
-    const index = spoken.findIndex((actual, candidateIndex) => !used.has(candidateIndex) && tokensCompatible(expected, actual));
-    if (index < 0) return false;
-    used.add(index);
-  }
-  return spoken.every((actual, index) => used.has(index) || OPTIONAL_SPOKEN_EXTRAS.has(actual.norm));
-}
-
-/**
- * Clause rewording can make an implicit subject explicit ("before sharing"
- * -> "before you share").  Permit that one extra second-person pronoun only
- * when every script token still has an exact compatible counterpart.
- */
-function sameMultisetForClauseReorder(script: readonly MatchToken[], spoken: readonly MatchToken[]): boolean {
-  const used = new Set<number>();
-  for (const expected of script) {
-    const index = spoken.findIndex((actual, candidateIndex) => !used.has(candidateIndex) && tokensCompatible(expected, actual));
-    if (index < 0) return false;
-    used.add(index);
-  }
-  let extraYou = 0;
-  for (let index = 0; index < spoken.length; index += 1) {
-    if (used.has(index) || OPTIONAL_SPOKEN_EXTRAS.has(spoken[index].norm)) continue;
-    if (spoken[index].norm === 'you' && extraYou < 1) {
-      extraYou += 1;
-      continue;
-    }
-    return false;
-  }
-  return true;
-}
-
-function directionalAnchors(tokens: readonly MatchToken[]): string[] {
-  return tokens
-    .filter(token => token.kind === 'name' || token.kind === 'number' || token.kind === 'role' || token.kind === 'negation'
-      || PRONOUNS.has(token.norm) || MODAL_WORDS.has(token.norm))
-    .map(token => token.kind === 'name' ? `name:${token.norm}` : token.canonical);
-}
-
-function directionalAnchorsCompatible(script: readonly MatchToken[], spoken: readonly MatchToken[]): boolean {
-  const expected = directionalAnchors(script);
-  const actual = directionalAnchors(spoken);
-  let expectedIndex = 0;
-  let extraYou = 0;
-  for (const anchor of actual) {
-    if (expected[expectedIndex] === anchor) {
-      expectedIndex += 1;
-      continue;
-    }
-    if (anchor === 'you' && extraYou < 1) {
-      extraYou += 1;
-      continue;
-    }
-    return false;
-  }
-  return expectedIndex === expected.length;
-}
-
-function hasClauseReorderMarker(tokens: readonly MatchToken[]): boolean {
-  return tokens.some(token => CLAUSE_REORDER_MARKERS.has(token.norm));
-}
-
 function prefixLike(script: readonly MatchToken[], spoken: readonly MatchToken[]): boolean {
   if (spoken.length === 0) return false;
   let scriptIndex = 0;
@@ -575,22 +511,10 @@ export function matchEnglish(script: string, spoken: string): EnglishMatch {
   const isPrefix = prefixLike(scriptTokens, spokenTokens);
 
   if (conflict) return { verdict: 'mismatch', score, reason: conflict };
-  // A small clause reorder allowance covers constructions such as
-  // "... before sharing" -> "Before you share ...". It is intentionally
-  // narrower than bag-of-words matching: all tokens must still be present,
-  // protected entities and pronouns must stay in directional order, and a
-  // temporal/causal clause marker must make the reorder plausible.
-  if (coverage < 0.999
-    && sameMultisetForClauseReorder(scriptContent, spokenContent)
-    && hasClauseReorderMarker(scriptTokens)
-    && hasClauseReorderMarker(spokenTokens)
-    && directionalAnchorsCompatible(scriptContent, spokenContent)) {
-    return { verdict: 'matched', score: Math.max(score, 0.9), reason: 'The same protected content is spoken with a supported clause order variation.' };
-  }
   // A normal match needs every meaning-bearing script token. The sole leniency
   // here is a tiny list of generic context additions such as "app"; an omitted
   // content word must remain partial rather than crossing the follow barrier.
-  if (coverage >= 0.999 && lcs.unmatchedSpokenWeight <= Math.max(1, lcs.scriptWeight * 0.18)) {
+  if (coverage >= 0.999 && lcs.unmatchedSpokenWeight === 0) {
     return { verdict: 'matched', score, reason: 'Ordered script content is supported with only generic wording variation.' };
   }
   if (isPrefix || (coverage >= 0.25 && spokenContent.length < scriptContent.length && lcs.unmatchedSpokenWeight === 0)) {
