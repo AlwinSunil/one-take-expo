@@ -1,0 +1,47 @@
+{
+  "executableCommit": "6fc3698",
+  "base": "3da03c446a612c8b925e17b8b8edd04055f321c4",
+  "commands": [
+    {
+      "command": "npm test",
+      "exitCode": 0,
+      "passed": 472,
+      "failed": 0
+    },
+    {
+      "command": "npm run typecheck",
+      "exitCode": 0
+    },
+    {
+      "command": "EXPO_NO_DOTENV=1 npx expo export --platform android --output-dir /tmp/t15-b-final-android-export",
+      "exitCode": 0
+    },
+    {
+      "command": "npm run samples",
+      "exitCode": 0
+    },
+    {
+      "command": "npm run test:samples",
+      "exitCode": 0,
+      "passed": 19
+    },
+    {
+      "command": "python3 tests/speech-evaluation.test.py",
+      "exitCode": 0,
+      "passed": 12
+    },
+    {
+      "command": "python3 tests/t1-speech-evaluation.test.py",
+      "exitCode": 0,
+      "passed": 11
+    }
+  ],
+  "deviceMutation": false,
+  "pending": [
+    "A/C/producer merged integration",
+    "native time rounding agreement",
+    "SQLite history reopen",
+    "Android Back/TalkBack/large text",
+    "real media/native export/caption/A/V/human acceptance"
+  ]
+}
