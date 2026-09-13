@@ -93,6 +93,45 @@ test('required actions remain separate from speech and only manual confirmation 
   assert.equal(resolved.currentFlagIds.includes('action:action-required'), false);
 });
 
+test('optional action-only lines stay out of speech coverage while their action remains visible', () => {
+  const input = project();
+  input.scriptLines.push({
+    id: 'line:action-only',
+    spokenText: '',
+    actionCues: [{ id: 'action-optional-only', text: 'Smile at the camera', required: false, resolved: false }],
+  });
+
+  const report = buildWrapReport(input);
+
+  assert.deepEqual(report.lines.map(line => line.id), ['line-1', 'line-2']);
+  assert.deepEqual(report.optionalActions.find(action => action.id === 'action-optional-only'), {
+    id: 'action-optional-only',
+    text: 'Smile at the camera',
+    required: false,
+    confirmed: false,
+    status: 'unresolved',
+    blocksWrap: false,
+  });
+  assert.equal(report.currentFlagIds.includes('coverage:line:action-only'), false);
+  assert.equal(report.currentFlagIds.includes('must-say:line:action-only'), false);
+  assert.equal(report.qualifiedAllClear, true);
+});
+
+test('flag lookup preserves line IDs that contain colons', () => {
+  const input = project();
+  input.scriptLines[1].id = 'section:line:0';
+  input.tier1Evidence.scriptSnapshot[1].lineId = 'section:line:0';
+  input.tier1Evidence.mustSay[1].lineId = 'section:line:0';
+  input.tier1Evidence.mustSay[1].status = 'missing';
+
+  const report = buildWrapReport(input);
+  const flag = report.flags.find(candidate => candidate.id === 'must-say:section:line:0');
+
+  assert.ok(flag);
+  assert.equal(flag.lineId, 'section:line:0');
+  assert.match(flag.message, /Say it simply/);
+});
+
 test('missing media never appears playable or covered', () => {
   const input = project({ mediaMissing: true });
   const report = buildWrapReport(input);

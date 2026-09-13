@@ -390,7 +390,7 @@ def main() -> None:
         render_segment(
             ffmpeg,
             product_source,
-            args.out_dir / "product-reframed.mp4",
+            args.out_dir / "product-original-fallback.mp4",
             3,
             7,
             product_decision["crop"],
@@ -436,6 +436,20 @@ def main() -> None:
             "status": "not-run",
             "requirement": "Feed each decision's same source-local start/end and nativeCrop into both NativeCutView and Media3 export after #49 composition integration.",
         },
+        "captionOverlay": {
+            "implementation": "MediaExportRunner.TimedCaptionOverlay",
+            "placement": "lower-third",
+            "backgroundFrameAnchor": [0.0, -0.66],
+            "overlayFrameAnchor": [0.0, -1.0],
+            "constraint": "A reframed decision requires the declared captionSafeArea to be disjoint from every relevant protected region; native overlay parity remains pending.",
+        },
+        "historicalEvidence": [
+            {
+                "output": display_path(args.out_dir / "product-reframed.mp4"),
+                "status": "superseded-initial-render",
+                "note": "Retained initial product crop render; device review showed the lower-third caption overlapped the synthetic hand.",
+            }
+        ],
         "planner": {
             "implementation": "src/lib/t1-framing.ts",
             "command": "node --experimental-strip-types --input-type=module",

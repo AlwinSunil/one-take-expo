@@ -18,6 +18,26 @@
     "status": "not-run",
     "requirement": "Feed each decision's same source-local start/end and nativeCrop into both NativeCutView and Media3 export after #49 composition integration."
   },
+  "captionOverlay": {
+    "implementation": "MediaExportRunner.TimedCaptionOverlay",
+    "placement": "lower-third",
+    "backgroundFrameAnchor": [
+      0.0,
+      -0.66
+    ],
+    "overlayFrameAnchor": [
+      0.0,
+      -1.0
+    ],
+    "constraint": "A reframed decision requires the declared captionSafeArea to be disjoint from every relevant protected region; native overlay parity remains pending."
+  },
+  "historicalEvidence": [
+    {
+      "output": "docs/validation/evidence/t1-session-3/framing/product-reframed.mp4",
+      "status": "superseded-initial-render",
+      "note": "Retained initial product crop render; device review showed the lower-third caption overlapped the synthetic hand."
+    }
+  ],
   "planner": {
     "implementation": "src/lib/t1-framing.ts",
     "command": "node --experimental-strip-types --input-type=module",
@@ -132,26 +152,27 @@
       "startSec": 3,
       "endSec": 7,
       "normalizedCrop": {
-        "x": 0.1,
-        "y": 0.1,
-        "width": 0.8,
-        "height": 0.8
+        "x": 0,
+        "y": 0,
+        "width": 1,
+        "height": 1
       },
       "pixelCrop": {
-        "x": 36,
-        "y": 64,
-        "width": 288,
-        "height": 512
+        "x": 0,
+        "y": 0,
+        "width": 360,
+        "height": 640
       },
       "nativeCrop": {
-        "left": -0.8,
-        "right": 0.8,
-        "bottom": -0.8,
-        "top": 0.8
+        "left": -1.0,
+        "right": 1.0,
+        "bottom": -1.0,
+        "top": 1.0
       },
-      "output": "docs/validation/evidence/t1-session-3/framing/product-reframed.mp4",
+      "output": "docs/validation/evidence/t1-session-3/framing/product-original-fallback.mp4",
       "fixtureCase": "product-keeps-product-and-hand",
-      "plannerMode": "reframed"
+      "plannerMode": "original",
+      "plannerFallbackReason": "caption-safe-area-overlaps-protected-region"
     }
   ]
 }

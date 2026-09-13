@@ -1,6 +1,6 @@
 import { Asset } from 'expo-asset';
 import { router } from 'expo-router';
-import { saveProject } from '@/lib/store';
+import { saveProject, saveProjectMetadata } from '@/lib/store';
 import { useState } from 'react';
 import { Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -8,6 +8,7 @@ import { createTier1ReviewFixture } from '@/lib/t1-fixtures';
 import { normalizeProject } from '@/lib/project-data';
 import { getSetting, saveSetting } from '@/lib/store';
 import { tier1Enabled } from '@/lib/t1-gates';
+import { T1NativeFramingFixture } from '@/components/review/t1-native-framing-fixture';
 import { T1FramingFixture } from '@/components/review/t1-framing-fixture';
 import { T1WrapReport } from '@/components/review/t1-wrap-report';
 import { T1CaptionEditor } from '@/components/review/t1-caption-editor';
@@ -24,6 +25,7 @@ export default function Tier1ReviewFixtures() {
     <Text className="text-amber-200 py-3">Invented provider results. No recorded media, human accuracy or hardware evidence. Only the dedicated test fixture is saved by the test controls.</Text>
     <Pressable accessibilityRole="button" className="py-3" onPress={() => setEnabled(v => !v)}><Text className="text-white">{enabled ? 'Disable Tier 1 test' : 'Enable Tier 1 test'}</Text></Pressable>
     {tier1Enabled('takeReview', __DEV__, enabled) && <View>
+      <T1NativeFramingFixture />
       <Pressable accessibilityRole="button" className="py-3" onPress={() => setProject(normalizeProject(JSON.parse(saved)))}><Text className="text-white">Reopen serialized fixture</Text></Pressable>
       {Platform.OS !== 'web' && <Pressable accessibilityRole="button" className="py-3" onPress={async () => {
         try {
@@ -32,8 +34,13 @@ export default function Tier1ReviewFixtures() {
           const base = createTier1ReviewFixture();
           const id = `t1-video-fixture-${Date.now()}`;
           const next = { ...base, id, duration: 12, videoUri: asset.localUri, mediaMissing: false,
-            tier1Evidence: { ...base.tier1Evidence!, projectId: id } };
-          await saveProject(next);
+            tier1Evidence: { ...base.tier1Evidence!, projectId: id, reasons: base.tier1Evidence!.reasons.map(reason => ({ ...reason, footage: reason.footage ? { ...reason.footage, recordingId: id } : undefined })) } };
+          const saved = await saveProject(next);
+          const fixture = require('../../tools/fixtures/t1-framing.json').cases[0].input.suggestions[0];
+          await saveProjectMetadata({ ...saved, cutsReviewed: true,
+            reviewSegments: [{ uri: saved.videoUri!, t0: 2, t1: 5, takeId: 'take-1' }],
+            framing: { enabled: false, suggestions: [{ ...fixture, sourceMediaId: id, frame: { uprightWidthPx: 360, uprightHeightPx: 640, rotationDegrees: 0 } }] },
+          });
           router.push({ pathname: '/editor', params: { projectId: id } });
         } catch (e) { setStorageMessage(`Video fixture failed: ${String(e)}`); }
       }}><Text className="text-white">Create synthetic video project</Text></Pressable>}

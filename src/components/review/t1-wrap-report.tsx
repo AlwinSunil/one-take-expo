@@ -20,6 +20,7 @@ export interface T1WrapReportProps {
   onConfirmAction?: (actionId: string, confirmed: boolean) => void;
   /** Tier 1 remains hidden until the common release gate explicitly enables it. */
   enabled?: boolean;
+  disabled?: boolean;
   /** Injectable time for deterministic development replays. */
   acknowledgedAt?: number;
 }
@@ -135,6 +136,7 @@ export function T1WrapReport({
   onPickup,
   onConfirmAction,
   enabled = false,
+  disabled = false,
   acknowledgedAt,
 }: T1WrapReportProps) {
   const [message, setMessage] = useState('');
@@ -148,6 +150,7 @@ export function T1WrapReport({
       : 'Review needed before wrapping';
 
   async function wrapAnyway() {
+    if (disabled) return;
     try {
       const next = acknowledgeWrapAnyway(project, acknowledgedAt);
       await onChange(next);
@@ -158,6 +161,7 @@ export function T1WrapReport({
   }
 
   async function startFreshReview() {
+    if (disabled) return;
     try {
       await onChange(clearWrapAcknowledgement(project));
       setMessage('The old Wrap anyway acknowledgement was cleared. Review the current evidence again.');
@@ -217,6 +221,7 @@ export function T1WrapReport({
       accessibilityRole="button"
       accessibilityLabel="Wrap anyway"
       accessibilityState={{ disabled: false }}
+      disabled={disabled}
       onPress={() => { void wrapAnyway(); }}
       className="self-start bg-neutral-800 rounded-lg px-4 py-3 mt-4 active:bg-neutral-700">
       <Text className="text-white text-sm">Wrap anyway</Text>
@@ -227,6 +232,7 @@ export function T1WrapReport({
     {!!report.acknowledgement && !report.acknowledgementValid && <Pressable
       accessibilityRole="button"
       accessibilityLabel="Start a fresh wrap review"
+      disabled={disabled}
       onPress={() => { void startFreshReview(); }}
       className="self-start px-3 py-3 mt-3 active:opacity-70">
       <Text className="text-neutral-300 text-xs">Start a fresh wrap review</Text>

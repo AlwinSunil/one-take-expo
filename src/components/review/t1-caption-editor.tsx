@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Pressable, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, Text, TextInput, View } from 'react-native';
 
 import type { Project, TranscriptSeg } from '@/lib/session';
 import {
@@ -205,9 +205,15 @@ export function T1CaptionEditor({
         <View className="flex-row flex-wrap items-center">
           {captionPieces}
         </View>
-        {editingThisSegment && active && <View className="mt-1">
+        {editingThisSegment && active && <Modal transparent animationType="none" onRequestClose={() => { if (!disabled) setActive(null); }}>
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1, justifyContent: 'center', padding: 24, backgroundColor: '#000c' }}>
+          <View style={{ width: '100%', maxWidth: 520, alignSelf: 'center', padding: 20, borderRadius: 16, backgroundColor: '#171717' }}>
+          <Text className="text-white font-semibold mb-3">Correct “{active.draft.beforeWord}”</Text>
           <TextInput
             accessibilityLabel={`Replacement for caption word ${active.draft.beforeWord}`}
+            autoFocus
+            selectTextOnFocus
+            editable={!disabled}
             autoCapitalize="none"
             autoCorrect={false}
             value={active.replacement}
@@ -234,7 +240,9 @@ export function T1CaptionEditor({
               <Text className="text-neutral-300 text-xs">Cancel</Text>
             </Pressable>
           </View>
-        </View>}
+          {!!message && <Text accessibilityRole="alert" className="text-amber-200 py-2">{message}</Text>}
+          </View></KeyboardAvoidingView>
+        </Modal>}
         {hasSavedCorrection && <Pressable
           accessibilityRole="button"
           accessibilityLabel={`Restore recognized caption ${segmentIndex + 1}`}

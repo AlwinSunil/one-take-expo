@@ -1,0 +1,42 @@
+[
+  {
+    "file": "editor-caption-corrected.mp4",
+    "mediaInfo": [
+      "Duration: 00:00:03.01, start: 0.000000, bitrate: 1259 kb/s",
+      "Stream #0:0[0x1](und): Audio: aac (LC) (mp4a / 0x6134706D), 48000 Hz, stereo, fltp, 2 kb/s (default)",
+      "Stream #0:1[0x2](eng): Video: h264 (High) (avc1 / 0x31637661), yuv420p(tv, bt709, progressive), 1280x720, 195 kb/s, SAR 1:1 DAR 16:9, 30 fps, 30 tbr, 90k tbn (default)"
+    ]
+  },
+  {
+    "file": "portrait-ready.mp4",
+    "mediaInfo": [
+      "Duration: 00:00:03.01, start: 0.000000, bitrate: 1247 kb/s",
+      "Stream #0:0[0x1](und): Audio: aac (LC) (mp4a / 0x6134706D), 48000 Hz, stereo, fltp, 2 kb/s (default)",
+      "Stream #0:1[0x2](eng): Video: h264 (High) (avc1 / 0x31637661), yuv420p(tv, bt709, progressive), 1280x720, 183 kb/s, SAR 1:1 DAR 16:9, 30 fps, 30 tbr, 90k tbn (default)"
+    ]
+  },
+  {
+    "file": "moving-subject-falls-back.mp4",
+    "mediaInfo": [
+      "Duration: 00:00:03.01, start: 0.000000, bitrate: 1356 kb/s",
+      "Stream #0:0[0x1](und): Audio: aac (LC) (mp4a / 0x6134706D), 48000 Hz, stereo, fltp, 2 kb/s (default)",
+      "Stream #0:1[0x2](eng): Video: h264 (High) (avc1 / 0x31637661), yuv420p(tv, bt709, progressive), 1280x720, 292 kb/s, SAR 1:1 DAR 16:9, 30 fps, 30 tbr, 90k tbn (default)"
+    ]
+  },
+  {
+    "file": "missing-vision-track-falls-back.mp4",
+    "mediaInfo": [
+      "Duration: 00:00:02.00, start: 0.000000, bitrate: 1892 kb/s",
+      "Stream #0:0[0x1](und): Audio: aac (LC) (mp4a / 0x6134706D), 48000 Hz, stereo, fltp, 2 kb/s (default)",
+      "Stream #0:1[0x2](eng): Video: h264 (High) (avc1 / 0x31637661), yuv420p(tv, bt709, progressive), 1280x720, 289 kb/s, SAR 1:1 DAR 16:9, 30 fps, 30 tbr, 90k tbn (default)"
+    ]
+  },
+  {
+    "file": "product-keeps-product-and-hand.mp4",
+    "mediaInfo": [
+      "Duration: 00:00:04.02, start: 0.000000, bitrate: 1030 kb/s",
+      "Stream #0:0[0x1](und): Audio: aac (LC) (mp4a / 0x6134706D), 48000 Hz, stereo, fltp, 2 kb/s (default)",
+      "Stream #0:1[0x2](eng): Video: h264 (High) (avc1 / 0x31637661), yuv420p(tv, bt709, progressive), 1280x720, 232 kb/s, SAR 1:1 DAR 16:9, 30 fps, 30 tbr, 90k tbn (default)"
+    ]
+  }
+]

@@ -50,6 +50,16 @@ test('one cut receives one frozen crop decision shared by preview and export', (
   assert.equal(decision.endSec, 5);
 });
 
+test('a lower-third caption must not cover a protected product or hand', () => {
+  const input = fixture.cases.find(row => row.id === 'product-keeps-product-and-hand').input;
+  const result = buildFramingPlan(input);
+  const decision = result.cuts[0];
+
+  assert.equal(decision.mode, 'original');
+  assert.equal(decision.fallbackReason, 'caption-safe-area-overlaps-protected-region');
+  assert.deepEqual(decision.crop, ORIGINAL_FRAMING_CROP);
+});
+
 test('native crop projection maps top-left upright coordinates to Media3 coordinates', () => {
   assert.deepEqual(toNativeCrop({ x: 0, y: 0, width: 1, height: 1 }), {
     left: -1,

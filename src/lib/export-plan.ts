@@ -49,9 +49,10 @@ export function buildExportPlan(project: Project, start: number, end: number, fr
     if (!project.cutsReviewed) throw new ExportPlanError('unreviewed-cuts', 'Review and accept each cut before exporting.');
     if (!Array.isArray(project.reviewSegments) || project.reviewSegments.length === 0) throw new ExportPlanError('invalid-cuts', 'Choose at least one segment.');
     const segments = project.reviewSegments.map(segment => {
+      const sourceTranscript = transcriptForSource(project, segment.uri);
       const plan = buildExportPlan({ ...project, reviewSegments: undefined, videoUri: segment.uri, cuts: undefined,
         mediaMissing: project.availableMediaUris ? !project.availableMediaUris.includes(segment.uri) : project.mediaMissing,
-        transcript: project.transcript.length ? transcriptForSource(project, segment.uri) : segment.captions ?? [] }, segment.t0, segment.t1);
+        transcript: sourceTranscript.length > 0 ? sourceTranscript : segment.captions ?? [] }, segment.t0, segment.t1);
       return { uri: segment.uri, t0: segment.t0, t1: segment.t1, captions: plan.captions, takeId: segment.takeId };
     });
     if (segments.length > 100) throw new ExportPlanError('invalid-cuts', 'Too many export segments.');
@@ -60,7 +61,8 @@ export function buildExportPlan(project: Project, start: number, end: number, fr
       hasEstimatedCaptions: segments.some(segment => segment.captions.length > 0) };
   }
   const sourceUri = project.videoUri;
-  if (project.mediaMissing || typeof sourceUri !== 'string' || !sourceUri.trim()) {
+  if (project.mediaMissing || typeof sourceUri !== 'string' || !sourceUri.trim()
+    || (Array.isArray(project.availableMediaUris) && !project.availableMediaUris.includes(sourceUri))) {
     throw new ExportPlanError('missing-source', 'The original recording is unavailable.');
   }
   const scheme = sourceUri.match(/^([a-z][a-z0-9+.-]*):/i)?.[1].toLocaleLowerCase();

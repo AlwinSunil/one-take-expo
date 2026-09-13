@@ -124,7 +124,8 @@ export type FramingFallbackReason =
   | 'missing-coverage'
   | 'moving-subject'
   | 'protected-region-outside-crop'
-  | 'caption-safe-area-outside-crop';
+  | 'caption-safe-area-outside-crop'
+  | 'caption-safe-area-overlaps-protected-region';
 
 /** Coordinates expected by Media3's Crop effect. */
 export interface NativeFramingCrop {
@@ -410,6 +411,13 @@ function contains(outer: FramingCrop, inner: FramingCrop): boolean {
     && inner.y + inner.height <= outer.y + outer.height + EPSILON;
 }
 
+function overlaps(first: FramingCrop, second: FramingCrop): boolean {
+  return first.x < second.x + second.width - EPSILON
+    && first.x + first.width > second.x + EPSILON
+    && first.y < second.y + second.height - EPSILON
+    && first.y + first.height > second.y + EPSILON;
+}
+
 function roundCoordinate(value: number): number {
   return Number(value.toFixed(6));
 }
@@ -463,6 +471,12 @@ function fallbackForSuggestion(suggestion: FramingSuggestion): FramingFallbackRe
     }
   }
   if (!contains(suggestion.crop, suggestion.captionSafeArea)) return 'caption-safe-area-outside-crop';
+  for (const region of suggestion.regions) {
+    if (region.relevant && PROTECTED_KINDS.includes(region.kind)
+      && overlaps(suggestion.captionSafeArea, region.rect)) {
+      return 'caption-safe-area-overlaps-protected-region';
+    }
+  }
   return undefined;
 }
 

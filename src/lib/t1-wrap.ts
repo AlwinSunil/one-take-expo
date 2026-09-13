@@ -318,9 +318,11 @@ function buildFlags(
   const lineById = new Map(lines.map(line => [line.id, line]));
   const actionById = new Map(actions.map(action => [action.id, action]));
   const flags: WrapFlag[] = currentFlagIds.map(id => {
-    const lineId = id.split(':')[1];
+    const linePrefix = ['coverage:', 'must-say:', 'must-say-evidence:']
+      .find(prefix => id.startsWith(prefix));
+    const lineId = linePrefix ? id.slice(linePrefix.length) : undefined;
     const actionId = id.startsWith('action:') ? id.slice('action:'.length) : undefined;
-    const line = lineById.get(id.startsWith('coverage:') || id.startsWith('must-say:') || id.startsWith('must-say-evidence:') ? lineId : '');
+    const line = lineId ? lineById.get(lineId) : undefined;
     const action = actionId ? actionById.get(actionId) : undefined;
     const kind: WrapFlagKind = id.startsWith('coverage:') ? 'coverage'
       : id.startsWith('must-say') ? 'must-say'
@@ -466,7 +468,7 @@ export function buildWrapReport(project: Project): WrapReport {
     actionCueIds: [],
     unresolvedRequiredActionCueIds: [],
     pendingReasons: [],
-  }))).map(line => {
+  }))).filter(line => line.spokenText.trim().length > 0).map(line => {
     const mustSay = evidenceByLine.get(line.id);
     const mustSayStatus: MustSayDisplayStatus = !mustSay
       ? 'unknown'

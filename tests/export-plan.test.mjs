@@ -160,6 +160,38 @@ test('reviewed multi-source segments preserve source-local captions and selectio
   assert.throws(() => buildExportPlan(project({ cutsReviewed: true, reviewSegments: [] }), 0, 1), /at least one/);
 });
 
+test('reviewed pickup segments keep supplied captions when no transcript belongs to that source', () => {
+  const result = buildExportPlan(project({
+    recordings: [{ id: 'original', mediaUri: 'file:///private/original.mp4', duration: 5, createdAt: 1 }],
+    transcript: [{ id: 'original-caption', recordingId: 'original', t0: 0, t1: 1, text: 'Original' }],
+    cutsReviewed: true,
+    reviewSegments: [{
+      uri: 'file:///pickup.mp4',
+      t0: 0,
+      t1: 2,
+      captions: [{ t0: 0, t1: 1, text: 'Pickup [wave]' }],
+      takeId: 'pickup',
+    }],
+  }), 0, 0);
+
+  assert.deepEqual(result.segments?.[0].captions, [{ t0: 0, t1: 1, text: 'Pickup' }]);
+});
+
+test('single-source export requires an explicitly inventoried media URI', () => {
+  assert.throws(() => buildExportPlan(project({
+    mediaMissing: false,
+    availableMediaUris: ['file:///private/other.mp4'],
+  }), 0, 5), (error) => error instanceof ExportPlanError
+    && error.code === 'missing-source'
+    && /unavailable/i.test(error.message));
+
+  const result = buildExportPlan(project({
+    mediaMissing: false,
+    availableMediaUris: ['file:///private/original.mp4'],
+  }), 0, 5);
+  assert.equal(result.sourceUri, 'file:///private/original.mp4');
+});
+
 test('legacy export excludes overlapping pickup captions using recording and take ownership', () => {
   const result = buildExportPlan(project({
     recordings: [{ id: 'original', mediaUri: 'file:///private/original.mp4' }, { id: 'pickup', mediaUri: 'file:///pickup.mp4' }],

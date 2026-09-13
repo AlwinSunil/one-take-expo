@@ -1,0 +1,133 @@
+{
+  "generatedAt": "2026-09-13T00:17:33.343Z",
+  "supportsFraming": true,
+  "fixtureSources": [
+    "tools/fixtures/t1-portrait.mp4",
+    "docs/validation/evidence/t1-session-3/framing/moving-source.mp4",
+    "docs/validation/evidence/t1-session-3/framing/moving-source.mp4",
+    "docs/validation/evidence/t1-session-3/framing/product-source.mp4"
+  ],
+  "correctedCaption": "Our bottle stays cold.",
+  "cases": [
+    {
+      "caseId": "portrait-ready",
+      "selection": "suggested",
+      "fixtureSource": "tools/fixtures/t1-portrait.mp4",
+      "sourceUri": "file:///data/user/0/com.anonymous.onetake/cache/ExponentAsset-1e28b3f552f993f48f44d16574b69b67.mp4",
+      "sourceMediaId": "recording-portrait",
+      "takeId": "take-1",
+      "analysisId": "analysis-portrait-1",
+      "expected": {
+        "mode": "reframed",
+        "suggestionId": "analysis-portrait-1",
+        "crop": {
+          "x": 0.1,
+          "y": 0.1,
+          "width": 0.8,
+          "height": 0.8
+        },
+        "nativeCrop": {
+          "left": -0.8,
+          "right": 0.8,
+          "bottom": -0.8,
+          "top": 0.8
+        }
+      },
+      "decision": {
+        "mode": "reframed",
+        "suggestionId": "analysis-portrait-1",
+        "nativeCrop": {
+          "left": -0.8,
+          "right": 0.8,
+          "bottom": -0.8,
+          "top": 0.8
+        }
+      },
+      "requestId": "t1nf-fixture-mtz2e42t-portrait-ready-all",
+      "status": "completed",
+      "resultUri": "file:/data/user/0/com.anonymous.onetake/files/exports/t1nf-fixture-mtz2e42t-portrait-ready-all.mp4",
+      "elapsedMs": 947
+    },
+    {
+      "caseId": "moving-subject-falls-back",
+      "selection": "suggested",
+      "fixtureSource": "docs/validation/evidence/t1-session-3/framing/moving-source.mp4",
+      "sourceUri": "file:///data/user/0/com.anonymous.onetake/cache/ExponentAsset-e8d1f0ff0149dcbbb81ea0f17a4b2030.mp4",
+      "sourceMediaId": "recording-moving",
+      "takeId": "take-moving",
+      "analysisId": "analysis-moving-1",
+      "expected": {
+        "mode": "original",
+        "fallbackReason": "moving-subject"
+      },
+      "decision": {
+        "mode": "original",
+        "fallbackReason": "moving-subject",
+        "nativeCrop": {
+          "left": -1,
+          "right": 1,
+          "bottom": -1,
+          "top": 1
+        }
+      },
+      "requestId": "t1nf-fixture-mtz2e42t-moving-subject-falls-back-all",
+      "status": "completed",
+      "resultUri": "file:/data/user/0/com.anonymous.onetake/files/exports/t1nf-fixture-mtz2e42t-moving-subject-falls-back-all.mp4",
+      "elapsedMs": 514
+    },
+    {
+      "caseId": "missing-vision-track-falls-back",
+      "selection": "suggested",
+      "fixtureSource": "docs/validation/evidence/t1-session-3/framing/moving-source.mp4",
+      "sourceUri": "file:///data/user/0/com.anonymous.onetake/cache/ExponentAsset-e8d1f0ff0149dcbbb81ea0f17a4b2030.mp4",
+      "sourceMediaId": "recording-missing-track",
+      "takeId": "take-missing",
+      "analysisId": null,
+      "expected": {
+        "mode": "original",
+        "fallbackReason": "missing-suggestion"
+      },
+      "decision": {
+        "mode": "original",
+        "fallbackReason": "missing-suggestion",
+        "nativeCrop": {
+          "left": -1,
+          "right": 1,
+          "bottom": -1,
+          "top": 1
+        }
+      },
+      "requestId": "t1nf-fixture-mtz2e42t-missing-vision-track-falls-back-all",
+      "status": "completed",
+      "resultUri": "file:/data/user/0/com.anonymous.onetake/files/exports/t1nf-fixture-mtz2e42t-missing-vision-track-falls-back-all.mp4",
+      "elapsedMs": 482
+    },
+    {
+      "caseId": "product-keeps-product-and-hand",
+      "selection": "suggested",
+      "fixtureSource": "docs/validation/evidence/t1-session-3/framing/product-source.mp4",
+      "sourceUri": "file:///data/user/0/com.anonymous.onetake/cache/ExponentAsset-23c03813b98359be62d352f954332a7b.mp4",
+      "sourceMediaId": "recording-product",
+      "takeId": "take-product",
+      "analysisId": "analysis-product-1",
+      "expected": {
+        "mode": "original",
+        "fallbackReason": "caption-safe-area-overlaps-protected-region"
+      },
+      "decision": {
+        "mode": "original",
+        "fallbackReason": "caption-safe-area-overlaps-protected-region",
+        "nativeCrop": {
+          "left": -1,
+          "right": 1,
+          "bottom": -1,
+          "top": 1
+        }
+      },
+      "requestId": "t1nf-fixture-mtz2e42t-product-keeps-product-and-hand-all",
+      "status": "completed",
+      "resultUri": "file:/data/user/0/com.anonymous.onetake/files/exports/t1nf-fixture-mtz2e42t-product-keeps-product-and-hand-all.mp4",
+      "elapsedMs": 935
+    }
+  ]
+}
