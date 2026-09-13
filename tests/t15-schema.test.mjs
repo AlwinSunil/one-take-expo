@@ -150,3 +150,22 @@ test('reopen does not regenerate stable identities from mutable text', () => {
   assert.deepEqual(reopened, first);
   assert.equal(reopened.scriptSnapshots[0].spans[0].id, first.scriptSnapshots[0].spans[0].id);
 });
+
+
+test('instantaneous gaze and uncertain capture-clock observations remain evidence, never clip ranges', () => {
+  const project = { id: 'gaze', mode: 'assisted', duration: 1, videoUri: 'file:///original.mp4', transcript: [], clips: [], createdAt: 1 };
+  const state = createFoundation(project);
+  state.observations = [{ id: 'sample', sourceId: 'gaze', t0: 1.2, t1: 1.2, kind: 'gaze', status: 'unknown', provenance: { ...state.sources[0].timing, clock: 'capture-clock', uncertaintySeconds: null }, payload: { label: 'unknown' } }];
+  validateFoundation(state, project);
+  state.observations[0].provenance.clock = 'source-presentation';
+  assert.throws(() => validateFoundation(state, project), /sample time/);
+});
+
+test('extensions retain older versions beside a new version without interpreting payloads', () => {
+  const project = { id: 'extensions', mode: 'assisted', duration: 1, videoUri: null, transcript: [], clips: [], createdAt: 1 };
+  const state = createFoundation(project);
+  state.extensions = [1, 2].map(version => ({ key: 'future:visual', version, availability: 'unsupported', assetIds: [], payload: { originalVersion: version } }));
+  validateFoundation(state, project);
+  state.extensions.push({ ...state.extensions[0] });
+  assert.throws(() => validateFoundation(state, project), /duplicated/);
+});

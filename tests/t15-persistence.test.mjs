@@ -147,9 +147,9 @@ function resultFor(request, overrides = {}) {
     sourceId: request.sourceId,
     base: clone(request.base),
     status: 'complete',
-    observationIds: ['observation:fixture:1'],
-    proposalIds: ['proposal:fixture:1'],
-    reasonIds: ['reason:fixture:1'],
+    observationIds: [],
+    proposalIds: [],
+    reasonIds: [],
     payload: {
       envelopeVersion: 1,
       sourceRange: { t0: 0.5, t1: 1.25, units: 'seconds', relativeTo: request.sourceId },
@@ -231,6 +231,119 @@ test('creator commit uses an atomic revision CAS, idempotent operation IDs, and 
   );
   const latest = await persistence.initialize(PROJECT_ID);
   assert.equal(latest.v15.sources[0].id, PROJECT_ID);
+});
+
+test('large caption commits retain complete script evidence in bounded audit chunks', async t => {
+  const { persistence, project, adapter } = await context(t);
+  const expected = clone(project.v15.revisions);
+  const next = nextFoundation(project.v15);
+  const largeScript = 'script evidence '.repeat(10 * 1024);
+  next.scriptSnapshots.push({
+    id: 'script:large:1',
+    revision: expected.scriptRevision + 1,
+    rawText: largeScript,
+    spans: [],
+    previousSnapshotId: project.v15.scriptSnapshots.at(-1).id,
+  });
+  next.captions = { ...project.v15.captions, showInEditor: !project.v15.captions.showInEditor };
+  next.revisions = {
+    ...expected,
+    projectRevision: expected.projectRevision + 1,
+    scriptRevision: expected.scriptRevision + 1,
+    captionRevision: expected.captionRevision + 1,
+  };
+
+  const operationId = 'operation:large-caption-script';
+  const committed = await persistence.commit(PROJECT_ID, expected, operationId, next);
+  assert.equal(committed.v15.revisions.captionRevision, expected.captionRevision + 1);
+  assert.ok(new TextEncoder().encode(JSON.stringify({ expected, next })).byteLength > 130 * 1024);
+
+  const operationRow = await adapter.getFirstAsync(
+    'SELECT data FROM project_evidence WHERE project_id = ? AND id = ?',
+    PROJECT_ID,
+    operationId,
+  );
+  const operationEnvelope = JSON.parse(operationRow.data);
+  assert.equal(operationEnvelope.payload.encoding, 'json-chunks-v1');
+  const chunkRows = await adapter.getAllAsync(
+    'SELECT id, data FROM project_evidence WHERE project_id = ? AND id LIKE ? ORDER BY id',
+    PROJECT_ID,
+    `archive:${operationId}:%`,
+  );
+  assert.ok(chunkRows.length > 8, 'large creator audit should be split into internal evidence pages');
+  assert.ok(chunkRows.every(row => JSON.parse(row.data).kind === 'archive-chunk'));
+
+  const duplicate = await persistence.commit(PROJECT_ID, expected, operationId, next);
+  assert.deepEqual(duplicate.v15.revisions, committed.v15.revisions);
+  const duplicateChunkRows = await adapter.getAllAsync(
+    'SELECT id FROM project_evidence WHERE project_id = ? AND id LIKE ? ORDER BY id',
+    PROJECT_ID,
+    `archive:${operationId}:%`,
+  );
+  assert.deepEqual(duplicateChunkRows.map(row => row.id), chunkRows.map(row => row.id));
+
+  await adapter.runAsync('DELETE FROM project_evidence WHERE project_id = ? AND id = ?', PROJECT_ID, chunkRows[0].id);
+  await assert.rejects(
+    persistence.commit(PROJECT_ID, expected, operationId, next),
+    /different payload/i,
+  );
+});
+
+test('history moved out of the active window remains addressable from the evidence archive', async t => {
+  const { persistence, project } = await context(t);
+  const expected = clone(project.v15.revisions);
+  const before = clone(project.v15.timeline.clips);
+  const after = [{
+    id: 'timeline:archive-clip',
+    sourceId: sourceIdFor(project),
+    t0: 0,
+    t1: 1,
+    spanIds: [],
+    pointIds: [],
+    utteranceIds: [],
+    included: true,
+    reasonIds: [],
+  }];
+  const command = {
+    id: 'history:archive-command',
+    kind: 'include',
+    baseRevision: expected.timelineRevision,
+    revision: expected.timelineRevision + 1,
+    before,
+    after,
+    reasonIds: [],
+  };
+  const active = nextFoundation(project.v15);
+  active.timeline = { revision: command.revision, clips: after };
+  active.history = { ...active.history, entries: [command], cursor: 1, abandonedEntries: [] };
+  active.revisions = {
+    ...expected,
+    projectRevision: expected.projectRevision + 1,
+    timelineRevision: expected.timelineRevision + 1,
+  };
+  const first = await persistence.commit(PROJECT_ID, expected, 'operation:history-active', active);
+  assert.equal(first.v15.history.entries[0].id, command.id);
+
+  const archivePageId = `timeline-command:${command.id}`;
+  const archived = nextFoundation(first.v15);
+  archived.history = {
+    ...archived.history,
+    entries: [],
+    cursor: 0,
+    abandonedEntries: [],
+    archive: { kind: 'timeline-command', pageIds: [archivePageId] },
+  };
+  archived.revisions = {
+    ...first.v15.revisions,
+    projectRevision: first.v15.revisions.projectRevision + 1,
+  };
+  const second = await persistence.commit(PROJECT_ID, first.v15.revisions, 'operation:history-archive', archived);
+  assert.deepEqual(second.v15.history.entries, []);
+  assert.deepEqual(second.v15.history.archive.pageIds, [archivePageId]);
+  const archivedRecord = await persistence.record(PROJECT_ID, archivePageId);
+  assert.equal(archivedRecord.kind, 'timeline-command');
+  assert.equal(archivedRecord.payload.id, command.id);
+  assert.ok((await persistence.page(PROJECT_ID, 0, 32, 'timeline-command')).some(entry => entry.record.id === archivePageId));
 });
 
 test('checkpoint pages are bounded, idempotent, mismatch-safe, and fully recoverable', async t => {
@@ -328,6 +441,10 @@ test('analysis enqueue/start/finish is idempotent and a compatible result awaits
   assert.equal((await persistence.start(PROJECT_ID, request.id, 1, 'lease:1')).lease, 'lease:1');
 
   const result = resultFor(request);
+  await assert.rejects(
+    persistence.finish(resultFor(request, { id: 'result:malformed-ref', observationIds: [null] }), 'lease:1'),
+    /identity|references/i,
+  );
   const stored = await persistence.finish(result, 'lease:1');
   assert.equal(stored.disposition, 'awaiting-review');
   assert.deepEqual(await persistence.finish(result, 'lease:1'), stored);
@@ -458,4 +575,24 @@ test('a tombstoned project cannot be recreated by a late row or checkpoint', asy
     payload: { shouldNotReturn: true },
   }]), /being deleted/i);
   assert.equal(await adapter.getFirstAsync('SELECT COUNT(*) AS count FROM project_evidence WHERE project_id = ?', PROJECT_ID).then(row => Number(row.count)), 0);
+});
+
+
+test('analysis cannot become ready with missing or cross-source evidence references', async t => {
+  const { persistence, project } = await context(t);
+  const request = requestFor(project);
+  await persistence.enqueue(request);
+  await persistence.start(PROJECT_ID, request.id, 1, 'lease:refs');
+  const result = resultFor(request, { observationIds: ['observation:required'] });
+  await assert.rejects(persistence.finish(result, 'lease:refs'), /missing observation/);
+  assert.equal((await persistence.jobs(PROJECT_ID))[0].status, 'running');
+  await persistence.checkpoint(PROJECT_ID, [{ id: 'observation:required', kind: 'observation', sourceId: request.sourceId, payload: { status: 'unknown' } }]);
+  assert.equal((await persistence.finish(result, 'lease:refs')).disposition, 'awaiting-review');
+});
+
+test('an archive marker cannot point to missing command history', async t => {
+  const { persistence, project } = await context(t);
+  const next = nextFoundation(project.v15);
+  next.history.archive = { kind: 'timeline-command', pageIds: ['missing-page'] };
+  await assert.rejects(persistence.commit(PROJECT_ID, project.v15.revisions, 'archive:missing', next), /missing command page/);
 });

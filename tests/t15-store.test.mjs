@@ -9,6 +9,7 @@ const fileSystem = {
   files: new Map(),
   availableDiskSpace: Number.MAX_SAFE_INTEGER,
   failCopy: false,
+  copyAsEmpty: false,
   failMove: false,
   failDelete: false,
 };
@@ -133,7 +134,7 @@ export class File {
     if (state.failCopy) throw new Error('mock copy failed');
     const source = state.files.get(this.uri);
     if (!source) throw new Error('mock source is missing');
-    state.files.set(destination.uri, { data: new Uint8Array(source.data) });
+    state.files.set(destination.uri, { data: state.copyAsEmpty ? new Uint8Array() : new Uint8Array(source.data) });
   }
 
   move(destination) {
@@ -204,8 +205,10 @@ const fsModule = await import('expo-file-system');
 const {
   beginRecording,
   beginProjectPickup,
+  checkpointProjectSource,
   checkpointProjectPickup,
   completeProjectPickup,
+  commitProjectCaptions,
   deleteProject,
   getProject,
   initializeDurableProject,
@@ -258,6 +261,7 @@ function setSource(uri, content = 'fake-video-payload') {
 
 function resetFaults() {
   fsState.failCopy = false;
+  fsState.copyAsEmpty = false;
   fsState.failMove = false;
   fsState.failDelete = false;
   fsState.availableDiskSpace = Number.MAX_SAFE_INTEGER;
@@ -298,6 +302,24 @@ test('real store durability harness covers capture, journals, concurrent pickup/
   assert.deepEqual(reopened.trim, finalMetadata.trim);
   assert.equal(reopened.transcript[0].id, 'alpha-caption');
 
+  const modifiedRootUri = fileUri(cacheRoot, 'modified-root-alpha.mp4');
+  setSource(modifiedRootUri, 'modified-root-payload');
+  await assert.rejects(
+    saveProjectMetadata({ ...reopened, videoUri: modifiedRootUri }),
+    /different original|identity/i,
+  );
+  assert.deepEqual((await getProject(projectId)).trim, finalMetadata.trim);
+
+  setSource(originalUri(projectId), '');
+  assert.equal(fsModule.__mockFileSystem.getFileSize(originalUri(projectId)), 0);
+  await assert.rejects(
+    saveProject({ ...reopened, trim: { start: 0.9, end: 3.1 } }),
+    /saved original is incomplete/i,
+  );
+  assert.ok(fsModule.__mockFileSystem.getFileSize(captureUri) > 0, 'the valid cache source must survive an incomplete original');
+  assert.deepEqual((await getProject(projectId)).trim, finalMetadata.trim);
+  setSource(originalUri(projectId), 'alpha-original');
+
   const failedId = 'store:copy-failure';
   const failedSource = fileUri(cacheRoot, 'capture-failure.mp4');
   setSource(failedSource, 'copy-failure-payload');
@@ -332,6 +354,80 @@ test('real store durability harness covers capture, journals, concurrent pickup/
   await saveProjectMetadata(lowProject);
   assert.equal((await getProject(lowId)).videoUri, originalUri(lowId));
 
+  const journalId = 'store:journal-identity';
+  const journalSource = fileUri(cacheRoot, 'capture-journal.mp4');
+  const alternateJournalSource = fileUri(cacheRoot, 'capture-journal-alternate.mp4');
+  setSource(journalSource, 'journal-source-payload');
+  setSource(alternateJournalSource, 'alternate-source-payload');
+  const journalProject = project(journalId, journalSource);
+  await beginRecording(journalProject);
+  fsState.copyAsEmpty = true;
+  await assert.rejects(saveProjectMetadata(journalProject), /could not be fully saved/i);
+  const journalPart = `${originalUri(journalId)}.part`;
+  assert.equal(fsModule.__mockFileSystem.hasFile(journalPart), true);
+  fsState.copyAsEmpty = false;
+  await assert.rejects(
+    saveProjectMetadata(project(journalId, alternateJournalSource)),
+    /different payload/i,
+  );
+  assert.equal(fsModule.__mockFileSystem.hasFile(journalPart), true, 'identity rejection must retain the interrupted .part');
+  assert.equal(operationRows(journalId).length, 1);
+  await recoverProjectSaves();
+  assert.equal(operationRows(journalId).length, 0);
+  assert.equal(fsModule.__mockFileSystem.hasFile(journalPart), false);
+  assert.equal((await getProject(journalId)).videoUri, originalUri(journalId));
+
+  const corruptJournalId = 'store:modified-journal-root';
+  const corruptSource = fileUri(cacheRoot, 'capture-corrupt-journal.mp4');
+  setSource(corruptSource, 'corrupt-journal-payload');
+  const corruptProject = project(corruptJournalId, corruptSource);
+  await beginRecording(corruptProject);
+  fsState.copyAsEmpty = true;
+  await assert.rejects(saveProjectMetadata(corruptProject), /could not be fully saved/i);
+  const corruptPart = `${originalUri(corruptJournalId)}.part`;
+  const corruptRow = operationRows(corruptJournalId)[0];
+  const corruptOperation = JSON.parse(corruptRow.data);
+  const modifiedRoot = `${originalUri(corruptJournalId)}-modified.mp4`;
+  sqliteDatabase.prepare('UPDATE project_operations SET data = ? WHERE id = ?').run(
+    JSON.stringify({ ...corruptOperation, destinationUri: modifiedRoot }),
+    corruptRow.id,
+  );
+  fsState.copyAsEmpty = false;
+  await recoverProjectSaves();
+  assert.equal(operationRows(corruptJournalId).length, 1);
+  assert.equal(fsModule.__mockFileSystem.hasFile(corruptPart), true, 'invalid root URI recovery must leave the pending .part');
+  sqliteDatabase.prepare('UPDATE project_operations SET data = ? WHERE id = ?').run(
+    JSON.stringify(corruptOperation),
+    corruptRow.id,
+  );
+  await recoverProjectSaves();
+  assert.equal(operationRows(corruptJournalId).length, 0);
+  assert.equal((await getProject(corruptJournalId)).videoUri, originalUri(corruptJournalId));
+
+  const sourceCheckpointId = 'store:source-checkpoint';
+  const sourceCaptureUri = fileUri(cacheRoot, 'capture-source-checkpoint.mp4');
+  setSource(sourceCaptureUri, 'source-checkpoint-payload');
+  await beginRecording(project(sourceCheckpointId, null));
+  const preMedia = await initializeDurableProject(sourceCheckpointId);
+  const preMediaSource = preMedia.v15.sources.find(source => source.id === sourceCheckpointId);
+  assert.equal(preMediaSource.mediaUri, null);
+  const checkpointed = await checkpointProjectSource(sourceCheckpointId, 'source-checkpoint:pre-media', preMediaSource);
+  assert.equal(checkpointed.v15.sources.find(source => source.id === sourceCheckpointId).mediaUri, null);
+  await saveProjectMetadata({ ...checkpointed, videoUri: sourceCaptureUri });
+  const durableSource = {
+    ...preMediaSource,
+    mediaUri: originalUri(sourceCheckpointId),
+    durationSeconds: 4,
+    availability: 'available',
+  };
+  const sourceReady = await checkpointProjectSource(sourceCheckpointId, 'source-checkpoint:durable', durableSource);
+  assert.equal(sourceReady.v15.sources.find(source => source.id === sourceCheckpointId).mediaUri, originalUri(sourceCheckpointId));
+  assert.equal((await checkpointProjectSource(sourceCheckpointId, 'source-checkpoint:durable', durableSource)).v15.sources.find(source => source.id === sourceCheckpointId).durationSeconds, 4);
+  await assert.rejects(
+    checkpointProjectSource(sourceCheckpointId, 'source-checkpoint:duration-change', { ...durableSource, durationSeconds: 5 }),
+    /duration/i,
+  );
+
   const durable = await initializeDurableProject(projectId);
   const staleEditor = await getProject(projectId);
   const lineId = `${projectId}:line:0`;
@@ -359,6 +455,15 @@ test('real store durability harness covers capture, journals, concurrent pickup/
   assert.ok(withPickup.v15.sources.some(source => source.id === pickupId));
   assert.ok(withPickup.v15.revisions.projectRevision > durable.v15.revisions.projectRevision);
   assert.equal(fsModule.__mockFileSystem.hasFile(pickupUri(projectId, pickupId)), true);
+
+  const preferencesBase = withPickup.v15.revisions;
+  const corrections = [{ id: 'correction:retry', segmentId: withPickup.transcript[0].id, sourceId: projectId,
+    revision: preferencesBase.captionRevision + 1, text: 'Creator correction', baseTranscriptRevision: preferencesBase.transcriptRevision[projectId], origin: 'creator' }];
+  const corrected = await commitProjectCaptions(projectId, preferencesBase, 'captions:retry', { showInEditor: false, burnIntoExport: true }, corrections);
+  const duplicate = await commitProjectCaptions(projectId, preferencesBase, 'captions:retry', { showInEditor: false, burnIntoExport: true }, corrections);
+  assert.deepEqual(duplicate.v15, corrected.v15);
+  assert.equal(duplicate.v15.captionCorrections.filter(item => item.id === 'correction:retry').length, 1);
+  await assert.rejects(commitProjectCaptions(projectId, preferencesBase, 'captions:retry', { showInEditor: true, burnIntoExport: true }, corrections), /different payload/i);
 
   const originalFile = originalUri(projectId);
   const pickupFile = pickupUri(projectId, pickupId);

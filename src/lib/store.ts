@@ -44,6 +44,7 @@ export async function saveProject(p: Project): Promise<Project> {
   return withProjectLock(p.id, async () => {
     await assertProjectAvailable(await getDb(), p.id);
     if (!p.videoUri) throw new Error('No recording is available to save.');
+    await recoverPendingOriginal(p);
     const destination = new File(Paths.document, 'videos', `${encodeURIComponent(p.id)}.mp4`);
     if (destination.exists) {
       await assertOriginalSize(p.id, destination);
@@ -108,6 +109,7 @@ function checkMedia(project: Project): Project {
 export async function saveProjectMetadata(project: Project): Promise<void> {
   return withProjectLock(project.id, async () => {
     normalizeProject(project);
+    await recoverPendingOriginal(project);
     // The current capture owner already checkpoints here before optional caption finalization.
     // Complete its durable copy now, using the same original journal as Save/Retry.
     const original = new File(Paths.document, 'videos', `${encodeURIComponent(project.id)}.mp4`);
@@ -377,8 +379,10 @@ async function writeOperation(operation: RecordingOperation): Promise<void> {
   const d = await getDb();
   const previous = await d.getFirstAsync<{ data: string }>('SELECT data FROM project_operations WHERE id = ?', operation.id);
   if (previous) assertSameRecordingOperation(JSON.parse(previous.data), operation);
-  const result = await d.runAsync('INSERT OR REPLACE INTO project_operations (id, project_id, data) SELECT ?, ?, ? WHERE NOT EXISTS (SELECT 1 FROM deleted_projects WHERE id = ?)',
-    operation.id, operation.projectId, JSON.stringify(operation), operation.projectId);
+  const result = previous
+    ? await d.runAsync('UPDATE project_operations SET data = ? WHERE id = ? AND data = ? AND NOT EXISTS (SELECT 1 FROM deleted_projects WHERE id = ?)', JSON.stringify(operation), operation.id, previous.data, operation.projectId)
+    : await d.runAsync('INSERT OR IGNORE INTO project_operations (id, project_id, data) SELECT ?, ?, ? WHERE NOT EXISTS (SELECT 1 FROM deleted_projects WHERE id = ?)',
+      operation.id, operation.projectId, JSON.stringify(operation), operation.projectId);
   if (result.changes !== 1) throw new Error('This project is being deleted.');
 }
 
@@ -438,20 +442,20 @@ async function saveRecordingOperation(operation: RecordingOperation, recoveringC
         { ...operation.input!, videoUri: destination.uri, takes: operation.input!.takes.map(take => ({ ...take, mediaUri: destination.uri })) }, operation.createdAt)
       : previous ? mergeOriginalJournal(normalizeProject(JSON.parse(previous.data)), operation.project!, recoveringCopy) : operation.project!;
     if (previous && operation.kind === 'pickup') saved = preserveDurableLegacyEdit(normalizeProject(JSON.parse(previous.data)), saved);
-    await d.withTransactionAsync(async () => {
+    await d.withExclusiveTransactionAsync(async tx => {
       const result = previous
-        ? await d.runAsync('UPDATE projects SET data = ? WHERE id = ? AND data = ? AND NOT EXISTS (SELECT 1 FROM deleted_projects WHERE id = ?)', JSON.stringify(saved), saved.id, previous.data, saved.id)
-        : await d.runAsync('INSERT OR IGNORE INTO projects (id, data) SELECT ?, ? WHERE NOT EXISTS (SELECT 1 FROM deleted_projects WHERE id = ?)', saved.id, JSON.stringify(saved), saved.id);
+        ? await tx.runAsync('UPDATE projects SET data = ? WHERE id = ? AND data = ? AND NOT EXISTS (SELECT 1 FROM deleted_projects WHERE id = ?)', JSON.stringify(saved), saved.id, previous.data, saved.id)
+        : await tx.runAsync('INSERT OR IGNORE INTO projects (id, data) SELECT ?, ? WHERE NOT EXISTS (SELECT 1 FROM deleted_projects WHERE id = ?)', saved.id, JSON.stringify(saved), saved.id);
       if (result.changes !== 1) throw new Error('This project was deleted and cannot be saved.');
-      await d.runAsync('INSERT OR IGNORE INTO kv (key, value) VALUES (?, ?)', `recording-source:${operation.id}`, operation.sourceUri);
-      await d.runAsync('INSERT OR IGNORE INTO kv (key, value) VALUES (?, ?)', `recording-size:${operation.id}`, String(destination.size));
-      await d.runAsync('DELETE FROM project_operations WHERE id = ?', operation.id);
+      await tx.runAsync('INSERT OR IGNORE INTO kv (key, value) VALUES (?, ?)', `recording-source:${operation.id}`, operation.sourceUri);
+      await tx.runAsync('INSERT OR IGNORE INTO kv (key, value) VALUES (?, ?)', `recording-size:${operation.id}`, String(destination.size));
+      await tx.runAsync('DELETE FROM project_operations WHERE id = ?', operation.id);
       if (operation.recordingId) {
         const key = pickupKey(operation.projectId, operation.recordingId);
         if (operation.input?.evidenceStatus === 'pending') {
-          const draft = await d.getFirstAsync<{ value: string }>('SELECT value FROM kv WHERE key = ?', key);
-          if (draft) await d.runAsync('UPDATE kv SET value = ? WHERE key = ?', JSON.stringify({ ...JSON.parse(draft.value), checkpointSourceUri: operation.sourceUri }), key);
-        } else await d.runAsync('DELETE FROM kv WHERE key = ?', key);
+          const draft = await tx.getFirstAsync<{ value: string }>('SELECT value FROM kv WHERE key = ?', key);
+          if (draft) await tx.runAsync('UPDATE kv SET value = ? WHERE key = ?', JSON.stringify({ ...JSON.parse(draft.value), checkpointSourceUri: operation.sourceUri }), key);
+        } else await tx.runAsync('DELETE FROM kv WHERE key = ?', key);
       }
     });
     return checkMedia(saved);
@@ -682,8 +686,8 @@ export async function commitTimeline(projectId: string, expected: RevisionVector
   edit: Pick<NonNullable<Project['v15']>, 'timeline' | 'history' | 'reasons'>): Promise<Project> {
   const project = await getProject(projectId);
   if (!project?.v15) throw new Error('Initialize the durable project before editing its timeline.');
-  return commitDurableProject(projectId, expected, operationId, { ...project.v15, ...edit,
-    revisions: { ...expected, projectRevision: expected.projectRevision + 1, timelineRevision: expected.timelineRevision + 1 } });
+  return commitDurableAdapter(projectId, expected, operationId, { ...project.v15, ...edit,
+    revisions: { ...expected, projectRevision: expected.projectRevision + 1, timelineRevision: expected.timelineRevision + 1 } }, { kind: 'timeline', edit });
 }
 
 /** C can change preferences without replacing recognition evidence or timeline state. */
@@ -692,9 +696,9 @@ export async function commitProjectCaptions(projectId: string, expected: Revisio
   corrections: NonNullable<Project['v15']>['captionCorrections'] = []): Promise<Project> {
   const project = await getProject(projectId);
   if (!project?.v15) throw new Error('Initialize the durable project before changing captions.');
-  return commitDurableProject(projectId, expected, operationId, { ...project.v15, captions,
+  return commitDurableAdapter(projectId, expected, operationId, { ...project.v15, captions,
     captionCorrections: [...project.v15.captionCorrections, ...corrections],
-    revisions: { ...expected, projectRevision: expected.projectRevision + 1, captionRevision: expected.captionRevision + 1 } });
+    revisions: { ...expected, projectRevision: expected.projectRevision + 1, captionRevision: expected.captionRevision + 1 } }, { kind: 'captions', captions, corrections });
 }
 
 
@@ -718,8 +722,8 @@ export async function registerDurableProjectAsset(projectId: string, expected: R
   await registerProjectFile(projectId, file.uri);
   const project = await getProject(projectId);
   if (!project?.v15) throw new Error('Initialize the durable project before attaching optional assets.');
-  return commitDurableProject(projectId, expected, operationId, { ...project.v15,
-    assets: [...project.v15.assets, asset], revisions: { ...expected, projectRevision: expected.projectRevision + 1 } });
+  return commitDurableAdapter(projectId, expected, operationId, { ...project.v15,
+    assets: [...project.v15.assets, asset], revisions: { ...expected, projectRevision: expected.projectRevision + 1 } }, { kind: 'asset', asset });
 }
 
 
@@ -742,4 +746,25 @@ export async function readProjectEvidenceRecord(projectId: string, id: string) {
 /** Allocate via beginRecording/beginProjectPickup first; metadata cannot invent a media file. */
 export async function checkpointProjectSource(projectId: string, operationId: string, source: SourceRecord): Promise<Project> {
   return withProjectLock(projectId, async () => (await durableStore()).checkpointSource(projectId, operationId, source));
+}
+
+
+async function commitDurableAdapter(projectId: string, expected: RevisionVector, operationId: string,
+  next: NonNullable<Project['v15']>, intent: unknown): Promise<Project> {
+  return withProjectLock(projectId, async () => (await durableStore()).commit(projectId, expected, operationId, next, intent));
+}
+
+
+/** A moved canonical file is not committed while its original journal is pending. */
+async function recoverPendingOriginal(project: Project): Promise<void> {
+  const d = await getDb();
+  const row = await d.getFirstAsync<{ data: string }>('SELECT data FROM project_operations WHERE id = ?', `original:${project.id}`);
+  if (!row) return;
+  const operation = JSON.parse(row.data) as RecordingOperation;
+  validateOperation(operation, `original:${project.id}`);
+  if (project.videoUri && project.videoUri !== operation.sourceUri && project.videoUri !== operation.destinationUri) {
+    throw new Error('This recording save identity already has a different payload. Recover the pending original first.');
+  }
+  assertSameRecordingOperation(operation, { ...operation, project: projectWithDurableOriginal(project, operation.destinationUri) });
+  await saveRecordingOperation(operation, true);
 }

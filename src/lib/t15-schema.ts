@@ -160,7 +160,7 @@ export interface TranscriptRevision {
 export interface Observation {
   id: string;
   sourceId: string;
-  /** Null timing is explicit for a status such as unknown or not-collected. */
+  /** Null is uncollected timing; equal endpoints represent an instantaneous sample, never a clip. */
   t0: number | null;
   t1: number | null;
   kind: string;
@@ -1009,7 +1009,12 @@ function validateStateArrays(state: DurableFoundation): void {
     validateProvenance(observation.provenance, `observation ${observation.id}`);
     if (observation.t0 === null || observation.t1 === null) {
       if (observation.t0 !== null || observation.t1 !== null) throw new RangeError(`observation ${observation.id} has incomplete timing.`);
-    } else requireRange(observation.t0, observation.t1, `observation ${observation.id}`, sourceMap.get(observation.sourceId)!.durationSeconds);
+    } else {
+      const duration = observation.provenance.clock === 'source-presentation' ? sourceMap.get(observation.sourceId)!.durationSeconds : null;
+      if (observation.t0 === observation.t1) {
+        if (!isFiniteNumber(observation.t0) || observation.t0 < 0 || (duration !== null && observation.t0 > duration)) throw new RangeError(`observation ${observation.id} sample time is invalid.`);
+      } else requireRange(observation.t0, observation.t1, `observation ${observation.id}`, duration);
+    }
     if (observation.payload !== undefined && !isJsonValue(observation.payload)) throw new TypeError(`observation ${observation.id} payload is unreadable.`);
     validateChunkReferences(observation.chunks, `observation ${observation.id}`);
   }
@@ -1034,8 +1039,9 @@ function validateStateArrays(state: DurableFoundation): void {
   const extensionKeys = new Set<string>();
   for (const extension of state.extensions) {
     if (!isRecord(extension) || !isNonEmptyString(extension.key) || !isRevision(extension.version) || !['available', 'missing', 'unknown', 'unsupported', 'failed'].includes(extension.availability) || !Array.isArray(extension.assetIds)) throw new TypeError('Extension metadata is unreadable.');
-    if (extensionKeys.has(extension.key)) throw new Error(`extension identity ${extension.key} is duplicated.`);
-    extensionKeys.add(extension.key);
+    const identity = JSON.stringify([extension.key, extension.version]);
+    if (extensionKeys.has(identity)) throw new Error(`extension identity ${extension.key} version ${extension.version} is duplicated.`);
+    extensionKeys.add(identity);
     if (extension.payload !== undefined && !isJsonValue(extension.payload)) throw new TypeError(`extension ${extension.key} payload is unreadable.`);
     for (const assetId of extension.assetIds) requireId(assetId, `extension ${extension.key} asset id`);
   }

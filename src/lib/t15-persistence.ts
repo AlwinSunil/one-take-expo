@@ -52,7 +52,7 @@ async function update(tx: PersistenceConnection, before: string, project: Projec
     JSON.stringify(project), project.id, before, project.id);
   if (changed.changes !== 1) throw new Error('The project changed. Reopen the latest edit and retry.');
 }
-const CHUNKED_KINDS = new Set(['creator-commit', 'creator-before', 'timeline-command']);
+const CHUNKED_KINDS = new Set(['creator-commit', 'creator-before', 'creator-after', 'timeline-command']);
 const CHUNK_CHARACTERS = 16 * 1024;
 function recordStorage(record: EvidenceRecord) {
   const complete = canonicalJson(record);
@@ -114,11 +114,11 @@ export function createDurablePersistence(db: PersistenceDatabase, options: {
       });
     },
     /** Caller authors a new snapshot; B owns timeline command semantics. Full CAS rejects stale edits. */
-    async commit(projectId: string, expected: RevisionVector, operationId: string, next: NonNullable<Project['v15']>): Promise<Project> {
+    async commit(projectId: string, expected: RevisionVector, operationId: string, next: NonNullable<Project['v15']>, intent?: unknown): Promise<Project> {
       nonempty(operationId);
       return transaction(async tx => {
         const row = await projectRow(tx, projectId);
-        const record = { id: operationId, kind: 'creator-commit', payload: { expected, next } };
+        const record = { id: operationId, kind: 'creator-commit', payload: intent === undefined ? { expected, next } : { expected, intent } };
         const existing = await tx.getFirstAsync<{ data: string }>('SELECT data FROM project_evidence WHERE project_id = ? AND id = ?', projectId, operationId);
         if (existing) {
           if (!await recordMatches(tx, projectId, record, existing.data)) throw new Error('This operation identity has a different payload.');
@@ -161,8 +161,20 @@ export function createDurablePersistence(db: PersistenceDatabase, options: {
         for (const command of [...current.history.entries, ...current.history.abandonedEntries, ...next.history.entries, ...next.history.abandonedEntries]) {
           await insertRecord(tx, projectId, { id: `timeline-command:${command.id}`, kind: 'timeline-command', payload: command });
         }
+        if (next.history.archive) {
+          const pages = new Set(next.history.archive.pageIds);
+          for (const pageId of current.history.archive?.pageIds ?? []) if (!pages.has(pageId)) throw new Error('Previously archived history references must be retained.');
+          for (const command of [...current.history.entries, ...current.history.abandonedEntries]) {
+            if (!nextHistoryIds.has(command.id) && !pages.has(`timeline-command:${command.id}`)) throw new Error('Every omitted history command needs its archive page reference.');
+          }
+          for (const pageId of pages) {
+            const page = await tx.getFirstAsync<{ kind: string }>('SELECT kind FROM project_evidence WHERE project_id = ? AND id = ?', projectId, pageId);
+            if (!page || page.kind !== 'timeline-command') throw new Error('The history archive references a missing command page.');
+          }
+        }
         const saved = { ...row.project, v15: next };
         await insertRecord(tx, projectId, { id: `creator-before:${operationId}`, kind: 'creator-before', payload: { revisions: current.revisions, timeline: current.timeline, captions: current.captions } });
+        if (intent !== undefined) await insertRecord(tx, projectId, { id: `creator-after:${operationId}`, kind: 'creator-after', payload: next });
         await insertRecord(tx, projectId, record);
         await update(tx, row.data, saved);
         return saved;
@@ -283,6 +295,19 @@ export function createDurablePersistence(db: PersistenceDatabase, options: {
           result.attempt === 1 ? `job-request:${result.jobId}` : `job-attempt:${result.jobId}:${result.attempt}`);
         const request = requestRow ? (JSON.parse(requestRow.data) as EvidenceRecord).payload as AnalysisRequest : null;
         if (!request || request.sourceId !== result.sourceId || !sameRevisions(request.base, result.base)) throw new Error('The result scope does not match its captured request.');
+        for (const [kind, ids, inline] of [
+          ['observation', result.observationIds, project.v15!.observations],
+          ['proposal', result.proposalIds, project.v15!.proposals],
+          ['reason', result.reasonIds, project.v15!.reasons],
+        ] as const) {
+          for (const id of ids) {
+            const reference = await tx.getFirstAsync<{ kind: string; source_id: string | null }>('SELECT kind, source_id FROM project_evidence WHERE project_id = ? AND id = ?', result.projectId, id);
+            const item = inline.find(item => item.id === id);
+            if (!reference && !item) throw new Error(`Analysis references missing ${kind} evidence.`);
+            const sourceId = reference?.source_id ?? (item && 'sourceId' in item ? item.sourceId : null);
+            if ((reference && reference.kind !== kind) || (sourceId && sourceId !== result.sourceId)) throw new Error('Analysis evidence belongs to a different source or kind.');
+          }
+        }
         const current = job.request.attempt === result.attempt && job.status === 'running' && job.lease === lease;
         const stored: StoredAnalysisResult = { result, disposition: current && sameRevisions(project.v15!.revisions, result.base) ? 'awaiting-review' : 'historical' };
         await insertRecord(tx, result.projectId, { id: `result:${result.id}`, kind: 'analysis-result', sourceId: result.sourceId, payload: stored });
