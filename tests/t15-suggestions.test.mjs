@@ -377,3 +377,21 @@ test('malformed evaluator payloads stay unavailable rather than crashing present
     assert.equal(controller.getSnapshot().evaluation.reason, 'evaluator-error');
   }
 });
+
+test('same-lens retry never replays an old frame and accepts a fresh snapshot explicitly', async () => {
+  let clock = 2000;
+  const seen = [];
+  const controller = createSuggestionJobController({ now: () => clock, evaluator: request => {
+    seen.push(request.evidence);
+    return evaluateSuggestionRequest(request);
+  } });
+  controller.start(request({ requestedAtMs: 2000, evidence: { status: 'ready', frameCapturedAtMs: 0, observations: {} } }));
+  await controller.whenSettled();
+  controller.retry();
+  await controller.whenSettled();
+  assert.equal(seen[1], undefined);
+  const fresh = { status: 'ready', frameCapturedAtMs: 2000, observations: {} };
+  controller.retry(fresh);
+  await controller.whenSettled();
+  assert.equal(seen[2], fresh);
+});

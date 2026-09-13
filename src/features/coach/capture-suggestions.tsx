@@ -203,7 +203,7 @@ function TerminalActions({
           onPress={onRetry}
         />
       )}
-      {status !== 'cancelled' && status !== 'stale' && onDismiss && (
+      {onDismiss && (
         <SecondaryAction label="Dismiss" accessibilityLabel="Dismiss visual suggestions" onPress={onDismiss} />
       )}
       {status === 'cancelled' && onRequest && (

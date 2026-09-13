@@ -160,8 +160,8 @@ export interface SuggestionJobController {
   bind(identity: SuggestionJobIdentity): SuggestionJobSnapshot;
   /** Start only for an explicit creator request. Identical loading requests deduplicate. */
   start(request: SuggestionJobRequest): SuggestionJobSnapshot;
-  /** Retry a terminal request after a visible unavailable/result state. */
-  retry(): SuggestionJobSnapshot;
+  /** Retry with a fresh camera snapshot; omitted evidence stays unavailable. */
+  retry(evidence?: CoachVisionEvidence): SuggestionJobSnapshot;
   /** Cancel active work and prevent a late evaluator result from becoming visible. */
   cancel(reason?: SuggestionCancelReason): SuggestionJobSnapshot;
   /** Invalidate the old result when the camera/session identity changes. */
@@ -756,16 +756,15 @@ export function createSuggestionJobController(options: SuggestionJobControllerOp
     return launch({ ...request }, attempt);
   }
 
-  function retry(): SuggestionJobSnapshot {
+  function retry(freshEvidence?: CoachVisionEvidence): SuggestionJobSnapshot {
     if (!snapshot.request || identity === null) return snapshot;
     if (snapshot.status === 'loading') return snapshot;
-    const sameRequestIdentity = sameIdentity(snapshot.request, identity);
     const { evidence, ...requestWithoutEvidence } = snapshot.request;
     return start({
       ...requestWithoutEvidence,
       ...identity,
       requestedAtMs: now(),
-      ...(sameRequestIdentity && evidence ? { evidence } : {}),
+      ...(freshEvidence ? { evidence: freshEvidence } : {}),
     });
   }
 
