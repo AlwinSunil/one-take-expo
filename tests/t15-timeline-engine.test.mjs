@@ -307,3 +307,81 @@ test('accepting a proposal with the same whole utterance in separate clips requi
   })), /utterance|duplicate|review|conflict/i);
   assert.deepEqual(initial.snapshot.clips, []);
 });
+
+test('automatic acceptance cannot restore a creator exclusion, while choose-take is explicit', () => {
+  const creatorExclusion = { id: 'reason:creator-exclusion', kind: 'exclude', text: 'Creator excluded this range', actor: 'creator' };
+  const initial = createTimelineState(snapshot([
+    clip('excluded', 'original', 0, 5, { included: false, reasonIds: [creatorExclusion.id] }),
+  ]), [creatorExclusion]);
+  const candidate = clip('excluded', 'original', 0, 5, { reasonIds: [] });
+
+  assert.throws(() => edit(initial, baseAction(initial, 'accept-reinclude', 'accept-proposal', { clips: [candidate] })), /restore|excluded/i);
+  assert.equal(initial.snapshot.clips[0].included, false);
+
+  const chosen = edit(initial, baseAction(initial, 'choose-reinclude', 'choose-take', { clips: [candidate] }));
+  assert.equal(chosen.snapshot.clips[0].included, true);
+  assert.ok(chosen.snapshot.clips[0].reasonIds.includes(creatorExclusion.id));
+});
+
+test('automatic acceptance rejects disjoint new same-source utterance duplication but keeps unchanged split descendants', () => {
+  const initial = createTimelineState(snapshot([clip('source', 'original', 0, 10, { utteranceIds: ['shared'] })]));
+  const duplicate = [
+    clip('new-left', 'original', 0, 4, { utteranceIds: ['shared'] }),
+    clip('new-right', 'original', 4, 8, { utteranceIds: ['shared'] }),
+  ];
+  assert.throws(() => edit(initial, baseAction(initial, 'accept-duplicate-disjoint', 'accept-proposal', { clips: duplicate })), /split|duplicate|utterance|review/i);
+
+  const split = edit(initial, baseAction(initial, 'explicit-split', 'split', {
+    clipId: 'source', at: 4, leftId: 'source-left', rightId: 'source-right',
+  }));
+  const accepted = edit(split, baseAction(split, 'accept-unchanged-split', 'accept-proposal', { clips: split.snapshot.clips }));
+  assert.deepEqual(accepted.snapshot.clips.map(item => item.id), ['source-left', 'source-right']);
+});
+
+test('acceptance reserves every historical clip identity, including abandoned and non-split commands', () => {
+  for (const kind of ['accept-proposal', 'accept-pickup', 'choose-take']) {
+    let state = createTimelineState(snapshot([clip('source', 'original', 0, 10)]));
+    state = edit(state, baseAction(state, `split-for-${kind}`, 'split', {
+      clipId: 'source', at: 4, leftId: `${kind}-left`, rightId: `${kind}-right`,
+    }));
+    state = undoTimeline(state);
+    const historical = clip(`${kind}-left`, 'original', 0, 4, { parentClipId: 'source' });
+    assert.throws(() => edit(state, baseAction(state, `reuse-${kind}`, kind, { clips: [historical] })), /stable identit|historical|reuse/i);
+  }
+});
+
+test('reopen validates all command snapshots, references, metadata and revisions before undo', () => {
+  let state = createTimelineState(snapshot([clip('a', 'original', 0, 10)]));
+  state = edit(state, { ...baseAction(state, 'trim-validate', 'trim', { clipId: 'a', t0: 1, t1: 9 }), metadata: { proposalId: 'proposal-1', accepted: true } });
+
+  const reordered = structuredClone(state.history);
+  const stored = reordered.entries[0].after[0];
+  reordered.entries[0].after[0] = {
+    utteranceIds: stored.utteranceIds,
+    pointIds: stored.pointIds,
+    id: stored.id,
+    t1: stored.t1,
+    included: stored.included,
+    sourceId: stored.sourceId,
+    reasonIds: stored.reasonIds,
+    spanIds: stored.spanIds,
+    t0: stored.t0,
+  };
+  assert.doesNotThrow(() => createTimelineState(state.snapshot, state.reasons, reordered));
+
+  const malformed = [
+    history => { history.entries[0].kind = 'unknown'; },
+    history => { history.entries[0].baseRevision = Number.MAX_SAFE_INTEGER; },
+    history => { history.entries[0].revision = history.entries[0].baseRevision; },
+    history => { history.entries[0].reasonIds = ['missing-reason']; },
+    history => { history.entries[0].after.push(structuredClone(history.entries[0].after[0])); },
+    history => { history.entries[0].before[0].reasonIds = ['missing-reason']; },
+    history => { history.entries[0].metadata = { broken: NaN }; },
+  ];
+  for (const mutate of malformed) {
+    const broken = structuredClone(state.history);
+    mutate(broken);
+    assert.throws(() => createTimelineState(state.snapshot, state.reasons, broken), /history|reason|metadata|revision|identity|clip/i);
+  }
+  assert.throws(() => createTimelineState(snapshot([clip('a', 'original', 0, 10)]), [{ id: 'bad', kind: '', text: 'bad', actor: 'creator' }]), /reason/i);
+});

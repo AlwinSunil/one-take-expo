@@ -9,6 +9,7 @@ export type TimelineSnapshot = { revision: number; clips: TimelineClip[] };
 export type TimelineCommand = {
   id: string; kind: string; baseRevision: number; revision: number;
   before: TimelineClip[]; after: TimelineClip[]; reasonIds: string[];
+  metadata?: TimelineCommandMetadata;
 };
 export type TimelineHistory = { entries: TimelineCommand[]; cursor: number; abandonedEntries: TimelineCommand[] };
 export type TimelineState = { snapshot: TimelineSnapshot; history: TimelineHistory; reasons: TimelineReason[] };
@@ -17,7 +18,7 @@ export type TimelineSources = Readonly<Record<string, TimelineSource>>;
 export type TimelineSegment = { clipId: string; sourceId: string; uri: string; t0: number; t1: number; outputT0: number; outputT1: number; takeId?: string };
 export type TimelineIssue = { clipId: string; code: string; message: string; recovery: string };
 export type ResolvedTimeline = { revision: number; segments: TimelineSegment[]; duration: number; issues: TimelineIssue[] };
-export type TimelineAction = { id: string; baseRevision: number; reasons?: TimelineReason[] } & (
+export type TimelineAction = { id: string; baseRevision: number; reasons?: TimelineReason[]; metadata?: TimelineCommandMetadata } & (
   | { kind: 'trim'; clipId: string; t0: number; t1: number }
   | { kind: 'split'; clipId: string; at: number; leftId: string; rightId: string }
   | { kind: 'exclude' | 'restore'; clipId: string }
@@ -26,11 +27,57 @@ export type TimelineAction = { id: string; baseRevision: number; reasons?: Timel
 );
 export type TimelinePlayhead = { clipId: string; sourceId: string; sourceTime: number; outputTime: number };
 
+export type TimelineMetadataValue = string | number | boolean | null | TimelineMetadataValue[] | { [key: string]: TimelineMetadataValue };
+export type TimelineCommandMetadata = { [key: string]: TimelineMetadataValue };
+
 const finite = (n: number) => Number.isFinite(n);
 const validId = (id: unknown): id is string => typeof id === 'string' && !!id.trim();
 const copyClip = (clip: TimelineClip): TimelineClip => ({ ...clip, reasonIds: [...clip.reasonIds], spanIds: [...clip.spanIds], pointIds: [...clip.pointIds], utteranceIds: [...clip.utteranceIds] });
 const copyClips = (clips: readonly TimelineClip[]) => clips.map(copyClip);
-const copyCommand = (command: TimelineCommand): TimelineCommand => ({ ...command, before: copyClips(command.before), after: copyClips(command.after), reasonIds: [...command.reasonIds] });
+const COMMAND_KINDS = new Set(['trim', 'split', 'exclude', 'restore', 'reorder', 'accept-proposal', 'accept-pickup', 'choose-take']);
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function copyMetadata(value: TimelineMetadataValue): TimelineMetadataValue {
+  if (Array.isArray(value)) return value.map(copyMetadata);
+  if (isRecord(value)) return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, copyMetadata(item as TimelineMetadataValue)]));
+  return value;
+}
+
+function assertMetadataValue(value: unknown): asserts value is TimelineMetadataValue {
+  if (value === null || typeof value === 'string' || typeof value === 'boolean') return;
+  if (typeof value === 'number') {
+    if (finite(value)) return;
+    throw new Error('Timeline command metadata is invalid. Reopen the saved project.');
+  }
+  if (Array.isArray(value)) {
+    value.forEach(assertMetadataValue);
+    return;
+  }
+  if (!isRecord(value)) throw new Error('Timeline command metadata is invalid. Reopen the saved project.');
+  const prototype = Object.getPrototypeOf(value);
+  if (prototype !== Object.prototype && prototype !== null) throw new Error('Timeline command metadata is invalid. Reopen the saved project.');
+  Object.values(value).forEach(assertMetadataValue);
+}
+
+function assertMetadata(metadata: unknown) {
+  if (metadata === undefined) return;
+  assertMetadataValue(metadata);
+  if (!isRecord(metadata) || Array.isArray(metadata)) throw new Error('Timeline command metadata is invalid. Reopen the saved project.');
+}
+
+function copyCommand(command: TimelineCommand): TimelineCommand {
+  return {
+    ...command,
+    before: copyClips(command.before),
+    after: copyClips(command.after),
+    reasonIds: [...command.reasonIds],
+    ...(command.metadata === undefined ? {} : { metadata: copyMetadata(command.metadata) as TimelineCommandMetadata }),
+  };
+}
+
 function freeze<T>(value: T): T {
   if (value && typeof value === 'object') { Object.values(value).forEach(freeze); Object.freeze(value); }
   return value;
@@ -39,10 +86,67 @@ function assertRevision(revision: number) {
   if (!Number.isSafeInteger(revision) || revision < 0 || revision >= Number.MAX_SAFE_INTEGER) throw new Error('Timeline revision is invalid. Reopen the saved project.');
 }
 function assertClipIdentity(clip: TimelineClip) {
-  if (!validId(clip.id) || !validId(clip.sourceId) || typeof clip.included !== 'boolean'
+  if (!isRecord(clip) || !validId(clip.id) || !validId(clip.sourceId) || typeof clip.t0 !== 'number' || !finite(clip.t0)
+    || typeof clip.t1 !== 'number' || !finite(clip.t1) || typeof clip.included !== 'boolean'
     || ![clip.reasonIds, clip.spanIds, clip.pointIds, clip.utteranceIds].every(ids => Array.isArray(ids) && ids.every(validId) && new Set(ids).size === ids.length)) {
     throw new Error('Clip identity is invalid. Reopen the saved project.');
   }
+  if ((clip.takeId !== undefined && !validId(clip.takeId)) || (clip.parentClipId !== undefined && !validId(clip.parentClipId))) {
+    throw new Error('Clip identity is invalid. Reopen the saved project.');
+  }
+}
+function assertReason(reason: TimelineReason) {
+  if (!isRecord(reason) || !validId(reason.id) || !validId(reason.kind) || !validId(reason.text)
+    || (reason.actor !== 'creator' && reason.actor !== 'analysis')) throw new Error('Timeline reasons are invalid. Reopen the saved project.');
+}
+function sameStrings(a: readonly string[], b: readonly string[]) {
+  return a.length === b.length && a.every((value, index) => value === b[index]);
+}
+function sameReason(a: TimelineReason, b: TimelineReason) {
+  return a.id === b.id && a.kind === b.kind && a.text === b.text && a.actor === b.actor;
+}
+function sameClip(a: TimelineClip, b: TimelineClip) {
+  return a.id === b.id && a.sourceId === b.sourceId && a.t0 === b.t0 && a.t1 === b.t1 && a.included === b.included
+    && sameStrings(a.reasonIds, b.reasonIds) && sameStrings(a.spanIds, b.spanIds) && sameStrings(a.pointIds, b.pointIds)
+    && sameStrings(a.utteranceIds, b.utteranceIds) && a.takeId === b.takeId && a.parentClipId === b.parentClipId;
+}
+function sameClips(a: readonly TimelineClip[], b: readonly TimelineClip[]) {
+  return a.length === b.length && a.every((clip, index) => sameClip(clip, b[index]));
+}
+function intervalsOverlap(a: TimelineClip, b: TimelineClip) {
+  return a.t0 < b.t1 && b.t0 < a.t1;
+}
+function creatorExcluded(clip: TimelineClip, reasons: readonly TimelineReason[]) {
+  const byId = new Map(reasons.map(reason => [reason.id, reason]));
+  return clip.reasonIds.some(id => {
+    const reason = byId.get(id);
+    return reason?.actor === 'creator' && reason.kind === 'exclude';
+  });
+}
+function assertClipSnapshot(clips: unknown, knownReasons: ReadonlySet<string>) {
+  if (!Array.isArray(clips)) throw new Error('Timeline history snapshot is invalid. Reopen the saved project.');
+  const ids = new Set<string>();
+  for (const rawClip of clips) {
+    const clip = rawClip as TimelineClip;
+    assertClipIdentity(clip);
+    if (ids.has(clip.id)) throw new Error('Historical clip IDs must be unique within each snapshot. Reopen the saved project.');
+    ids.add(clip.id);
+    if (clip.reasonIds.some(id => !knownReasons.has(id))) throw new Error('A timeline history exclusion reason is missing. Reopen the saved project.');
+  }
+}
+function assertCommand(command: TimelineCommand, knownReasons: ReadonlySet<string>, currentRevision: number) {
+  if (!isRecord(command) || !validId(command.id) || typeof command.kind !== 'string' || !COMMAND_KINDS.has(command.kind)) {
+    throw new Error('Timeline history command identity is invalid. Reopen the saved project.');
+  }
+  assertRevision(command.baseRevision);
+  assertRevision(command.revision);
+  if (command.revision !== command.baseRevision + 1) throw new Error('Timeline history command revision is invalid. Reopen the saved project.');
+  if (command.revision > currentRevision) throw new Error('Timeline history is ahead of the current timeline. Reopen the saved project.');
+  assertClipSnapshot(command.before, knownReasons);
+  assertClipSnapshot(command.after, knownReasons);
+  if (!Array.isArray(command.reasonIds) || new Set(command.reasonIds).size !== command.reasonIds.length || !command.reasonIds.every(validId)
+    || command.reasonIds.some(id => !knownReasons.has(id))) throw new Error('Timeline history reason references are invalid. Reopen the saved project.');
+  assertMetadata(command.metadata);
 }
 function rangeIssue(clip: TimelineClip, sources: TimelineSources): TimelineIssue | null {
   const source = sources[clip.sourceId];
@@ -79,20 +183,34 @@ export function resolveTimeline(snapshot: TimelineSnapshot, sources: TimelineSou
 }
 
 export function createTimelineState(snapshot: TimelineSnapshot, reasons: TimelineReason[] = [], history: TimelineHistory = { entries: [], cursor: 0, abandonedEntries: [] }): TimelineState {
+  if (!isRecord(snapshot) || !Array.isArray(snapshot.clips)) throw new Error('Timeline snapshot is invalid. Reopen the saved project.');
   assertRevision(snapshot.revision);
-  snapshot.clips.forEach(assertClipIdentity);
-  if (new Set(snapshot.clips.map(clip => clip.id)).size !== snapshot.clips.length) throw new Error('Clip IDs must be unique.');
-  if (!Number.isInteger(history.cursor) || history.cursor < 0 || history.cursor > history.entries.length) throw new Error('History cursor is invalid. Reopen the saved project.');
+  if (!Array.isArray(reasons)) throw new Error('Timeline reasons are invalid. Reopen the saved project.');
+  reasons.forEach(assertReason);
+  if (new Set(reasons.map(reason => reason.id)).size !== reasons.length) throw new Error('Timeline reasons are invalid. Reopen the saved project.');
+  const knownReasons = new Set(reasons.map(reason => reason.id));
+  assertClipSnapshot(snapshot.clips, knownReasons);
+  if (!isRecord(history) || !Array.isArray(history.entries) || !Array.isArray(history.abandonedEntries)
+    || !Number.isSafeInteger(history.cursor) || history.cursor < 0 || history.cursor > history.entries.length) {
+    throw new Error('History cursor is invalid. Reopen the saved project.');
+  }
   const commands = [...history.entries, ...history.abandonedEntries];
-  const sameClips = (a: TimelineClip[], b: TimelineClip[]) => JSON.stringify(a) === JSON.stringify(b);
+  const validateSequence = (sequence: TimelineCommand[]) => {
+    let previousRevision = -1;
+    for (const command of sequence) {
+      assertCommand(command, knownReasons, snapshot.revision);
+      if (command.revision <= previousRevision) throw new Error('Timeline history revisions are not monotonic. Reopen the saved project.');
+      previousRevision = command.revision;
+    }
+  };
+  validateSequence(history.entries);
+  for (const command of history.abandonedEntries) assertCommand(command, knownReasons, snapshot.revision);
   if (history.entries.length) {
     const atCursor = history.cursor ? history.entries[history.cursor - 1].after : history.entries[0].before;
     if (!sameClips(snapshot.clips, atCursor)) throw new Error('History does not match the current timeline. Reopen the saved project.');
     for (let i = 1; i < history.entries.length; i++) if (!sameClips(history.entries[i - 1].after, history.entries[i].before)) throw new Error('History branch is disconnected. Reopen the saved project.');
   }
   if (new Set(commands.map(command => command.id)).size !== commands.length) throw new Error('History command IDs must be unique.');
-  if (new Set(reasons.map(reason => reason.id)).size !== reasons.length || reasons.some(reason => !validId(reason.id) || !validId(reason.text))) throw new Error('Timeline reasons are invalid.');
-  const knownReasons = new Set(reasons.map(reason => reason.id));
   if (snapshot.clips.some(clip => clip.reasonIds.some(id => !knownReasons.has(id)))) throw new Error('A timeline exclusion reason is missing. Reopen the saved project.');
   return freeze({ snapshot: { revision: snapshot.revision, clips: copyClips(snapshot.clips) }, reasons: reasons.map(reason => ({ ...reason })),
     history: { entries: history.entries.map(copyCommand), cursor: history.cursor, abandonedEntries: history.abandonedEntries.map(copyCommand) } });
@@ -100,14 +218,21 @@ export function createTimelineState(snapshot: TimelineSnapshot, reasons: Timelin
 
 /** Creator-only commands. Proposals must pass their own scope/conflict review before this call. */
 export function applyTimelineAction(state: TimelineState, action: TimelineAction, sources: TimelineSources): TimelineState {
-  if (action.baseRevision !== state.snapshot.revision) throw new Error('This edit is stale. Review the current timeline and retry.');
+  assertRevision(state.snapshot.revision);
   assertRevision(action.baseRevision);
+  if (action.baseRevision !== state.snapshot.revision) throw new Error('This edit is stale. Review the current timeline and retry.');
+  if (typeof action.kind !== 'string' || !COMMAND_KINDS.has(action.kind)) throw new Error('This timeline command kind is invalid. Review the current timeline and retry.');
   const allCommands = [...state.history.entries, ...state.history.abandonedEntries];
   if (!validId(action.id) || allCommands.some(command => command.id === action.id)) throw new Error('Use a new command identity for this edit.');
+  assertMetadata(action.metadata);
+  if (action.reasons !== undefined && !Array.isArray(action.reasons)) throw new Error('Timeline reasons are invalid. Reopen the saved project.');
   const reasons = state.reasons.map(reason => ({ ...reason }));
-  for (const reason of action.reasons ?? []) {
+  const actionReasons = action.reasons ?? [];
+  actionReasons.forEach(assertReason);
+  if (new Set(actionReasons.map(reason => reason.id)).size !== actionReasons.length) throw new Error('Timeline reasons are invalid. Reopen the saved project.');
+  for (const reason of actionReasons) {
     const previous = reasons.find(item => item.id === reason.id);
-    if (previous && JSON.stringify(previous) !== JSON.stringify(reason)) throw new Error('An existing reason cannot be rewritten.');
+    if (previous && !sameReason(previous, reason)) throw new Error('An existing reason cannot be rewritten.');
     if (!previous) reasons.push({ ...reason });
   }
   const actionReason: TimelineReason = { id: `${action.id}:creator`, kind: action.kind, actor: 'creator', text: action.kind === 'exclude' ? 'Excluded by you. Original retained.' : action.kind === 'restore' ? 'Restored by you. Previous reasons retained.' : `Creator action: ${action.kind.replaceAll('-', ' ')}.` };
@@ -136,26 +261,41 @@ export function applyTimelineAction(state: TimelineState, action: TimelineAction
       if (!Number.isInteger(action.index) || action.index < 0 || action.index >= clips.length) throw new Error('Choose a position inside the timeline.');
       clips.splice(index, 1); clips.splice(action.index, 0, target); break;
     default: {
+      if (!Array.isArray(action.clips)) throw new Error('The accepted timeline proposal is invalid. Review it and retry.');
       clips = copyClips(action.clips);
       const oldIds = new Map(state.snapshot.clips.map(clip => [clip.id, clip]));
+      const historicalClipIds = new Set(allCommands.flatMap(command => [...command.before, ...command.after].map(clip => clip.id)));
       for (const clip of clips) {
         assertClipIdentity(clip);
+        if (!oldIds.has(clip.id) && historicalClipIds.has(clip.id)) throw new Error('Accepted clips must use new stable identities. Review the proposal and retry.');
         if (clip.included) assertRange(clip, sources);
         const old = oldIds.get(clip.id);
         if (old && (old.sourceId !== clip.sourceId || old.parentClipId !== clip.parentClipId)) throw new Error('A stable clip cannot change its source or lineage.');
+        if (old && !old.included && action.kind !== 'choose-take' && clip.included && creatorExcluded(old, state.reasons)) {
+          throw new Error('This proposal would restore a creator-excluded clip. Restore it explicitly before accepting the proposal.');
+        }
         if (old) clip.reasonIds = [...new Set([...old.reasonIds, ...clip.reasonIds])];
       }
       for (let i = 0; i < clips.length; i++) for (let j = i + 1; j < clips.length; j++) {
         const a = clips[i], b = clips[j];
-        if (a.included && b.included && a.sourceId === b.sourceId && a.t0 < b.t1 && b.t0 < a.t1
+        if (a.included && b.included && a.sourceId === b.sourceId && intervalsOverlap(a, b)
           && a.utteranceIds.some(id => b.utteranceIds.includes(id))) throw new Error('Shared utterance ranges overlap. Review the boundary or choose another take.');
+        if ((action.kind === 'accept-proposal' || action.kind === 'accept-pickup') && a.included && b.included
+          && a.sourceId === b.sourceId && !intervalsOverlap(a, b) && a.utteranceIds.some(id => b.utteranceIds.includes(id))
+          && !(() => {
+            const oldA = oldIds.get(a.id), oldB = oldIds.get(b.id);
+            return !!oldA && !!oldB && sameClip(oldA, a) && sameClip(oldB, b);
+          })()) {
+          throw new Error('A proposal cannot automatically split or duplicate a shared utterance. Review the boundary.');
+        }
       }
       // A whole proposal can exclude an alternative, but cannot erase its source context.
       for (const old of state.snapshot.clips) if (!clips.some(clip => clip.id === old.id)) clips.push({ ...copyClip(old), included: false, reasonIds: [...new Set([...old.reasonIds, actionReason.id])] });
     }
   }
   const command: TimelineCommand = { id: action.id, kind: action.kind, baseRevision: action.baseRevision, revision: action.baseRevision + 1,
-    before: copyClips(state.snapshot.clips), after: copyClips(clips), reasonIds: [actionReason.id, ...(action.reasons ?? []).map(reason => reason.id)] };
+    before: copyClips(state.snapshot.clips), after: copyClips(clips), reasonIds: [actionReason.id, ...actionReasons.map(reason => reason.id)],
+    ...(action.metadata === undefined ? {} : { metadata: copyMetadata(action.metadata) as TimelineCommandMetadata }) };
   const history: TimelineHistory = { entries: [...state.history.entries.slice(0, state.history.cursor), command], cursor: state.history.cursor + 1,
     abandonedEntries: [...state.history.abandonedEntries, ...state.history.entries.slice(state.history.cursor)] };
   return createTimelineState({ revision: action.baseRevision + 1, clips }, reasons, history);
