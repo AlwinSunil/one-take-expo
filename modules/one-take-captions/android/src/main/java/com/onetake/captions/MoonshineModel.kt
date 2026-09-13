@@ -21,6 +21,7 @@ internal object MoonshineModel {
 
   private val lock = Mutex()
   private val hashes = linkedMapOf(
+    "decoder_kv_with_attention.ort" to "c1b41adca4ef75ad8dfdfc71875b5d0ae9be959865a14498da01cbddab8c02b8",
     "streaming_config.json" to "74fe5ddebd63b17caf59e8a3b18c17547ff7bce1642050edbb1c3962674f8950",
     "encoder.ort" to "a8414e1a5dedf9f2093d7680601dd8a9b0433e7020260eafe0e370ead91134ca",
     "decoder_kv.ort" to "8852553f312adb6c9aa4d17418015049b30f412209ee569d336548c0044627de",

@@ -10,6 +10,7 @@ import type {
 export type { CaptionFailureReason, CaptionInterruptionReason, CaptionUnavailableReason };
 
 export interface CaptionSegmentUpdate {
+  words?: { text: string; t0: number; t1: number; confidence: number }[];
   id: string;
   t0: number;
   t1: number;
@@ -81,6 +82,7 @@ export function namespaceCaptionSegments(
     id: `r${attempt}:${segment.id}`,
     t0: segment.t0 + offsetSeconds,
     t1: segment.t1 + offsetSeconds,
+    ...(segment.words ? { words: segment.words.map(word => ({ ...word, t0: word.t0 + offsetSeconds, t1: word.t1 + offsetSeconds })) } : {}),
   }));
 }
 

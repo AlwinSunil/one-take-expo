@@ -48,7 +48,7 @@ export type CaptionEvent = {
   segments?: CaptionSegment[];
 };
 
-export type CaptionSegment = { id: string; t0: number; t1: number; text: string; isFinal: boolean };
+export type CaptionSegment = { words?: { text: string; t0: number; t1: number; confidence: number }[];  id: string; t0: number; t1: number; text: string; isFinal: boolean };
 
 export type CaptionStatusEvent = {
   sessionId: string;
@@ -73,6 +73,10 @@ export type OneTakeCaptionsEvents = {
 export declare class OneTakeCaptionsModule extends NativeModule<OneTakeCaptionsEvents> {
   start(sessionId: string): Promise<void>;
   stop(sessionId: string): Promise<CaptionSegment[]>;
+  aiStatus(): Promise<string>;
+  prepareAi(): Promise<string>;
+  prompt(text: string): Promise<string>;
+  analyzeAudio(sourceUri: string): Promise<{ quiet: { t0: number; t1: number }[] }>;
   refine(id: string, sourceUri: string, model: 'tiny' | 'small'): Promise<CaptionSegment[]>;
   cancelRefinement(id: string): Promise<void>;
 }

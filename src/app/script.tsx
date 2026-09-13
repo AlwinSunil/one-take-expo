@@ -4,7 +4,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { suggestImportantPoints } from '@/features/speech-analysis/important-points';
+import { useScriptAnalysis } from '@/features/local-ai/use-script-analysis';
+import { scriptPointChecks } from '@/features/capture/script-point-checks';
 import { ScriptLineRow } from '@/components/script/script-line-row';
 import { clearScriptStructure, loadScriptDocument, saveAcceptedScriptStructure, saveScriptStructure } from '@/lib/script-draft';
 import {
@@ -32,8 +33,8 @@ export default function ScriptInput() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
   const script = doc.text;
-  const importantLineIds = useMemo(() => new Set(suggestImportantPoints(doc, 'current-script')
-    .filter(point => point.importance === 'important').map(point => point.span.lineId)), [doc]);
+  const localAi = useScriptAnalysis(doc, loaded);
+  const importantLineIds = useMemo(() => new Set(localAi.analysis?.importantLineIds ?? scriptPointChecks(doc, []).map(point => point.lineId)), [doc, localAi.analysis]);
   const requiredOpen = unresolvedRequiredCueIds(doc).length;
 
   useEffect(() => {
@@ -113,6 +114,12 @@ export default function ScriptInput() {
             className="bg-neutral-900 border border-neutral-800 rounded-xl text-white text-sm p-4 mt-3 min-h-[180px] max-h-[320px]"
           />
 
+          {!!localAi.status && <View className="flex-row items-center gap-3 mt-2">
+            <Text accessibilityLiveRegion="polite" className="text-neutral-400 text-xs flex-1">{localAi.status}</Text>
+            {localAi.canRetry && <Pressable accessibilityRole="button" accessibilityLabel="Retry local script analysis" onPress={localAi.retry} hitSlop={8} className="py-2 px-1">
+              <Text className="text-neutral-200 text-xs">Retry</Text>
+            </Pressable>}
+          </View>}
           {!!saveError && <Text className="text-red-300 text-xs mt-2">{saveError}</Text>}
 
           <View className="flex-row gap-3 mt-3">
@@ -139,7 +146,7 @@ export default function ScriptInput() {
                 {doc.lines.length} {doc.lines.length === 1 ? 'line' : 'lines'}
                 {requiredOpen > 0 ? ` · ${requiredOpen} required ${requiredOpen === 1 ? 'action' : 'actions'} still open` : ''}
               </Text>
-              <Text className="text-neutral-500 text-xs mt-2">On-device checks will flag unconfirmed important points after recording.</Text>
+              <Text className="text-neutral-500 text-xs mt-2">Missed important points are flagged while you record.</Text>
               {doc.lines.map((line, index) => (
                 <View key={line.id}>
                 {importantLineIds.has(line.id) && <Text className="text-amber-200 text-xs mt-4">Important point</Text>}

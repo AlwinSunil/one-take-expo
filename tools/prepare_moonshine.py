@@ -65,6 +65,8 @@ def stage_file(target: Path, source: Path, expected: str) -> None:
 
 
 def download_bytes(url: str) -> bytes:
+    if url.endswith('/decoder_kv_with_attention.ort'):
+        url = url.replace('https://download.moonshine.ai/', 'https://huggingface.co/moonshine-ai/moonshine-voice-assets/resolve/main/')
     request = urllib.request.Request(url, headers={"User-Agent": "one-take-build/1"})
     context = None
     try:

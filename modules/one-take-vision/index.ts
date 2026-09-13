@@ -42,6 +42,7 @@ export type VisionStatusEvent = {
 };
 
 export type VisionFrameEvent = {
+  exposure?: { mean: number; clipped: number; dark: number };
   sessionId: string;
   lensFacing: VisionLensFacing;
   frameId: number;

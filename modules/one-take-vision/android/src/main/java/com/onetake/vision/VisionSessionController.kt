@@ -269,6 +269,7 @@ internal class VisionSessionController(
         "stable" to stable.stable,
         "stableForMs" to stable.stableForMs,
         "faces" to frame.faces.map { it.toMap() },
+        "exposure" to frame.exposure,
         "thermalStatus" to frame.thermalStatus.wireValue,
         "droppedFrames" to frame.droppedFrames,
         "inferenceMs" to frame.inferenceMs,

@@ -2,6 +2,7 @@ package com.onetake.media
 
 import android.content.Context
 import android.os.Handler
+import android.util.Log
 import android.os.Looper
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
@@ -46,7 +47,7 @@ class MediaCutPreviewView(context: Context, appContext: AppContext) : ExpoView(c
   private fun load() {
     if (source.isEmpty() || (player != null && loadedSource == source)) return
     loadJob?.cancel()
-    surface.player = null; player?.release(); player = null; loadedSource = null
+    releasePlayer()
     val requestedSource = source
     val loadStarted = android.os.SystemClock.elapsedRealtime()
     loadJob = scope.launch {
@@ -67,16 +68,25 @@ class MediaCutPreviewView(context: Context, appContext: AppContext) : ExpoView(c
           onState(mapOf("firstFrameMs" to (android.os.SystemClock.elapsedRealtime() - loadStarted)))
         }
         override fun onPlayerError(error: PlaybackException) {
+          Log.e("OneTakePreview", "Preview playback failed", error)
           if (player === next) onState(mapOf("error" to "This cut could not play. Try the original recording."))
         }
       })
       next.setComposition(composition); next.prepare(); next.seekTo((pendingSeek * 1000).toLong()); next.playWhenReady = wantsPlay
     } catch (cancelled: CancellationException) { throw cancelled
     } catch (error: Exception) {
-      surface.player = null; player?.release(); player = null; loadedSource = null
+      Log.e("OneTakePreview", "Preview preparation failed", error)
+      releasePlayer()
       onState(mapOf("error" to (error.message ?: "This cut could not play.")))
     }
   }
+  }
+  private fun releasePlayer() {
+    val previous = player
+    player = null
+    loadedSource = null
+    surface.player = null
+    previous?.release()
   }
   fun setPlaying(value: Boolean) {
     wantsPlay = value
@@ -88,5 +98,5 @@ class MediaCutPreviewView(context: Context, appContext: AppContext) : ExpoView(c
   }
   fun seek(value: Double) { if (!value.isFinite()) return; pendingSeek = value.coerceAtLeast(0.0); player?.seekTo((pendingSeek * 1000).toLong()) }
   override fun onAttachedToWindow() { super.onAttachedToWindow(); load(); handler.post(ticker) }
-  override fun onDetachedFromWindow() { loadJob?.cancel(); wantsPlay = false; handler.removeCallbacksAndMessages(null); surface.player = null; player?.release(); player = null; loadedSource = null; super.onDetachedFromWindow() }
+  override fun onDetachedFromWindow() { loadJob?.cancel(); wantsPlay = false; handler.removeCallbacksAndMessages(null); releasePlayer(); super.onDetachedFromWindow() }
 }

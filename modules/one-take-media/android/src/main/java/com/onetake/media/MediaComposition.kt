@@ -1,6 +1,8 @@
 package com.onetake.media
 
 import android.content.Context
+import android.media.MediaExtractor
+import android.media.MediaFormat
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import androidx.media3.common.C
@@ -49,6 +51,7 @@ internal object MediaComposition {
       cuts.map { MediaSourceSegment(request.sourceUri, it, request.captions) }
     }
     require(segments.isNotEmpty() && segments.size <= MediaExportTimeline.MAX_CUTS) { "Choose playable segments" }
+    requireVideoSamples(context, segments)
     val captions = mapSegmentCaptions(segments)
     val items = segments.map { segment ->
       MediaExportTimeline.validateCuts(listOf(segment.cut))
@@ -73,4 +76,33 @@ internal object MediaComposition {
     return Composition.Builder(sequence).setEffects(effects)
       .setHdrMode(Composition.HDR_MODE_TONE_MAP_HDR_TO_SDR_USING_OPEN_GL).build()
   }
+
+  private fun requireVideoSamples(context: Context, segments: List<MediaSourceSegment>) {
+    for ((uri, sourceSegments) in segments.groupBy { it.uri }) {
+      val extractor = MediaExtractor()
+      try {
+        extractor.setDataSource(context, Uri.parse(uri), null)
+        val videoTrack = (0 until extractor.trackCount).firstOrNull {
+          extractor.getTrackFormat(it).getString(MediaFormat.KEY_MIME)?.startsWith("video/") == true
+        } ?: error("This recording has no video track.")
+        extractor.selectTrack(videoTrack)
+        for (segment in sourceSegments) {
+          val startUs = MediaExportTimeline.toMillis(segment.cut.t0) * 1_000
+          val endUs = MediaExportTimeline.toMillis(segment.cut.t1) * 1_000
+          extractor.seekTo(startUs, MediaExtractor.SEEK_TO_PREVIOUS_SYNC)
+          val timestamps = sequence {
+            while (extractor.sampleTime >= 0) {
+              yield(extractor.sampleTime)
+              if (!extractor.advance()) break
+            }
+          }
+          // An empty video track interval can leave Media3 waiting forever while audio reaches EOS.
+          require(videoWindowHasSample(timestamps, startUs, endUs)) {
+            "A cut contains no video frame. Restore adjacent footage and retry."
+          }
+        }
+      } finally { extractor.release() }
+    }
+  }
+
 }

@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
+    <!-- The optional model is guarded at API 31; recording remains available on older Android. -->
+    <uses-sdk tools:overrideLibrary="com.geniex.sdk" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
 </manifest>

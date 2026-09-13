@@ -1,14 +1,17 @@
 import { useEvent } from 'expo';
-import { Image } from 'expo-image';
 import { router, useNavigation, useLocalSearchParams, useFocusEffect } from 'expo-router';
-import { useVideoPlayer, VideoView, type VideoThumbnail } from 'expo-video';
-import { ArrowLeft, Pause, Play, RotateCcw, SlidersHorizontal } from 'lucide-react-native';
+import { useVideoPlayer, VideoView } from 'expo-video';
+import { ArrowLeft, Pause, Play } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, AppState, Keyboard, PanResponder, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, AppState, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { fillerTimelineMarks, type TranscriptTimelineMark } from '@/lib/transcript-filler-timeline';
-import { FillerBands, TranscriptFillerMarkers } from '@/components/review/transcript-filler-markers';
+import captionNative from '../../modules/one-take-captions';
+import { AutomaticCutReview } from '@/components/review/automatic-cut-review';
+import { applyAutomaticEdit, automaticEditCurrent, buildAutomaticEdit, editSources, type AudioEvidence } from '@/lib/automatic-edit';
+import { completeSourceSemantics } from '@/lib/review-semantic-completion';
+import { matchLocalSpeech, prepareLocalAi } from '@/features/local-ai/script-model';
+import { enrichWordTiming, needsRefinedWords } from '@/lib/refined-word-timing';
 import { recordedMediaDuration } from '@/lib/recorded-media';
 import { transcriptForSource } from '@/lib/review-source';
 import { reviewExportSelection } from '@/lib/review-export-selection';
@@ -16,7 +19,7 @@ import { sanitizeExportCaption } from '@/lib/export-plan';
 import { cleanReview, pickupLineIds, selectedReviewCuts, selectedReviewSegments } from '@/lib/clean-review';
 import type { Project } from '@/lib/session';
 import { getProject, saveProject, saveProjectMetadata } from '@/lib/store';
-import { partitionCaptionTimeline, activeCaptionAt } from '@/lib/caption-timeline';
+import { nativeCaptionTimeline, partitionCaptionTimeline, activeCaptionAt } from '@/lib/caption-timeline';
 import { LOCAL_VIDEO_BUFFER } from '@/lib/video-buffer';
 import { ExportControls } from '@/components/review/export-controls';
 import media, { NativeCutPreview } from '../../modules/one-take-media';
@@ -27,7 +30,6 @@ import { T1WrapReport } from '@/components/review/t1-wrap-report';
 import { T1CleanupReview } from '@/components/review/t1-cleanup-review';
 import { T1CaptionEditor } from '@/components/review/t1-caption-editor';
 import { Tier1TakeReview } from '@/components/review/t1-take-review';
-import { projectScriptLines } from '@/lib/project-workflow';
 import { resolveReviewFootage } from '@/lib/t1-review';
 import { applyProjectFraming } from '@/lib/t1-framing-selection';
 import { projectWithSpeechEvidence } from '@/lib/t1-speech-review';
@@ -43,55 +45,9 @@ const time = (seconds: number) => `${Math.floor(seconds / 60)}:${Math.floor(seco
 type PreviewSource = 'clean' | 'trim' | 'original';
 type Peek = NonNullable<Project['reviewSegments']>[number];
 
-function TrimHandle({ value, duration, width, onChange }: {
-  value: number; duration: number; width: number; onChange: (value: number) => void;
-}) {
-  const latest = useRef({ value, duration, width, onChange });
-  latest.current = { value, duration, width, onChange };
-  const origin = useRef(value);
-  const pan = useMemo(() => PanResponder.create({
-    onStartShouldSetPanResponder: () => true,
-    onMoveShouldSetPanResponder: () => true,
-    onPanResponderGrant: () => { origin.current = latest.current.value; },
-    onPanResponderMove: (_, gesture) => {
-      const props = latest.current;
-      if (props.width > 0) props.onChange(origin.current + gesture.dx / props.width * props.duration);
-    },
-  }), []);
-  return <View {...pan.panHandlers}
-    accessibilityRole="adjustable" accessibilityLabel="Trim boundary"
-    accessibilityValue={{ min: 0, max: duration, now: value }}
-    accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
-    onAccessibilityAction={e => onChange(value + (e.nativeEvent.actionName === 'increment' ? 0.5 : -0.5))}
-    style={{ position: 'absolute', left: `${value / duration * 100}%`, top: -8, bottom: -8,
-      width: 32, marginLeft: -16, alignItems: 'center', justifyContent: 'center', zIndex: 3 }}>
-    <View style={{ width: 10, height: 64, backgroundColor: '#e5e5e5', borderRadius: 4 }} />
-  </View>;
-}
-
-function SourceTabs({ value, onChange, cleanDisabled }: {
-  value: PreviewSource; onChange: (v: PreviewSource) => void; cleanDisabled: boolean;
-}) {
-  const tabs: { id: PreviewSource; label: string; disabled?: boolean }[] = [
-    { id: 'clean', label: 'Takes & captions', disabled: cleanDisabled },
-    { id: 'trim', label: 'Trim' },
-    { id: 'original', label: 'Original' },
-  ];
-  return <View accessibilityRole="tablist" className="flex-row bg-neutral-900 rounded-full p-1 gap-1">
-    {tabs.map(tab => {
-      const selected = value === tab.id;
-      return <Pressable key={tab.id} accessibilityRole="button" accessibilityState={{ selected, disabled: tab.disabled }}
-        disabled={tab.disabled} onPress={() => onChange(tab.id)}
-        className={`flex-1 items-center rounded-full py-2.5 active:opacity-70 ${selected ? 'bg-white' : 'bg-transparent'} ${tab.disabled ? 'opacity-40' : ''}`}>
-        <Text className={`text-xs font-semibold ${selected ? 'text-black' : 'text-neutral-300'}`}>{tab.label}</Text>
-      </Pressable>;
-    })}
-  </View>;
-}
-
 function VideoEditor({ project: initialProject, uri }: { project: Project | null; uri: string }) {
   const [project, setProject] = useState(initialProject);
-  const [failedMediaUris, setFailedMediaUris] = useState<string[]>([]);
+  const [failedMediaUris] = useState<string[]>([]);
   const latestProject = useRef(project);
   latestProject.current = project;
   const persistence = useRef(Promise.resolve());
@@ -151,7 +107,8 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
   const source = useEvent(player, 'sourceLoad');
   const progress = useEvent(player, 'timeUpdate');
   const [durationChecks, setDurationChecks] = useState<Record<string, { duration?: number; error?: string }>>({});
-  const sourceUris = useMemo(() => [...new Set([uri, ...(project?.recordings ?? []).map(recording => recording.mediaUri)])], [uri, project?.recordings]);
+  const sourceUriKey = JSON.stringify([...new Set([uri, ...(project?.recordings ?? []).map(recording => recording.mediaUri)])]);
+  const sourceUris = useMemo<string[]>(() => JSON.parse(sourceUriKey), [sourceUriKey]);
   useEffect(() => {
     let active = true;
     setDurationChecks({});
@@ -164,13 +121,11 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
   const duration = sourceDuration(durationChecks[uri]?.duration, project?.duration, source?.duration ?? player.duration);
   const currentTime = progress?.currentTime ?? 0;
   const { isPlaying } = useEvent(player, 'playingChange', { isPlaying: false });
-  const [start, setStart] = useState(project?.trim?.start ?? 0);
-  const [end, setEnd] = useState(project?.trim?.end ?? 0);
-  const [width, setWidth] = useState(0);
-  const [thumbnails, setThumbnails] = useState<VideoThumbnail[]>([]);
+  const [start] = useState(project?.trim?.start ?? 0);
+  const [end] = useState(project?.trim?.end ?? 0);
   const [message, setMessage] = useState('');
-  const [editing, setEditing] = useState(false);
-  const [editTool, setEditTool] = useState<PreviewSource>('clean');
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analysisAttempt, setAnalysisAttempt] = useState(0);
   const [tier1Test, setTier1Test] = useState(false);
   const [previewSource, setPreviewSource] = useState<PreviewSource>(
     Array.isArray(initialProject?.reviewSegments) || Array.isArray(initialProject?.cuts) ? 'clean' : 'trim',
@@ -182,7 +137,17 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
   const review = useMemo(() => mediaProject ? cleanReview(mediaProject) : null, [mediaProject]);
   const clean = useMemo(() => review ? selectedReviewCuts(review, uri, duration > 0 ? duration : undefined) : null, [review, uri, duration]);
   const sequence = useMemo(() => project ? selectedReviewSegments({ ...mediaProject!, duration: duration > 0 ? duration : project.duration }, review!) : null, [project, mediaProject, review, duration]);
-  const rawProposedSegments = useMemo<NonNullable<Project['reviewSegments']>>(() => project?.reviewSegments?.map(segment => ({ ...segment, captions: transcriptForSource(project, segment.uri).length ? transcriptForSource(project, segment.uri).filter(caption => caption.isFinal !== false).map(caption => ({ t0: caption.t0, t1: caption.t1, text: sanitizeExportCaption(caption.manualCorrection ?? caption.correctedText ?? caption.text) })).filter(caption => caption.text.trim()) : segment.captions })) ?? (project?.cuts?.length ? project.cuts.map(cut => ({ ...cut, uri, captions: transcriptForSource(project, uri).filter(segment => segment.isFinal !== false).map(segment => ({ t0: segment.t0, t1: segment.t1, text: sanitizeExportCaption(segment.manualCorrection ?? segment.correctedText ?? segment.text) })).filter(caption => caption.text.trim()) })) : project?.cuts ? [] : sequence?.segments ?? []), [project?.reviewSegments, project?.cuts, project?.transcript, uri, sequence]);
+  const rawProposedSegments = useMemo<NonNullable<Project['reviewSegments']>>(() => {
+    const sourceCaptions = (sourceUri: string, fallback: NonNullable<Project['reviewSegments']>[number]['captions'] = []) => {
+      const transcript = project ? transcriptForSource(project, sourceUri) : [];
+      return nativeCaptionTimeline(transcript.length ? transcript.filter(caption => caption.isFinal !== false).map(caption => ({
+        t0: caption.t0, t1: caption.t1, text: sanitizeExportCaption(caption.manualCorrection ?? caption.correctedText ?? caption.text),
+      })) : fallback ?? []);
+    };
+    return project?.reviewSegments?.map(segment => ({ ...segment, captions: sourceCaptions(segment.uri, segment.captions) }))
+      ?? (project?.cuts?.length ? project.cuts.map(cut => ({ ...cut, uri, captions: sourceCaptions(uri) }))
+        : project?.cuts ? [] : sequence?.segments.map(segment => ({ ...segment, captions: sourceCaptions(segment.uri, segment.captions) })) ?? []);
+  }, [project?.reviewSegments, project?.cuts, project?.transcript, uri, sequence]);
   const framingAllowed = tier1Enabled('reframing', __DEV__, tier1Test) && media?.supportsFraming === true;
   const proposedSegments = useMemo(() => project ? applyProjectFraming(project, rawProposedSegments, framingAllowed) : rawProposedSegments, [project, rawProposedSegments, framingAllowed]);
   const [activeSegments, setActiveSegments] = useState(proposedSegments);
@@ -228,7 +193,7 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
     return null;
   };
   const activeCleanIssue = nativeError
-    ? `Clean preview failed: ${nativeError}. Restore the source or review another preview.`
+    ? 'Preview could not play.'
     : cleanIssueFor(activeSegments, !updatesWaiting);
   const activeCleanReady = activeCleanIssue === null;
   const playingSegments = peek ? [peek] : activeSegments;
@@ -239,7 +204,6 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
     : activeUsesMultipleSources
       ? undefined
       : activeSegments.map(segment => ({ t0: segment.t0, t1: segment.t1 }));
-  const hasClean = proposedSegments.length > 0;
   const nativeMode = !!NativeCutPreview && activeCleanReady && nativeSourcesAvailable && !peek && previewSource === 'clean' && playingSegments.length > 0;
   const peekNativeMode = !!NativeCutPreview && nativeSourcesAvailable && !!peek;
   const useNative = nativeMode || peekNativeMode;
@@ -249,24 +213,6 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
     if (useNative && !nativeStarted.current && !isPlaying) { nativeStarted.current = true; setNativePlaying(true); }
   }, [useNative, isPlaying]);
   const valid = Number.isFinite(duration) && duration > 0;
-  const fillerSegments = useMemo(() => peek ? [peek] : previewSource === 'clean' ? activeSegments : valid ? [{ uri, t0: 0, t1: duration }] : [],
-    [peek, previewSource, activeSegments, valid, uri, duration]);
-  const fillerMarks = useMemo(() => project ? fillerTimelineMarks(project, fillerSegments) : [], [project, fillerSegments]);
-  const fillerDuration = fillerSegments.reduce((sum, segment) => sum + segment.t1 - segment.t0, 0);
-  function previewTranscriptFiller(mark: TranscriptTimelineMark) {
-    clearPeek();
-    player.pause();
-    if (NativeCutPreview && availableMediaUris.includes(mark.sourceUri)) {
-      const bound = mark.sourceUri === uri ? duration : sourceDuration(durationChecks[mark.sourceUri]?.duration, project?.recordings?.find(recording => recording.mediaUri === mark.sourceUri)?.duration);
-      if (!bound) return;
-      setPeek({ uri: mark.sourceUri, t0: Math.max(0, mark.sourceTime - 0.5), t1: Math.min(bound, mark.sourceTime + 1.5), captions: [] });
-      setNativeSeek(0);
-      setNativePlaying(true);
-    } else if (mark.sourceUri === uri) {
-      setPreviewSource('original');
-      player.currentTime = Math.max(0, mark.sourceTime - 0.5);
-    }
-  }
   const nativeRequest = useMemo(() => JSON.stringify({ id: 'preview', sourceUri: playingSegments[0]?.uri ?? uri, cuts: [], captions: [], segments: playingSegments }), [playingSegments, uri]);
   useEffect(() => { if (useNative) player.pause(); else setNativePlaying(false); }, [useNative, player]);
   const previewCuts = !useNative && !peek && previewSource === 'clean' && activeCleanReady ? activeLegacyCuts : undefined;
@@ -291,27 +237,64 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
   }, [project, uri]);
   const captionText = activeCaptionAt(captionCues, currentTime)?.text ?? '';
 
-  // Trim changes use the same serialized persistence queue as every other edit.
-  // Persist immediately so navigating away cannot discard the last drag position.
-  function updateTrim(nextStart: number, nextEnd: number) {
-    setStart(nextStart); setEnd(nextEnd); setMessage('');
-    const current = latestProject.current;
-    if (current) void changeProject({ ...current, trim: { start: nextStart, end: nextEnd } }, true).catch(() => {});
-  }
-
-  function switchSource(next: PreviewSource) {
-    setPeek(null); setNativePlaying(false); player.pause();
-    setPreviewSource(next);
-    if (next === 'trim') player.currentTime = start;
-    if (next === 'original') player.currentTime = 0;
-  }
-
   function clearPeek() {
     setPeek(null); setNativePlaying(false); setNativeSeek(0);
   }
 
+  const needsAnalysis = !!project && !automaticEditCurrent(project);
+  useEffect(() => {
+    if (!needsAnalysis || !project || sourceUris.some(source => !durationChecks[source])) { setAnalyzing(false); return; }
+    let active = true;
+    let refinementId: string | undefined;
+    setAnalyzing(true);
+    player.pause(); setNativePlaying(false);
+    void (async () => {
+      const audio: AudioEvidence = {};
+      const checked: Project = { ...project, duration,
+        recordings: project.recordings?.map(recording => ({ ...recording, duration: durationChecks[recording.mediaUri]?.duration ?? recording.duration })) };
+      for (const source of editSources(checked)) {
+        if (!active) return;
+        try { audio[source.id] = await captionNative!.analyzeAudio(source.uri); }
+        catch { if (active) setMessage('Some audio checks are unavailable. Existing cuts are preserved.'); }
+        if (!active) return;
+        const original = transcriptForSource(checked, source.uri);
+        if (needsRefinedWords(original) && captionNative?.refine) {
+          refinementId = `editor-words:${project.id}:${source.id}:${Date.now()}`;
+          try {
+            const refined = await captionNative.refine(refinementId, source.uri, 'small');
+            if (!active) return;
+            const enriched = enrichWordTiming(original, refined);
+            const replacements = new Map(original.map((segment, index) => [segment, enriched[index]]));
+            checked.transcript = checked.transcript.map(segment => replacements.get(segment) ?? segment);
+          } catch { if (active) setMessage('Some filler cuts need a quick check.'); }
+          finally { refinementId = undefined; }
+        }
+      }
+      if (!active) return;
+      if (checked.scriptLines?.length && captionNative?.aiStatus) {
+        try {
+          const state = await captionNative.aiStatus();
+          if (active && state !== 'unavailable' && await prepareLocalAi() === 'available') {
+            for (const source of editSources(checked)) {
+              if (!active) return;
+              checked.semanticMatches = await completeSourceSemantics(checked, source.uri, matchLocalSpeech, () => active);
+            }
+          }
+        } catch { if (active) setMessage('Some script lines need a quick check.'); }
+      }
+      if (!active) return;
+      setPreviewSource('clean'); clearPeek();
+      await changeProject(applyAutomaticEdit(checked, buildAutomaticEdit(checked, audio)));
+    })().catch(() => { if (active) setMessage('Could not prepare the edit. Tap Retry.'); })
+      .finally(() => { if (active) setAnalyzing(false); });
+    return () => {
+      active = false;
+      if (refinementId) void captionNative?.cancelRefinement(refinementId).catch(() => {});
+    };
+  }, [needsAnalysis, sourceUriKey, durationChecks, analysisAttempt]);
+
   const exportMode = previewSource === 'original' ? 'original' : previewSource === 'trim' ? 'trim' : 'cut';
-  const exportBlockedReason = peek
+  const exportBlockedReason = analyzing || needsAnalysis ? 'Preparing your edit…' : peek
     ? 'Peeking at a take. Return to export.'
     : updatesWaiting && playing
       ? 'New edits apply when paused.'
@@ -328,14 +311,8 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
     ? (valid ? duration : 0)
     : previewSource === 'trim'
       ? (valid ? Math.max(0, limit - start) : 0)
-      : activeCleanReady
-        ? useNative
-          ? playingSegments.reduce((sum, item) => sum + item.t1 - item.t0, 0)
-          : previewCuts?.length
-            ? previewCuts.reduce((sum, cut) => sum + cut.t1 - cut.t0, 0)
-            : activeSegments.reduce((sum, segment) => sum + segment.t1 - segment.t0, 0)
-        : 0;
-  const statusLine = `${previewSource === 'original' ? 'Original' : previewSource === 'trim' ? 'Trimmed' : 'Edited'} · ${time(outputDuration)}`;
+      : activeSegments.reduce((sum, segment) => sum + (Number.isFinite(segment.t0) && Number.isFinite(segment.t1) ? Math.max(0, segment.t1 - segment.t0) : 0), 0);
+  const statusLine = `${peek ? 'Preview' : previewSource === 'original' ? 'Original' : previewSource === 'trim' ? 'Trimmed' : 'Edited'} · ${time(outputDuration)}`;
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', state => { if (state !== 'active') { player.pause(); setNativePlaying(false); } });
@@ -343,14 +320,6 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
   }, [player]);
 
   useEffect(() => navigation.addListener('blur', () => { player.pause(); setNativePlaying(false); }), [navigation, player]);
-
-  useEffect(() => {
-    if (status !== 'readyToPlay' || !valid) return;
-    let active = true;
-    player.generateThumbnailsAsync(Array.from({ length: 8 }, (_, i) => duration * i / 8), { maxWidth: 120 })
-      .then(frames => { if (active) setThumbnails(frames); }).catch(() => {});
-    return () => { active = false; };
-  }, [player, status, duration, valid]);
 
   useEffect(() => {
     if (!isPlaying || useNative || peek) return;
@@ -397,10 +366,10 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
         if (state.ended) setNativePlaying(false);
         if (state.error) {
           setNativeError(state.error); setNativePlaying(false); clearPeek(); setPreviewSource('clean');
-          setFailedMediaUris(previous => [...new Set([...previous, ...playingSegments.map(segment => segment.uri)])]);
         }
       }} /> : cleanPreviewEmpty ? <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
         <Text accessibilityRole="alert" className="text-neutral-300 text-center">{activeCleanIssue ?? 'Clean preview is unavailable.'}</Text>
+        {!!nativeError && <Pressable accessibilityRole="button" onPress={() => { setNativeError(''); setNativeSeek(0); setNativePosition(0); setNativePlaying(true); }} className="mt-4 rounded-xl bg-neutral-800 px-5 py-3"><Text className="text-white">Retry preview</Text></Pressable>}
       </View> : <VideoView style={{ flex: 1 }} player={player} nativeControls={false} contentFit="contain" />}
       {!!captionText && previewSource !== 'original' && !cleanPreviewEmpty && !useNative && <View pointerEvents="none" style={{ position: 'absolute', bottom: '17%', left: '10%', right: '10%', alignItems: 'center' }}>
         <Text style={{ color: 'white', backgroundColor: '#000b', textAlign: 'center', fontWeight: 'bold', fontSize: 18, padding: 6 }}>{captionText}</Text>
@@ -416,13 +385,9 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
       <View className="flex-row items-center justify-between mt-3 mb-2">
         <Text accessibilityLiveRegion="polite" className="text-neutral-300 text-xs flex-1 pr-3">{statusLine}</Text>
         <View className="flex-row items-center gap-1">
-      <Pressable accessibilityRole="button" accessibilityLabel={editing ? 'Done editing' : 'Edit video'} accessibilityState={{ expanded: editing }} onPress={() => { Keyboard.dismiss(); if (editing) clearPeek(); setEditing(value => !value); player.pause(); setNativePlaying(false); }} className="flex-row items-center gap-2 px-3 py-3">
-        <SlidersHorizontal size={16} color={editing ? 'white' : '#a3a3a3'} />
-        <Text className="text-white text-sm font-medium">{editing ? 'Done' : 'Edit'}</Text>
-      </Pressable>
           <Pressable disabled={!valid || status === 'error' || (previewSource === 'clean' && !peek && !activeCleanReady)} accessibilityRole="button" accessibilityLabel={playing ? 'Pause' : 'Play'} className="p-3 bg-neutral-800 rounded-full disabled:opacity-40" onPress={() => {
             if (useNative) {
-              if (!nativePlaying && nativePosition >= outputDuration - 0.05) setNativeSeek(v => v + 1);
+              if (!nativePlaying && nativePosition >= outputDuration - 0.05) setNativeSeek(0);
               setNativePlaying(value => !value); return;
             }
             if (isPlaying) player.pause();
@@ -437,129 +402,28 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
           }}>
             {playing ? <Pause size={22} color="white" /> : <Play size={22} color="white" />}
           </Pressable>
-          {editing && editTool === 'trim' && <Pressable accessibilityRole="button" accessibilityLabel="Reset trim" className="p-3" onPress={() => updateTrim(0, duration)}>
-            <RotateCcw size={20} color="#a3a3a3" />
-          </Pressable>}
+
         </View>
       </View>
     </View>
     {project && <View className="px-5"><ImportantPointsReview project={reviewProject ?? project} compact /></View>}
-    <ScrollView automaticallyAdjustKeyboardInsets keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 20 }} className="px-5 pt-2 w-full self-center" style={{ maxWidth: 600, maxHeight: '38%', display: editing ? 'flex' : 'none' }}>
-      <SourceTabs value={editTool} onChange={value => { setEditTool(value); if (value !== 'clean' || hasClean) switchSource(value); }} cleanDisabled={false} />
-      {editTool === 'original' && <Text className="text-neutral-400 text-xs py-3">Full recording · retakes included</Text>}
-      {(editTool === 'trim' || editTool === 'original') && <View className="pt-5">
-
-        {valid && <View onLayout={e => setWidth(e.nativeEvent.layout.width)} style={{ height: 56, marginHorizontal: 12 }}>
-          <View onStartShouldSetResponder={() => true} onMoveShouldSetResponder={() => true}
-            onResponderGrant={e => { if (width) seek(e.nativeEvent.locationX / width * duration); }}
-            onResponderMove={e => { if (width) seek(e.nativeEvent.locationX / width * duration); }}
-            style={{ flex: 1, backgroundColor: '#262626', overflow: 'hidden', borderRadius: 4 }}>
-            <View pointerEvents="none" style={{ flex: 1, flexDirection: 'row' }}>
-              {thumbnails.map((thumbnail, i) => <Image key={i} source={thumbnail} contentFit="cover" style={{ flex: 1, height: 56 }} />)}
-            </View>
-            <FillerBands marks={fillerMarks} duration={duration} />
-            {previewSource === 'trim' && <>
-            <View pointerEvents="none" style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: `${start / duration * 100}%`, backgroundColor: '#000b' }} />
-            <View pointerEvents="none" style={{ position: 'absolute', top: 0, bottom: 0, right: 0, width: `${(1 - limit / duration) * 100}%`, backgroundColor: '#000b' }} />
-            <View pointerEvents="none" style={{ position: 'absolute', top: 0, bottom: 0, left: `${start / duration * 100}%`, width: `${(limit - start) / duration * 100}%`, borderTopWidth: 3, borderBottomWidth: 3, borderColor: '#e5e5e5' }} />
-            </>}
-            <View pointerEvents="none" style={{ position: 'absolute', top: 0, bottom: 0, left: `${Math.min(100, currentTime / duration * 100)}%`, width: 2, backgroundColor: 'white' }} />
-          </View>
-          {previewSource === 'trim' && <><TrimHandle value={start} duration={duration} width={width} onChange={v => {
-            const next = Math.max(0, Math.min(limit - Math.min(0.25, duration), v));
-            updateTrim(next, limit); player.pause(); player.currentTime = next;
-          }} />
-          <TrimHandle value={limit} duration={duration} width={width} onChange={v => {
-            const next = Math.min(duration, Math.max(start + Math.min(0.25, duration), v));
-            updateTrim(start, next); player.pause(); player.currentTime = next;
-          }} /></>}
-        </View>}
-        {previewSource === 'trim' && <><View className="flex-row justify-between mt-3">
-          <Text className="text-neutral-400 text-xs">{time(start)}</Text>
-          <Text className="text-neutral-400 text-xs">{time(valid ? limit - start : 0)} selected</Text>
-          <Text className="text-neutral-400 text-xs">{time(valid ? limit : 0)}</Text>
-        </View>
-        </>}
-      </View>}
-      <TranscriptFillerMarkers marks={fillerMarks} duration={fillerDuration} showTrack={previewSource === 'clean' || !!peek} onSelect={previewTranscriptFiller} />
-
-      {project && reviewProject && tier1Enabled('reframing', __DEV__, tier1Test) && <View className="border-t border-neutral-800 py-3">
-        <Text className="text-white font-semibold">Optional reframing</Text>
-        <Text className="text-neutral-400 py-2">{!framingAllowed ? 'Reframing unavailable in this native build. Original frame retained.' : !(Array.isArray(project.framing?.suggestions) && project.framing.suggestions.length) ? 'No framing suggestions supplied. Original frame retained.' : project.framing.enabled ? 'Suggested static crops enabled. Unsafe or missing tracks use the original.' : 'Off · original frame'}</Text>
-        <Pressable accessibilityRole="button" disabled={!framingAllowed || !(Array.isArray(project.framing?.suggestions) && project.framing.suggestions.length) || pendingWrites > 0} className="py-3 disabled:opacity-40" onPress={() => {
-          setNativePlaying(false); player.pause(); clearPeek();
-          void changeProject({ ...project, framing: { ...project.framing!, enabled: !project.framing?.enabled } }).catch(() => setMessage('Framing choice could not be saved.'));
-        }}><Text className="text-white">{project.framing?.enabled ? 'Off / reset original frame' : 'Apply suggested framing'}</Text></Pressable>
-      </View>}
-      {__DEV__ && <Pressable accessibilityRole="button" className="py-3" onPress={() => setTier1Test(value => !value)}><Text className="text-amber-200">{tier1Test ? 'Disable Tier 1 development test' : 'Enable Tier 1 development test'}</Text></Pressable>}
-      {!!speechReview?.error && <Text className="text-amber-200 py-3">Speech evidence unavailable: {speechReview.error}. Original media and saved metadata remain preserved.</Text>}
-      {project && reviewProject && <T1CleanupReview project={reviewProject} onChange={changeProject} enabled={tier1Enabled('takeReview', __DEV__, tier1Test) && !speechReview?.error} disabled={pendingWrites > 0} onPreviewFootage={range => {
-        const source = resolveReviewFootage(reviewProject, range);
-        if (!source || !NativeCutPreview || !reviewProject.availableMediaUris?.includes(source.uri)) { setMessage('Cleanup footage is unavailable in this build.'); return; }
-        player.pause(); clearPeek(); setPreviewSource('clean'); setPeek({ uri: source.uri, t0: range.t0, t1: range.t1 }); setNativeSeek(0); setNativePlaying(true);
-      }} />}
-      {project && reviewProject && <T1CaptionEditor project={reviewProject} onChange={changeProject} enabled={tier1Enabled('takeReview', __DEV__, tier1Test)} disabled={pendingWrites > 0} />}
-      {project && reviewProject && <T1WrapReport project={reviewProject} onChange={changeProject} enabled={tier1Enabled('wrapReport', __DEV__, tier1Test)} disabled={pendingWrites > 0} onPickup={lineId => {
-        const current = latestProject.current;
-        if (!current || pendingWrites > 0) return;
-        if (!pickupLineIds(cleanReview(current)).includes(lineId)) {
-          setMessage('This producer flag needs a pickup that capture does not yet support. The flag remains for review.');
-          return;
-        }
-        setNativePlaying(false); player.pause();
-        void changeProject({ ...current, pickupRequest: { lineIds: [lineId], requestedAt: Date.now() } }).then(() => {
-          router.push({ pathname: '/camera', params: { mode: 'script', script: current.script ?? '', pickupProjectId: current.id } });
-        }).catch(() => setMessage('Pickup request could not be saved.'));
-      }} onConfirmAction={(id, confirmed) => {
-        const current = latestProject.current;
-        if (!current || writeLock.current) return;
-        void changeProject({ ...current, scriptLines: projectScriptLines(current).map(line => ({ ...line, actionCues: line.actionCues.map(cue => cue.id === id ? { ...cue, resolved: confirmed } : cue) })) }).catch(() => setMessage('Action confirmation could not be saved.'));
-      }} onReviewFootage={range => {
-        const source = resolveReviewFootage(reviewProject, range);
-        if (!source || !NativeCutPreview || !reviewProject.availableMediaUris?.includes(source.uri)) { setMessage('Supporting footage preview is unavailable in this build.'); return; }
-        player.pause(); clearPeek(); setPreviewSource('clean'); setPeek({ ...range, uri: source.uri }); setNativeSeek(0); setNativePlaying(true);
-      }} />}
-      {project && reviewProject && tier1Enabled('takeReview', __DEV__, tier1Test) && <Tier1TakeReview project={reviewProject} onChange={changeProject} onPreview={range => {
-        const source = resolveReviewFootage(reviewProject, { ...range, recordingId: 'recordingId' in range ? String(range.recordingId) : project.id });
-        if (!source || !NativeCutPreview || !reviewProject.availableMediaUris?.includes(source.uri)) { setMessage('Take preview is unavailable in this build.'); return; }
-        player.pause(); clearPeek(); setPreviewSource('clean'); setPeek({ ...range, uri: source.uri }); setNativeSeek(0); setNativePlaying(true);
-      }} />}
-      <View style={{ display: editTool === 'clean' ? 'flex' : 'none' }}>
-      {project && reviewProject && <TranscriptReview embedded project={reviewProject} duration={valid ? duration : undefined} onChange={changeProject} onPreviewRecording={NativeCutPreview && reviewProject.recordings?.every(recording => reviewProject.availableMediaUris?.includes(recording.mediaUri)) ? async (recordingUri) => {
-        if (!reviewProject.availableMediaUris?.includes(recordingUri)) { setMessage('This pickup original is unavailable.'); return; }
-        setNativePlaying(false); player.pause();
-        try {
-          const recordingDuration = await recordedMediaDuration(recordingUri);
-          setPeek({ uri: recordingUri, t0: 0, t1: recordingDuration, captions: [] });
-          setNativeError(''); setMessage(''); setPreviewSource('clean');
-          setNativeSeek(v => v + 1); setNativePlaying(true);
-        } catch (error) {
-          setMessage(`Could not preview the saved original: ${error instanceof Error ? error.message : String(error)}`);
-        }
-      } : undefined} onPreviewTake={NativeCutPreview ? id => {
-        const take = review?.takes.find(item => item.id === id);
-        if (!take?.mediaUri || !take.playable || failedMediaUris.includes(take.mediaUri) || !reviewProject.availableMediaUris?.includes(take.mediaUri)) { setMessage('This take is unavailable. Reopen the project to refresh media.'); return; }
-        setPeek({ uri: take.mediaUri, t0: take.t0, t1: take.t1, takeId: id, captions: [] });
-        setPreviewSource('clean'); setNativeSeek(0); setNativePlaying(true);
-      } : undefined} onSeek={value => {
-        player.pause();
-        const position = Math.max(0, Math.min(duration, value));
-        if (NativeCutPreview && position < duration) {
-          const cut = project.cuts?.find(item => position >= item.t0 && position < item.t1);
-          setPeek({ uri, t0: position, t1: cut?.t1 ?? duration, captions: [] });
-          setNativeSeek(0); setNativePlaying(true);
-        } else {
-          clearPeek(); setPreviewSource('original'); player.currentTime = position;
-        }
-      }} />}
-      </View>
-    </ScrollView>
+    <View className="px-5 w-full self-center" style={{ maxWidth: 600 }}>
+      {analyzing ? <View className="flex-row items-center gap-3 py-4"><ActivityIndicator color="#c4b5fd" /><Text className="text-neutral-300 text-sm">Preparing cuts…</Text></View>
+        : project && <AutomaticCutReview project={project} busy={pendingWrites > 0} onChange={async next => {
+          player.pause(); setNativePlaying(false); clearPeek(); setPreviewSource('clean'); await changeProject(next);
+        }} onPreview={clip => {
+          const source = editSources(project).find(item => item.id === clip.sourceId);
+          if (!source || !NativeCutPreview) return;
+          player.pause(); setPeek({ uri: source.uri, t0: clip.t0, t1: clip.t1, captions: [] }); setNativeSeek(0); setNativePlaying(true);
+        }} />}
+      {!analyzing && needsAnalysis && <Pressable accessibilityRole="button" onPress={() => setAnalysisAttempt(value => value + 1)} className="py-3"><Text className="text-white">Retry</Text></Pressable>}
+    </View>
     <View className="px-5 pb-3 w-full self-center" style={{ maxWidth: 600 }}>
       {!!message && <Text accessibilityRole="alert" className="text-neutral-200 text-xs py-2">{message}</Text>}
       {!!persistenceError && <Text accessibilityRole="alert" className="text-red-300 py-2">{persistenceError}</Text>}
       {!!exportBlockedReason && !cleanPreviewEmpty && <Text className="text-amber-200 text-xs py-2">{exportBlockedReason}</Text>}
       {project && valid && !persistenceError && !exportBlockedReason && exportProject
-        ? <ExportControls compact onReviewCuts={() => { setEditing(true); setEditTool('clean'); player.pause(); setNativePlaying(false); }} label={exportMode === 'original' ? 'Export original' : 'Export video'} framingEnabled={framingAllowed && exportMode === 'cut'} project={exportProject} start={exportMode === 'original' ? 0 : start} end={exportMode === 'original' ? duration : limit} />
+        ? <ExportControls compact label={exportMode === 'original' ? 'Export original' : 'Export video'} framingEnabled={framingAllowed && exportMode === 'cut'} project={exportProject} start={exportMode === 'original' ? 0 : start} end={exportMode === 'original' ? duration : limit} />
         : <Pressable accessibilityRole="button" disabled className="items-center rounded-xl bg-neutral-800 py-4"><Text className="text-neutral-500 font-semibold">Export video</Text></Pressable>}
     </View>
   </SafeAreaView>;
@@ -576,7 +440,7 @@ function MissingMediaReview({ project, onChange }: { project: Project; onChange:
   const queue = useRef(Promise.resolve());
   const [preview, setPreview] = useState<Project['reviewSegments']>();
   const [playing, setPlaying] = useState(false);
-  const [failed, setFailed] = useState<string[]>([]);
+  const [failed] = useState<string[]>([]);
   const speechReview = projectWithSpeechEvidence(reviewBase, tier1Enabled('takeReview', __DEV__, enabled));
   const current = projectForMediaReview(speechReview.project, failed);
   function reviewFootage(range: { recordingId: string; t0: number; t1: number }) {
@@ -607,7 +471,7 @@ function MissingMediaReview({ project, onChange }: { project: Project; onChange:
     {preview && NativeCutPreview && <View>
       <NativeCutPreview style={{ height: 240 }} request={JSON.stringify({ id: 'recovery-preview', sourceUri: preview[0].uri, cuts: [], captions: [], segments: preview })} playing={playing} seek={0} onState={event => {
         if (event.nativeEvent.ended) setPlaying(false);
-        if (event.nativeEvent.error) { setError(event.nativeEvent.error); setFailed(previous => [...new Set([...previous, ...preview.map(segment => segment.uri)])]); setPreview(undefined); setPlaying(false); }
+        if (event.nativeEvent.error) { setError('Preview could not play. Select the footage to retry.'); setPreview(undefined); setPlaying(false); }
       }} />
       <Pressable accessibilityRole="button" onPress={() => { setPreview(undefined); setPlaying(false); }} className="py-3"><Text className="text-white">Close supporting footage</Text></Pressable>
     </View>}

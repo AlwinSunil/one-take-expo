@@ -6,8 +6,9 @@ import { followScript, prompterWords } from '@/lib/prompter-progress';
 type ReadRow = { words: string[]; offset: number };
 const typeStyle = { fontSize: 26, lineHeight: 40, fontWeight: '500' as const, color: '#fff' };
 
-export function AITeleprompter({ lines, transcript, recording, unavailable, onCueDone }: {
+export function AITeleprompter({ lines, transcript, recording, unavailable, onCueDone, completedLineIds = [] }: {
   lines: readonly PrompterLine[];
+  completedLineIds?: readonly string[];
   transcript: string;
   recording: boolean;
   unavailable: boolean;
@@ -20,7 +21,20 @@ export function AITeleprompter({ lines, transcript, recording, unavailable, onCu
   const text = lines.map(line => line.spokenText).filter(Boolean).join('\n');
   const measurementKey = `${width}:${fontScale}:${text}`;
   const words = useMemo(() => prompterWords(text), [text]);
-  const progress = useMemo(() => followScript(words, recording ? transcript : ''), [words, transcript, recording]);
+  const progress = useMemo(() => {
+    const result = followScript(words, recording ? transcript : '');
+    if (!recording) return result;
+    let offset = 0;
+    for (const line of lines) {
+      const length = prompterWords(line.spokenText).length;
+      if (completedLineIds.includes(line.id)) {
+        result.cursor = Math.max(result.cursor, offset + length);
+        for (let i = offset; i < offset + length; i++) result.matched.add(i);
+      }
+      offset += length;
+    }
+    return result;
+  }, [words, transcript, recording, lines, completedLineIds]);
   const rows = measured.key === measurementKey ? measured.rows : [];
   const following = rows.findIndex(row => progress.cursor < row.offset + row.words.length);
   const index = unavailable && manual.key === measurementKey

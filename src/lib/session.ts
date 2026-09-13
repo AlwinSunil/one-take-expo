@@ -5,6 +5,8 @@ export type Mode = 'script' | 'assisted';
 export type GazeLabel = 'camera' | 'left' | 'right' | 'up' | 'down' | 'away';
 
 export interface TranscriptSeg {
+  words?: { text: string; t0: number; t1: number; confidence: number }[];
+  wordTimingSource?: 'saved-audio';
   recordingId?: string;
   id?: string;
   t0: number;
@@ -40,6 +42,9 @@ export interface Clip {
 }
 
 export interface Project {
+  scriptAnalysis?: import('../features/local-ai/script-model').ScriptAnalysis;
+  semanticMatches?: import('../features/local-ai/script-model').SemanticMatch[];
+  automaticEdit?: import('./automatic-edit').AutomaticEdit;
   /** Additive durable T1.5 state; legacy projects retain their existing edit until opted in. */
   v15?: import('./t15-schema').DurableFoundation;
   /** Raw versioned producer envelope. Never derive take identities during reopen. */

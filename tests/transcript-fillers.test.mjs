@@ -73,3 +73,12 @@ test('partial live text uses the same splitter without requiring a completed sen
     { text: 'uh', isFiller: true },
   ]);
 });
+test('offline filler markers show exact ranges while live words remain estimates', () => {
+  const segment = { id: 's', text: 'A useful um tool.', t0: 0, t1: 5, words: [{ text: 'um', t0: 1.3, t1: 1.7, confidence: 0.95 }] };
+  const exact = transcriptFillerMarks([{ ...segment, wordTimingSource: 'saved-audio' }]);
+  assert.deepEqual(exact.map(m => [m.t0, m.t1]), [[1.3, 1.7]]);
+  assert.notEqual(transcriptFillerMarks([{ ...segment, timingSource: 'live-estimate' }])[0].t0, 1.3);
+});
+test('elongated fillers are recognized without matching word fragments or the ER acronym', () => {
+  assert.deepEqual(splitFillerText('ummm uhhhh ermm ER summer thermal').filter(p => p.isFiller).map(p => p.text), ['ummm', 'uhhhh', 'ermm']);
+});

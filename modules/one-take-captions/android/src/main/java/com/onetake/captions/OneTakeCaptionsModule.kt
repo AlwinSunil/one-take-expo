@@ -18,6 +18,7 @@ import kotlinx.coroutines.sync.withLock
 /** Expo bridge for the Android-only Moonshine Tiny Streaming caption engine. */
 class OneTakeCaptionsModule : Module() {
   private var controller: CaptionSessionController? = null
+  private val localAi = LocalScriptModel { appContext.reactContext?.applicationContext ?: throw Exceptions.AppContextLost() }
   private val refinementLock = Mutex()
   private val refinements = ConcurrentHashMap<String, Job>()
 
@@ -44,6 +45,22 @@ class OneTakeCaptionsModule : Module() {
       requireController().stop(sessionId)
     }
 
+    AsyncFunction("aiStatus") Coroutine { -> localAi.status() }
+    AsyncFunction("prepareAi") Coroutine { -> localAi.prepare() }
+    AsyncFunction("prompt") Coroutine { text: String -> localAi.prompt(text) }
+
+    AsyncFunction("analyzeAudio") Coroutine { sourceUri: String ->
+      withContext(Dispatchers.Default) {
+        val context = appContext.reactContext?.applicationContext ?: throw Exceptions.AppContextLost()
+        val uri = Uri.parse(sourceUri)
+        require(uri.scheme == "file") { "Analysis requires an app-owned recording" }
+        val file = File(uri.path ?: error("Recording path missing")).canonicalFile
+        require(listOf(context.filesDir.parentFile!!, context.cacheDir).any { file.path.startsWith(it.canonicalPath + File.separator) }) { "Recording must be inside app-private storage" }
+        val audio = AudioDecoder.decodeMono16k(file)
+        mapOf("quiet" to QuietIntervals.find(audio))
+      }
+    }
+
     AsyncFunction("refine") Coroutine { id: String, sourceUri: String, model: String ->
       require(id.isNotBlank()) { "Refinement ID is required" }
       require(model == "tiny" || model == "small") { "Unsupported refinement model" }
@@ -64,22 +81,12 @@ class OneTakeCaptionsModule : Module() {
           val audio = AudioDecoder.decodeMono16k(file)
           sendEvent("onRefinement", mapOf("id" to id, "progress" to 0.0, "status" to "transcribing", "quietIntervals" to QuietIntervals.find(audio)))
           val architecture = if (model == "small") ai.moonshine.voice.JNI.MOONSHINE_MODEL_ARCH_SMALL_STREAMING else ai.moonshine.voice.JNI.MOONSHINE_MODEL_ARCH_TINY_STREAMING
-          MoonshineEngine(MoonshineModel.directory(context, small = model == "small"), architecture).use { engine ->
-            var offset = 0
-            var lastPercent = -1
-            while (offset < audio.size) {
-              currentCoroutineContext().ensureActive()
-              val end = (offset + 320).coerceAtMost(audio.size)
-              engine.addAudio(audio.copyOfRange(offset, end))
-              offset = end
-              val percent = (offset.toLong() * 100 / audio.size).toInt()
-              if (percent != lastPercent) {
-                lastPercent = percent
-                sendEvent("onRefinement", mapOf("id" to id, "progress" to percent / 100.0, "status" to "transcribing"))
-              }
-            }
-            engine.finish()
-            engine.transcript().map { it.event() }
+          MoonshineEngine(MoonshineModel.directory(context, small = model == "small"), architecture, streaming = false).use { engine ->
+            currentCoroutineContext().ensureActive()
+            val segments = engine.transcribeOffline(audio)
+            currentCoroutineContext().ensureActive()
+            sendEvent("onRefinement", mapOf("id" to id, "progress" to 1.0, "status" to "transcribing"))
+            segments.map { it.event() }
           }
         }
         }

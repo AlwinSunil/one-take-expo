@@ -48,6 +48,7 @@ export type VisionFrameEvent = {
   facePresent: boolean | null;
   stable: boolean;
   faces: readonly VisionFace[];
+  exposure?: { mean: number; clipped: number; dark: number };
 };
 
 export type FacePresence = 'unknown' | 'present' | 'absent';
@@ -62,6 +63,7 @@ export type VisionState = {
   facePresence: FacePresence;
   faceStable: boolean;
   faces: readonly VisionFace[];
+  exposure?: { mean: number; clipped: number; dark: number };
   frameId: number | null;
   lastFrameCapturedAtMs: number | null;
 };
@@ -77,6 +79,7 @@ export type VisionEvidence =
       facePresence: FacePresence;
       faceStable: boolean;
       faces: readonly VisionFace[];
+  exposure?: { mean: number; clipped: number; dark: number };
     }
   | {
       status: 'pending' | 'unavailable';
@@ -182,6 +185,7 @@ export function reduceVisionEvent(
         : 'unknown',
     faceStable: event.stable,
     faces: event.faces,
+    exposure: event.exposure,
     frameId: event.frameId,
     lastFrameCapturedAtMs: event.frameCapturedAtMs,
   };
@@ -259,5 +263,6 @@ export function toVisionEvidence(state: VisionState, nowMs: number): VisionEvide
     facePresence: state.facePresence,
     faceStable: state.faceStable,
     faces: state.faces,
+    exposure: state.exposure,
   };
 }

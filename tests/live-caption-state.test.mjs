@@ -242,3 +242,16 @@ test('retry offsets stay fixed across revisions and accumulate across attempts',
     assert.throws(() => namespaceCaptionSegments(retry, 1, invalid), RangeError);
   }
 });
+
+test('retry moves measured word boundaries with the source clock and revisions replace stale boundaries', () => {
+  const partial = [{ id: '1', t0: 0.2, t1: 1.5, text: 'um hello', isFinal: false,
+    words: [{ text: 'um', t0: 0.2, t1: 0.45, confidence: 0.9 }] }];
+  const translated = namespaceCaptionSegments(partial, 1, 8);
+  assert.deepEqual(translated[0].words, [{ text: 'um', t0: 8.2, t1: 8.45, confidence: 0.9 }]);
+  assert.equal(partial[0].words[0].t0, 0.2);
+  const final = namespaceCaptionSegments([{ ...partial[0], isFinal: true,
+    words: [{ text: 'um', t0: 0.3, t1: 0.5, confidence: 0.95 }, { text: 'hello', t0: 0.6, t1: 1.4, confidence: 0.99 }] }], 1, 8);
+  const merged = mergeCaptionSegments(translated, final);
+  assert.equal(merged.length, 1);
+  assert.deepEqual(merged[0].words.map(word => [word.text, word.t0, word.t1]), [['um', 8.3, 8.5], ['hello', 8.6, 9.4]]);
+});

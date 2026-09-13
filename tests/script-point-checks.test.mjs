@@ -31,3 +31,42 @@ test('a kept replacement restores the point while the scratched source stays exc
     reviewSegments: [{ uri: project.videoUri, t0: 0, t1: 2 }, { uri: 'file:///pickup.mp4', t0: 3, t1: 5 }] };
   assert.ok(projectPointChecks(next).every(point => point.status === 'covered'));
 });
+
+test('local importance selection accepts no important points and ignores a stale script analysis', () => {
+  const scriptAnalysis = { script: project.script, importantLineIds: [], model: 'Qwen3 0.6B' };
+  assert.deepEqual(projectPointChecks({ ...project, scriptAnalysis }), []);
+  assert.equal(projectPointChecks({ ...project, scriptAnalysis: { ...scriptAnalysis, script: 'Old script' } }).length, 2);
+});
+
+test('semantic paraphrase coverage requires retained final current speech from available media', () => {
+  const segment = { ...a, text: 'No connection is needed to film.' };
+  const semanticMatches = [{ segmentId: a.id, text: segment.text, lineId: project.scriptLines[0].id, verdict: 'complete' }];
+  const next = { ...project, transcript: [segment, b], semanticMatches };
+  assert.equal(projectPointChecks(next)[0].status, 'covered');
+  for (const variant of [
+    { ...next, cuts: [{ t0: 3, t1: 5 }] },
+    { ...next, mediaMissing: true },
+    { ...next, transcript: [{ ...segment, isFinal: false }, b] },
+    { ...next, transcript: [{ ...segment, needsListening: true }, b] },
+    { ...next, transcript: [{ ...segment, manualCorrection: 'A connection is needed to film.' }, b] },
+  ]) assert.notEqual(projectPointChecks(variant)[0].status, 'covered');
+});
+
+test('filler removal preserves semantic coverage but removing a claim word invalidates it', () => {
+  const segment = { ...a, text: 'Um no connection needed', words: [
+    { text: 'Um', t0: 0, t1: 0.2 }, { text: 'no', t0: 0.3, t1: 0.5 },
+    { text: 'connection', t0: 0.6, t1: 1.2 }, { text: 'needed', t0: 1.3, t1: 2 },
+  ] };
+  const next = { ...project, transcript: [segment], semanticMatches: [{ segmentId: a.id, text: segment.text, lineId: project.scriptLines[0].id, verdict: 'complete' }],
+    reviewSegments: [{ uri: project.videoUri, t0: 0.3, t1: 2 }] };
+  assert.equal(projectPointChecks(next)[0].status, 'covered');
+  assert.notEqual(projectPointChecks({ ...next, reviewSegments: [{ uri: project.videoUri, t0: 0.6, t1: 2 }] })[0].status, 'covered');
+});
+
+test('final review recognizes a sentence split over adjacent speech utterances', () => {
+  const next = { ...project, transcript: [
+    { id: 'first', text: 'The camera', t0: 0, t1: 1, isFinal: true },
+    { id: 'second', text: 'records offline.', t0: 1, t1: 2, isFinal: true },
+  ] };
+  assert.equal(projectPointChecks(next)[0].status, 'covered');
+});

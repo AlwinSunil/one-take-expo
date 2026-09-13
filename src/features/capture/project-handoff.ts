@@ -20,7 +20,7 @@ export function projectCaptureDocument(project: Project): ScriptDocument {
 export function requestedPickupLineIds(project: Project): string[] {
   const needed = new Set(pickupLineIds(cleanReview(project)));
   const requested = new Set(project.pickupRequest?.lineIds ?? needed);
-  return projectScriptLines(project).filter(line => needed.has(line.id) && requested.has(line.id)).map(line => line.id);
+  return projectScriptLines(project).filter(line => line.spokenText.trim() && requested.has(line.id)).map(line => line.id);
 }
 
 export function recordingTranscript(segments: readonly TranscriptSeg[], audioStartedAt: number | null, videoStartedAt: number, duration: number): TranscriptSeg[] {
@@ -31,7 +31,7 @@ export function recordingTranscript(segments: readonly TranscriptSeg[], audioSta
     const t1 = Math.min(duration, segment.t1 - offset);
     if (!Number.isFinite(t0) || !Number.isFinite(t1) || t1 <= t0) return [];
     // Boundary-truncated recognition cannot establish a complete spoken take.
-    return [{ ...segment, t0, t1, isFinal: segment.isFinal !== false && segment.t0 >= offset && segment.t1 - offset <= duration }];
+    return [{ ...segment, t0, t1, ...(segment.words ? { words: segment.words.map(word => ({ ...word, t0: word.t0 - offset, t1: word.t1 - offset })).filter(word => word.t0 >= t0 && word.t1 <= t1) } : {}), isFinal: segment.isFinal !== false && segment.t0 >= offset && segment.t1 - offset <= duration }];
   });
 }
 

@@ -2,6 +2,7 @@ package com.onetake.captions
 
 internal object SmallMoonshineHashes {
   val values = mapOf(
+    "decoder_kv_with_attention.ort" to "19653ca93362cd0445837cbaabc9f36f462410b357dd4a102d9c8ca1c3d13c8c",
     "streaming_config.json" to "26f02b6afb22d60871a5efd85c3d38e569cc0ddb6c5eb6e93d3260152ae8a47a",
     "encoder.ort" to "2d4d973e91e8aca08c51e7e7efa28a46ab265b63d809d5294d18b86bcd85b993",
     "decoder_kv.ort" to "1a05465b1dd955858dfcbee039c0020fb5dd982b0f5094c34e61735d518d771b",

@@ -478,6 +478,10 @@ function compactTokens(text: string): MatchToken[] {
   return tokenize(text);
 }
 
+export function englishHardConflict(script: string, spoken: string): string | null {
+  return findHardConflict(contentTokens(compactTokens(script)), contentTokens(compactTokens(spoken)));
+}
+
 /**
  * Compare two English utterances with a small, explainable lexical policy.
  *

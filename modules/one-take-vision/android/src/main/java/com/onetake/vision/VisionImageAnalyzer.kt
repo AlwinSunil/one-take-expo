@@ -24,6 +24,7 @@ internal data class VisionAnalyzedFrame(
   val thermalStatus: VisionThermalStatus,
   val inferenceMs: Long,
   val droppedFrames: Long,
+  val exposure: Map<String, Double>,
 )
 
 internal data class VisionFaceBounds(
@@ -139,6 +140,7 @@ internal class VisionImageAnalyzer(
               thermalStatus = thermalStatus,
               inferenceMs = inferenceMs,
               droppedFrames = framesDropped.get(),
+              exposure = runCatching { exposure(imageProxy, normalizeFaces(faces, imageProxy).firstOrNull()) }.getOrDefault(emptyMap()),
             ),
           )
         }
@@ -227,6 +229,11 @@ internal class VisionImageAnalyzer(
           trackingId = face.trackingId,
         )
       }
+  }
+
+  private fun exposure(image: ImageProxy, face: VisionFaceBounds?): Map<String, Double> {
+    val plane = image.planes.firstOrNull() ?: return emptyMap()
+    return FaceExposure.sample(plane.buffer.duplicate(), image.width, image.height, plane.rowStride, plane.pixelStride, image.imageInfo.rotationDegrees, face)
   }
 
   private fun closeImage(image: ImageProxy?) {

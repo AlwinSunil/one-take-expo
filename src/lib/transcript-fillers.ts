@@ -23,7 +23,7 @@ interface FillerMatch {
 // Keep this list deliberately small.  Words such as "like", "so" and
 // "well" depend on sentence context and should remain ordinary transcript
 // text until a contextual detector exists.
-const FILLER_PATTERN = /umm|uhh|hmm|erm|um|uh|er/giu;
+const FILLER_PATTERN = /um+|uh+|erm+|hmm|er/giu;
 const WORD_CHARACTER = /[\p{L}\p{N}_]/u;
 
 /**
@@ -47,10 +47,8 @@ export function splitFillerText(text: string): FillerTextPart[] {
 /**
  * Turn saved transcript segments into source-local review markers.
  *
- * Recognition gives us utterance timing rather than word timing, so token
- * positions are only proportional estimates within each valid segment.  The
- * ranges are clamped to the segment and optional source duration, and never
- * authorize a cut.
+ * Verified offline word timings locate markers precisely. Other token positions
+ * remain proportional estimates; markers alone never authorize a cut.
  */
 export function transcriptFillerMarks(
   segments: readonly TranscriptSeg[],
@@ -80,11 +78,17 @@ export function transcriptFillerMarks(
       ? segment.recordingId
       : undefined;
     const span = t1 - t0;
+    const timedWords: NonNullable<TranscriptSeg['words']> = segment.wordTimingSource === 'saved-audio' || segment.timingSource === 'saved-audio' ? segment.words ?? [] : [];
+    const usedWords = new Set<object>();
     for (const match of fillerMatches(text)) {
       const start = t0 + (match.start / text.length) * span;
       const end = t0 + (match.end / text.length) * span;
-      const markerStart = Math.max(t0, Math.min(t1, start));
-      const markerEnd = Math.max(t0, Math.min(t1, end));
+      const word = timedWords.filter(word => !usedWords.has(word) && word.text.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '') === match.token.toLowerCase()
+        && Number.isFinite(word.t0) && Number.isFinite(word.t1) && Number.isFinite(word.confidence) && word.confidence >= 0.8
+        && word.t0 >= t0 && word.t1 <= t1 && word.t1 > word.t0).sort((a, b) => Math.abs(a.t0 - start) - Math.abs(b.t0 - start))[0];
+      if (word) usedWords.add(word);
+      const markerStart = Math.max(t0, Math.min(t1, word?.t0 ?? start));
+      const markerEnd = Math.max(t0, Math.min(t1, word?.t1 ?? end));
       if (!(markerEnd > markerStart)) continue;
       const label = match.token.toLocaleLowerCase();
       marks.push({
@@ -109,6 +113,7 @@ function fillerMatches(text: string): FillerMatch[] {
   const matches: FillerMatch[] = [];
   for (const match of text.matchAll(FILLER_PATTERN)) {
     const token = match[0];
+    if (token === 'ER') continue;
     const start = match.index ?? 0;
     const end = start + token.length;
     if (isWordCharacterAt(text, start - 1) || isWordCharacterAt(text, end)) continue;

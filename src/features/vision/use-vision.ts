@@ -78,6 +78,7 @@ function toStateFrameEvent(event: VisionFrameEvent, frameCapturedAtMs: number) {
     facePresent: event.facePresent,
     stable: event.stable,
     faces: event.faces,
+    exposure: event.exposure,
   };
 }
 

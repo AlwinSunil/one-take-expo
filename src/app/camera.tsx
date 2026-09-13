@@ -28,6 +28,11 @@ import { useLiveCaptions } from '@/hooks/use-live-captions';
 import { NativeCutPreview } from '../../modules/one-take-media';
 import { LOCAL_VIDEO_BUFFER } from '@/lib/video-buffer';
 import { LiveCaptions } from '@/components/captions/live-captions';
+import { VisualHint } from '@/components/capture/visual-hint';
+import { useLiveVisualAdvice } from '@/features/vision/live-advice';
+import { useScriptAnalysis } from '@/features/local-ai/use-script-analysis';
+import { matchLocalSpeech, type SemanticMatch } from '@/features/local-ai/script-model';
+import { canAutoRetake, liveScriptCoverage, missedImportantLine } from '@/features/capture/live-script';
 import { scriptPointChecks } from '@/features/capture/script-point-checks';
 import { captureRetakeEdit, resolveManualScratch, resolveVoiceScratches, type VoiceScratch, type RetakeRange } from '@/features/capture/voice-scratch';
 import { followScript, prompterWords } from '@/lib/prompter-progress';
@@ -234,6 +239,16 @@ export default function CameraScreen() {
     lensFacing: facing,
     recording: preparing || recording || saving,
   });
+  const visualAdvice = useLiveVisualAdvice(vision.evidence, isScript && isFocused && appInForeground && ready && previewUri === null && !saving);
+  const localAi = useScriptAnalysis(scriptDocument, isScript && scriptDocumentLoaded);
+  const scriptAnalysisRef = useRef(localAi.analysis);
+  scriptAnalysisRef.current = localAi.analysis;
+  const [speechMatches, setSpeechMatches] = useState<SemanticMatch[]>([]);
+  const speechMatchesRef = useRef(speechMatches);
+  speechMatchesRef.current = speechMatches;
+  const semanticBusy = useRef(false);
+  const semanticPending = useRef<string | null>(null);
+  const semanticSeen = useRef(new Set<string>());
   const latestVisionEvidence = useRef(vision.evidence);
   latestVisionEvidence.current = vision.evidence;
   // Face presence alone cannot certify lighting, background, or visible crop.
@@ -290,11 +305,19 @@ export default function CameraScreen() {
   const handledVoiceCommands = useRef(new Set<string>());
   const voiceExcludedSegments = useRef(new Set<string>());
   const [prompterSpeechStart, setPrompterSpeechStart] = useState(0);
-  const pointChecks = isScript && recording ? scriptPointChecks(scriptDocument,
-    liveTranscript.filter(segment => !voiceExcludedSegments.current.has(segment.id) && !liveScratches.excluded.has(segment.id)
-      && !retakeRanges.current.some(range => segment.t0 < range.t1 && segment.t1 > range.t0)), captureMode === 'live') : [];
-  const lastCoveredPoint = Math.max(-1, ...pointChecks.filter(point => point.status === 'covered').map(point => point.order));
-  const missedPoint = pointChecks.find(point => point.order < lastCoveredPoint && (point.status === 'missing' || point.status === 'partial'));
+  const retainedLive = liveTranscript.filter(segment => !voiceExcludedSegments.current.has(segment.id) && !liveScratches.excluded.has(segment.id)
+    && !retakeRanges.current.some(range => segment.t0 < range.t1 && segment.t1 > range.t0));
+  const liveCoverage = useMemo(() => liveScriptCoverage(promptLines, retainedLive, speechMatches), [promptLines, liveTranscript, speechMatches, prompterSpeechStart]);
+  const prompterCoverage = prompterSpeechStart > 0
+    ? liveScriptCoverage(promptLines, retainedLive.filter(segment => segment.t0 >= prompterSpeechStart), speechMatches)
+    : liveCoverage;
+  const importantIds = localAi.analysis?.importantLineIds ?? scriptPointChecks(scriptDocument, []).map(point => point.lineId);
+  const latestCovered = Math.max(-1, ...liveCoverage.flatMap((line, index) => line.status === 'covered' ? [index] : []));
+  const pendingSemanticIds = new Set(localAi.analysis ? retainedLive.filter(segment => segment.isFinal
+    && (!semanticSeen.current.has(`${segment.id}:${segment.text}`) || semanticPending.current === `${segment.id}:${segment.text}`)).map(segment => segment.id) : []);
+  const missedPoint = recording ? missedImportantLine(promptLines, retainedLive, speechMatches, importantIds,
+    captions.sourceStartedAt.current === null ? NaN : (Date.now() - captions.sourceStartedAt.current) / 1000, pendingSemanticIds) : undefined;
+
 
 
   const applyRetake = useCallback((action: VoiceScratch) => {
@@ -328,6 +351,34 @@ export default function CameraScreen() {
     if (!recording || !isScript) return;
     for (const action of liveScratches.actions) applyRetake(action);
   }, [recording, isScript, liveScratches, applyRetake]);
+
+  useEffect(() => {
+    if (!recording || !isScript || !localAi.analysis || semanticBusy.current) return;
+    const segment = retainedLive.find(item => item.isFinal && !semanticSeen.current.has(`${item.id}:${item.text}`));
+    if (!segment) return;
+    semanticSeen.current.add(`${segment.id}:${segment.text}`);
+    const takeId = activeCaptureTakeId.current;
+    semanticBusy.current = true;
+    semanticPending.current = `${segment.id}:${segment.text}`;
+    const candidates = promptLines.slice(Math.max(0, latestCovered - 1), Math.max(0, latestCovered - 1) + 12);
+    void matchLocalSpeech(candidates, segment).then(match => {
+      if (!takeId || activeCaptureTakeId.current !== takeId || !match) return;
+      const current = captions.transcript.current.find(item => item.id === segment.id);
+      if (!current?.isFinal || current.text !== segment.text || current.t0 !== segment.t0 || current.t1 !== segment.t1
+        || voiceExcludedSegments.current.has(segment.id)
+        || retakeRanges.current.some(range => segment.t0 < range.t1 && segment.t1 > range.t0)) return;
+      speechMatchesRef.current = [...speechMatchesRef.current.filter(item => item.segmentId !== segment.id), match];
+      setSpeechMatches(speechMatchesRef.current);
+      if (canAutoRetake(match, segment, captions.transcript.current, promptLines)) {
+        applyRetake({ commandId: `ai:${segment.id}`, targetId: segment.id, lineId: match.lineId,
+          startedAt: segment.t0, endedAt: segment.t1, reason: 'scratched' });
+      }
+    }).catch(() => {}).finally(() => {
+      semanticBusy.current = false;
+      semanticPending.current = null;
+      if (activeCaptureTakeId.current === takeId) setSpeechMatches(previous => [...previous]);
+    });
+  }, [recording, isScript, localAi.analysis, liveTranscript, speechMatches]);
 
   useEffect(() => {
     if (!captureFeedback) return;
@@ -616,6 +667,7 @@ export default function CameraScreen() {
     handledVoiceCommands.current.clear();
     voiceExcludedSegments.current.clear();
     setPrompterSpeechStart(0);
+    speechMatchesRef.current = []; setSpeechMatches([]); semanticSeen.current.clear();
     setCaptureFeedback('');
     setCaptureMode('pending');
     retakeRanges.current = [];
@@ -799,7 +851,7 @@ export default function CameraScreen() {
 
       let saved: Project;
       if (project) {
-        const captured: Project = { ...project, ...retakeEdit, videoUri: result.uri, duration,
+        const captured: Project = { ...project, ...retakeEdit, scriptAnalysis: scriptAnalysisRef.current, semanticMatches: speechMatchesRef.current, videoUri: result.uri, duration,
           recordingStatus: wasInterrupted ? 'interrupted' : 'complete',
           recoveryMessage: recoveryMessages.length ? recoveryMessages.join(' ') : undefined,
           scriptLines: isScript ? captureScriptLines(scriptDocumentRef.current) : undefined,
@@ -825,7 +877,7 @@ export default function CameraScreen() {
         const latestTarget = await getProject(targetId);
         if (!latestTarget) throw new Error('The pickup project was deleted.');
         await saveProjectMetadata({ ...latestTarget, scriptLines: captureScriptLines(scriptDocumentRef.current) });
-        const input = { videoUri: result.uri, duration, captureCuts: retakeEdit.cuts,
+        const input = { videoUri: result.uri, duration, captureCuts: retakeEdit.cuts, semanticMatches: speechMatchesRef.current,
           transcript: alignedTranscript.map(segment => ({ ...segment, rawText: segment.text, timingSource: 'live-estimate' as const })), takes: coverage.review.takes };
         pendingSave.current = () => completeProjectPickup(targetId, pickupRecordingId, input);
         saved = await pendingSave.current();
@@ -1004,10 +1056,12 @@ export default function CameraScreen() {
               ? ` · Phone ${['light', 'moderate'].includes(vision.device.thermalStatus) ? 'warm' : 'hot'}` : ''}
           </Text>
         </View>}
+        <VisualHint message={visualAdvice} />
         {isScript && scriptDocumentLoaded && <View className="absolute top-3 left-3 right-3 gap-2">
           <AITeleprompter
             lines={promptLines.slice(chunk)}
-            transcript={liveTranscript.filter(segment => segment.t0 >= prompterSpeechStart && !liveScratches.excluded.has(segment.id)).map(segment => segment.text).join(' ')}
+            transcript={retainedLive.filter(segment => segment.t0 >= prompterSpeechStart).map(segment => segment.text).join(' ')}
+            completedLineIds={prompterCoverage.filter(line => line.status === 'covered').map(line => line.lineId)}
             recording={recording}
             unavailable={captureMode === 'record-only'}
             onCueDone={markCueDone}
@@ -1038,7 +1092,7 @@ export default function CameraScreen() {
       </ScrollView>
     </View>}
     <View className="w-full self-center px-4" style={{ maxWidth: 520 }}>
-      {missedPoint && !captureFeedback && <Text accessibilityLiveRegion="polite" numberOfLines={2} className="text-amber-200 text-xs text-center py-2">Important point not confirmed: {missedPoint.text}</Text>}
+      {missedPoint && !captureFeedback && <Text accessibilityLiveRegion="polite" numberOfLines={2} className="text-amber-200 text-xs text-center py-2">Please say this line again: {missedPoint.spokenText}</Text>}
       {!!captureFeedback && <Text accessibilityRole="alert" className="text-neutral-300 text-xs text-center py-2">{captureFeedback}</Text>}
       {!!error && <Text accessibilityRole="alert" numberOfLines={3} className="text-red-300 text-xs text-center py-2">{error}</Text>}
       {(storageCheck.state === 'warning' || storageCheck.state === 'blocked') && <Text accessibilityRole="alert" numberOfLines={3} className="text-amber-200 text-xs text-center pb-2">{storageCheck.message}</Text>}

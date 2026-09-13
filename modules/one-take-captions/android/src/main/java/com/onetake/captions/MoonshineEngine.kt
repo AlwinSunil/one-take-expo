@@ -8,19 +8,19 @@ import ai.moonshine.voice.TranscriptLine
 import java.io.File
 
 /** A single serial Moonshine stream. Methods are called by the inference job. */
-internal class MoonshineEngine(directory: File, architecture: Int = JNI.MOONSHINE_MODEL_ARCH_TINY_STREAMING) : AutoCloseable {
+internal class MoonshineEngine(directory: File, architecture: Int = JNI.MOONSHINE_MODEL_ARCH_TINY_STREAMING, private val streaming: Boolean = true) : AutoCloseable {
   companion object {
     private const val SAMPLE_RATE = LiveMicrophone.SAMPLE_RATE
     private const val TRANSCRIPTION_INTERVAL_SECONDS = "0.2"
     private const val MAX_DISPLAY_LINES = 3
   }
 
-  data class Segment(val id: String, val t0: Double, val t1: Double, val text: String, val isFinal: Boolean) {
-    fun event(): Map<String, Any> = mapOf("id" to id, "t0" to t0, "t1" to t1, "text" to text, "isFinal" to isFinal)
+  data class Segment(val id: String, val t0: Double, val t1: Double, val text: String, val isFinal: Boolean, val words: List<Map<String, Any>> = emptyList()) {
+    fun event(): Map<String, Any> = mapOf("id" to id, "t0" to t0, "t1" to t1, "text" to text, "isFinal" to isFinal, "words" to words)
   }
   data class Snapshot(val text: String, val isFinal: Boolean, val segments: List<Segment>)
 
-  private data class Line(val text: String, val startTime: Float, val duration: Float, val complete: Boolean)
+  private data class Line(val text: String, val startTime: Float, val duration: Float, val complete: Boolean, val words: List<Map<String, Any>>)
 
   private val lock = Any()
   private val transcriber = Transcriber(
@@ -28,6 +28,7 @@ internal class MoonshineEngine(directory: File, architecture: Int = JNI.MOONSHIN
       // Match the verified benchmark cadence. Moonshine's default VAD threshold
       // remains in effect, so the streaming path does not add a second gate.
       TranscriberOption("transcription_interval", TRANSCRIPTION_INTERVAL_SECONDS),
+      TranscriberOption("word_timestamps", (!streaming).toString()),
     ),
   )
   private val listener = java.util.function.Consumer<TranscriptEvent> { event ->
@@ -58,14 +59,23 @@ internal class MoonshineEngine(directory: File, architecture: Int = JNI.MOONSHIN
         directory.absolutePath + File.separator,
         architecture,
       )
-      transcriber.setUpdateInterval(0.2)
-      transcriber.addListener(listener)
-      transcriber.start()
+      if (streaming) {
+        transcriber.setUpdateInterval(0.2)
+        transcriber.addListener(listener)
+        transcriber.start()
+      }
     } catch (failure: Throwable) {
       runCatching { transcriber.removeListener(listener) }
       runCatching { transcriber.close() }
-      throw IllegalStateException("Could not start Moonshine Tiny Streaming", failure)
+      throw IllegalStateException("Could not start Moonshine streaming captions", failure)
     }
+  }
+
+  fun transcribeOffline(samples: FloatArray): List<Segment> {
+    check(!streaming && !closed) { "Offline transcription requires a separate loaded model" }
+    val result = transcriber.transcribeWithoutStreaming(samples, SAMPLE_RATE)
+    result.lines.orEmpty().forEach(::update)
+    return transcript()
   }
 
   /** Feeds one 16 kHz mono PCM frame to the native stream. */
@@ -100,7 +110,7 @@ internal class MoonshineEngine(directory: File, architecture: Int = JNI.MOONSHIN
   fun transcript(): List<Segment> = synchronized(lock) {
     lines.entries.map { (id, line) ->
       Segment(id.toString(), line.startTime.toDouble().coerceAtLeast(0.0),
-        (line.startTime + line.duration).toDouble().coerceAtLeast(line.startTime.toDouble()), line.text, line.complete)
+        (line.startTime + line.duration).toDouble().coerceAtLeast(line.startTime.toDouble()), line.text, line.complete, line.words)
     }.sortedBy { it.t0 }
   }
 
@@ -131,7 +141,19 @@ internal class MoonshineEngine(directory: File, architecture: Int = JNI.MOONSHIN
         return
       }
       if (!line.startTime.isFinite() || !line.duration.isFinite()) return
-      lines[line.id] = Line(text, line.startTime, line.duration, line.isComplete)
+      val nativeWords = line.words.orEmpty()
+      // Some streaming attention revisions contain backward or zero-length
+      // alignments. Reject the whole alignment: valid-looking neighbours in
+      // that revision are not safe boundaries for automatic footage removal.
+      val trustworthy = nativeWords.all {
+        it.start.isFinite() && it.end.isFinite() && it.start >= line.startTime &&
+          it.end > it.start && it.end <= line.startTime + line.duration &&
+          it.confidence.isFinite() && it.confidence in 0f..1f && !it.word.isNullOrBlank()
+      } && nativeWords.zipWithNext().all { (previous, next) -> previous.end <= next.start }
+      val words = if (trustworthy) nativeWords.map { word ->
+        mapOf<String, Any>("text" to word.word.orEmpty(), "t0" to word.start.toDouble(), "t1" to word.end.toDouble(), "confidence" to word.confidence.toDouble())
+      } else emptyList()
+      lines[line.id] = Line(text, line.startTime, line.duration, line.isComplete, words)
     }
   }
 

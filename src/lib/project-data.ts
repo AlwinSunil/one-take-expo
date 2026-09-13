@@ -40,6 +40,15 @@ export function normalizeProject(value: unknown): Project {
     || (segment.captions !== undefined && (!Array.isArray(segment.captions) || segment.captions.some(caption => !caption
       || typeof caption.text !== 'string' || !Number.isFinite(caption.t0) || !Number.isFinite(caption.t1)
       || caption.t0 < 0 || caption.t1 <= caption.t0))))) throw new Error('Project review segments are unreadable.');
+  if (p.automaticEdit !== undefined) {
+    const edit = p.automaticEdit;
+    if (!edit || edit.version !== 1 || !edit.sourceKeys || typeof edit.sourceKeys !== 'object' || !Array.isArray(edit.clips)
+      || Object.values(edit.sourceKeys).some(key => typeof key !== 'string')
+      || edit.clips.some(clip => !clip || typeof clip.id !== 'string' || !clip.id || typeof clip.sourceId !== 'string' || !clip.sourceId
+        || typeof clip.label !== 'string' || typeof clip.included !== 'boolean' || !Number.isFinite(clip.t0) || !Number.isFinite(clip.t1) || clip.t0 < 0 || clip.t1 <= clip.t0)
+      || new Set(edit.clips.map(clip => clip.id)).size !== edit.clips.length) throw new Error('Automatic cuts are unreadable.');
+  }
+  if (p.semanticMatches !== undefined && (!Array.isArray(p.semanticMatches) || p.semanticMatches.some(match => !match || typeof match.segmentId !== 'string' || typeof match.text !== 'string' || typeof match.lineId !== 'string' || !['complete', 'partial', 'fumbled'].includes(match.verdict)))) throw new Error('Script matches are unreadable.');
   const transcript = Array.isArray(p.transcript) ? p.transcript.filter((s): s is TranscriptSeg =>
     !!s && typeof s.text === 'string' && Number.isFinite(s.t0) && Number.isFinite(s.t1) && s.t0 >= 0 && s.t1 >= s.t0,
   ) : [];
@@ -79,6 +88,7 @@ export interface PickupRecordingInput {
   transcript: Project['transcript'];
   takes: NonNullable<Project['takes']>;
   eligibleLineIds?: string[];
+  semanticMatches?: Project['semanticMatches'];
   /** Explicit keep intervals after capture-time retakes, already accepted by the creator. */
   captureCuts?: { t0: number; t1: number }[];
   evidenceStatus?: 'pending' | 'complete';
@@ -92,6 +102,7 @@ export function mergePickupRecording(project: Project, recordingId: string, inpu
   if (!recordingId || !Number.isFinite(input.duration) || input.duration <= 0 || !input.videoUri) throw new Error('The pickup recording is incomplete.');
   const payload = canonicalJson({ duration: input.duration, videoUri: input.videoUri, transcript: input.transcript, takes: input.takes,
     eligibleLineIds: input.eligibleLineIds ?? null, evidenceStatus: input.evidenceStatus ?? 'complete',
+    ...(input.semanticMatches === undefined ? {} : { semanticMatches: input.semanticMatches }),
     ...(input.captureCuts === undefined ? {} : { captureCuts: input.captureCuts }) });
   if (existing && (existing.evidenceStatus !== 'pending' || input.evidenceStatus === 'pending')) {
     const previous = input.evidenceStatus === 'pending' ? existing.checkpointPayload : existing.completionPayload;
@@ -155,6 +166,11 @@ export function mergePickupRecording(project: Project, recordingId: string, inpu
     recordings: existing
       ? project.recordings!.map(recording => recording.id === recordingId ? { ...recording, duration: input.duration, evidenceStatus: 'complete' as const, completionPayload: payload } : recording)
       : [...(project.recordings ?? primary), { id: recordingId, mediaUri: input.videoUri, duration: input.duration, createdAt, evidenceStatus: input.evidenceStatus ?? 'complete', ...(input.evidenceStatus === 'pending' ? { checkpointPayload: payload } : { completionPayload: payload }) }],
+    semanticMatches: [...(project.semanticMatches ?? []), ...(input.semanticMatches ?? []).flatMap(match => {
+      const segmentId = segmentIds.get(match.segmentId);
+      return segmentId && transcript.some(segment => segment.id === segmentId && segment.text === match.text)
+        && project.scriptLines?.some(line => line.id === match.lineId) ? [{ ...match, segmentId }] : [];
+    })],
     transcript: [...legacyTranscript, ...transcript], takes: [...legacyTakes, ...takes],
     pickupRequest: input.evidenceStatus === 'pending' ? project.pickupRequest : undefined,
     cuts: hasCaptureEdit ? undefined : project.cuts,
@@ -205,7 +221,7 @@ export function projectWithDurableOriginal(project: Project, videoUri: string): 
 /** A late cache-backed capture finalization supplies evidence, not a new editor snapshot. */
 export function preserveEditsDuringCaptureFinalization(current: Project, captured: Project): Project {
   const merged = { ...captured };
-  for (const key of ['trim', 'cuts', 'cutsReviewed', 'reviewSegments', 'reviewDecisions', 'previousReviewDecisions', 'framing', 'cleanupReview', 'v15'] as const) {
+  for (const key of ['trim', 'cuts', 'cutsReviewed', 'reviewSegments', 'reviewDecisions', 'previousReviewDecisions', 'framing', 'cleanupReview', 'v15', 'automaticEdit'] as const) {
     if (key in current) Object.assign(merged, { [key]: current[key] });
   }
   merged.transcript = captured.transcript.map(segment => {

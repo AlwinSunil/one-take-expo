@@ -2,7 +2,7 @@ import { mapExportCaptions, validateExportCaptions, validateExportCuts } from '.
 
 import { applyProjectFraming } from './t1-framing-selection.ts';
 import { transcriptForSource } from './review-source.ts';
-import { partitionCaptionTimeline } from './caption-timeline.ts';
+import { nativeCaptionTimeline } from './caption-timeline.ts';
 import type { Project, TranscriptSeg } from './session';
 
 export type ExportCut = { t0: number; t1: number };
@@ -91,7 +91,7 @@ export function buildExportPlan(project: Project, start: number, end: number, fr
   const captionBuild = buildCaptions(burnIntoExport ? transcriptForSource(project, sourceUri) : []);
   let captions: ExportCaption[];
   try {
-    captions = validateExportCaptions(partitionCaptionTimeline(captionBuild.captions));
+    captions = validateExportCaptions(nativeCaptionTimeline(captionBuild.captions));
   } catch (error) {
     const message = error instanceof Error ? error.message : 'The caption intervals are invalid.';
     const code: ExportPlanErrorCode = /overlap/i.test(message) ? 'caption-overlap' : 'invalid-caption';

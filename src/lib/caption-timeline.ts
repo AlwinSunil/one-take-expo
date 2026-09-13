@@ -63,6 +63,16 @@ export function partitionCaptionTimeline(
   return cues;
 }
 
+/** Native clipping is millisecond based; adjacent ASR boundaries can differ by only float noise. */
+export function nativeCaptionTimeline(captions: readonly CaptionTimelineInput[]): CaptionTimelineCue[] {
+  return partitionCaptionTimeline(captions).flatMap(cue => {
+    const t0 = Math.floor(cue.t0 * 1000) / 1000;
+    const t1 = Math.floor(cue.t1 * 1000) / 1000;
+    const nativeMillis = (value: number) => Math.trunc(Math.trunc(value * 1_000_000) / 1000);
+    return nativeMillis(t1) > nativeMillis(t0) ? [{ ...cue, t0, t1 }] : [];
+  });
+}
+
 /**
  * Return the cue visible at a source time.
  *

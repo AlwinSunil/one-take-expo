@@ -244,7 +244,6 @@ internal class MediaExportRunner(
       maxTextHeight = (videoSize.height * MAX_TEXT_HEIGHT_FRACTION).toInt().coerceAtLeast(1)
       textPadding = (videoSize.width * TEXT_PADDING_FRACTION).toInt()
         .coerceIn(MIN_TEXT_PADDING, MAX_TEXT_PADDING)
-      cachedCaptionBitmap?.recycle()
       cachedCaptionBitmap = null
       cachedCaptionIndex = -1
     }
@@ -253,7 +252,6 @@ internal class MediaExportRunner(
       val index = captionIndexAt(presentationTimeUs)
       if (index < 0) return blankBitmap
       if (cachedCaptionIndex != index) {
-        cachedCaptionBitmap?.recycle()
         cachedCaptionBitmap = renderCaption(captions[index].text)
         cachedCaptionIndex = index
       }
@@ -264,10 +262,11 @@ internal class MediaExportRunner(
       if (captionIndexAt(presentationTimeUs) < 0) hiddenSettings else activeSettings
 
     override fun release() {
-      cachedCaptionBitmap?.recycle()
-      cachedCaptionBitmap = null
-      blankBitmap.recycle()
+      // CompositionPlayer can configure this effect again after a seek. Media3 also retains
+      // the last bitmap until its texture is released, so let GC own pixel-buffer disposal.
       super.release()
+      cachedCaptionBitmap = null
+      cachedCaptionIndex = -1
     }
 
     private fun captionIndexAt(timeUs: Long): Int {
