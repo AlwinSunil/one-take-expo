@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 import { CompositionCoach } from './composition-coach';
+import { Tier1SetupControls } from './tier1-setup-controls';
+import { gateTier1Coach, toCompositionCoachIntent, type Tier1Intent } from './tier1-policy';
 import type { CoachCue, CoachIntent, CoachVisionEvidence } from './policy';
 
 const setupTips: Record<CoachIntent, string> = {
@@ -12,14 +14,22 @@ const setupTips: Record<CoachIntent, string> = {
 };
 
 /** Setup guidance is explicitly manual until each automatic cue is validated. */
-export function CaptureSuggestions({ enabled, onEnabledChange, intent, onIntentChange, evidence, nowMs }: {
+export function CaptureSuggestions({ enabled, onEnabledChange, intent, onIntentChange, evidence, nowMs, tier1Development = false }: {
   enabled: boolean;
   onEnabledChange: (enabled: boolean) => void;
   intent: CoachIntent;
   onIntentChange: (intent: CoachIntent) => void;
   evidence: CoachVisionEvidence;
   nowMs: number;
+  /** Explicit development exposure, never the production release gate. */
+  tier1Development?: boolean;
 }) {
+  const [tier1Intent, setTier1Intent] = useState<Tier1Intent | null>(null);
+  const useTier1 = __DEV__ && tier1Development;
+  const tier1Gate = gateTier1Coach({
+    enabled: useTier1 && enabled, intent: tier1Intent, recording: false,
+    nowMs, takeId: `setup:${intent}`, captureGeneration: `setup:${intent}`,
+  });
   const [shown, setShown] = useState<{ intent: CoachIntent; cue: CoachCue; at: number } | null>(null);
   const current = shown?.intent === intent ? shown : null;
   return <View style={{ gap: 16, paddingTop: 16 }}>
@@ -29,14 +39,17 @@ export function CaptureSuggestions({ enabled, onEnabledChange, intent, onIntentC
       <Text className="text-white text-sm">Composition suggestions · {enabled ? 'On' : 'Off'}</Text>
     </Pressable>
     {enabled && <>
-      <CompositionCoach enabled intent={intent} onIntentChange={onIntentChange}
+      <CompositionCoach enabled={!useTier1 || tier1Gate.kind === 'delegate'} showIntentPicker={!useTier1} intent={intent} onIntentChange={onIntentChange}
         evidence={evidence} nowMs={nowMs} recording={false} speechState="silent"
         takeId={`setup:${intent}`} activeCue={current?.cue ?? null} lastPromptAtMs={current?.at ?? null}
         onPromptShown={cue => setShown({ intent, cue, at: nowMs })} />
-      <View className="rounded-xl bg-neutral-900 p-4">
+      {useTier1 ? <Tier1SetupControls intent={tier1Intent} onIntentChange={next => {
+        setTier1Intent(next);
+        onIntentChange(toCompositionCoachIntent(next)!);
+      }} /> : <View className="rounded-xl bg-neutral-900 p-4">
         <Text className="text-neutral-200 text-sm font-semibold">Manual setup tips</Text>
         <Text className="text-neutral-300 text-sm leading-6 mt-2">{setupTips[intent]}</Text>
-      </View>
+      </View>}
     </>}
   </View>;
 }
