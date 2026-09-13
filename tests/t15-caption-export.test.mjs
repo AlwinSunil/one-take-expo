@@ -87,6 +87,8 @@ test('pending and unavailable captions permit captionless export and never fabri
   assert.deepEqual(mapped(buildTimelineExportPlan(project, sequence(), true)), []);
   project.transcript = [];
   assert.deepEqual(mapped(buildTimelineExportPlan(project, sequence(), true)), []);
+  project.transcript = null;
+  assert.deepEqual(mapped(buildTimelineExportPlan(project, sequence(), false)), []);
   project.transcript = [{ recordingId: 's', t0: 0, t1: 4, text: null }];
   assert.deepEqual(mapped(buildTimelineExportPlan(project, sequence(), false)), []);
 });

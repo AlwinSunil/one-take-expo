@@ -4,18 +4,22 @@ import { ActivityIndicator, Alert, Pressable, Text, View } from 'react-native';
 import media, { type MediaExport } from '../../../modules/one-take-media';
 import type { Project } from '@/lib/session';
 import { getSetting, saveSetting, registerProjectWork, assertProjectExists } from '@/lib/store';
-import { buildExportPlan, ExportPlanError, type ExportPlan } from '@/lib/export-plan';
+import { buildExportPlan, freezeExportPlan, ExportPlanError, type ExportPlan } from '@/lib/export-plan';
 
 const ACTIVE_STATUSES = new Set<MediaExport['status']>(['queued', 'running']);
 const EXPORT_POLL_MS = 600;
 
-export function ExportControls({ project, start, end, onMessage, framingEnabled = false }: {
+export function ExportControls({ project, start, end, onMessage, framingEnabled = false, timelinePlan, burnIntoExport = true }: {
   project: Project;
+  /** undefined keeps legacy export; null explicitly blocks an invalid/empty timeline. */
+  timelinePlan?: ExportPlan | null;
+  burnIntoExport?: boolean;
   framingEnabled?: boolean;
   start: number;
   end: number;
   onMessage?: (text: string) => void;
 }) {
+  const selectedBurn = timelinePlan?.burnIntoExport ?? burnIntoExport;
   const [job, setJob] = useState<MediaExport | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -34,6 +38,8 @@ export function ExportControls({ project, start, end, onMessage, framingEnabled 
   latestProject.current = project;
   const latestTrim = useRef({ start, end });
   latestTrim.current = { start, end };
+  const latestTimelinePlan = useRef(timelinePlan);
+  latestTimelinePlan.current = timelinePlan;
   const busyRef = useRef(busy);
   busyRef.current = busy;
   const loadingRef = useRef(loading);
@@ -108,21 +114,25 @@ export function ExportControls({ project, start, end, onMessage, framingEnabled 
   }, [announce, clearPoll, currentKey, refresh]);
 
   const selection = useMemo(() => {
+    if (timelinePlan !== undefined) return { duration: timelinePlan?.segments?.reduce((sum, segment) => sum + segment.t1 - segment.t0, 0) ?? 0,
+      label: timelinePlan ? `Selected timeline (revision ${timelinePlan.timelineRevision})` : 'Empty or unavailable timeline' };
     const cuts = project.reviewSegments ?? (project.cuts?.length === 0 ? [{ t0: 0, t1: project.duration ?? end }] : project.cuts ?? [{ t0: start, t1: end }]);
     const duration = Array.isArray(cuts)
       ? cuts.reduce((total, cut) => total + (Number.isFinite(cut?.t0) && Number.isFinite(cut?.t1) ? Math.max(0, cut.t1 - cut.t0) : 0), 0)
       : 0;
     const label = project.reviewSegments ? 'reviewed sequence' : project.cuts?.length === 0 ? 'complete source' : project.cuts !== undefined ? 'saved cuts' : `${formatSeconds(start)}–${formatSeconds(end)}`;
     return { duration, label };
-  }, [end, project.cuts, project.reviewSegments, project.duration, start]);
-  const cutsNeedReview = (Array.isArray(project.reviewSegments) || (Array.isArray(project.cuts)
+  }, [end, project.cuts, project.reviewSegments, project.duration, start, timelinePlan]);
+  const cutsNeedReview = timelinePlan === undefined && (Array.isArray(project.reviewSegments) || (Array.isArray(project.cuts)
     && project.cuts.length > 0))
     && !(project as Project & { cutsReviewed?: boolean }).cutsReviewed;
 
   function planForExport(): ExportPlan | null {
     try {
+      if (latestTimelinePlan.current === null) throw new ExportPlanError('empty-timeline', 'Include at least one available clip before exporting.');
+      if (latestTimelinePlan.current !== undefined) return freezeExportPlan(latestTimelinePlan.current);
       const current = latestTrim.current;
-      return buildExportPlan(latestProject.current, current.start, current.end, framingEnabled && media?.supportsFraming === true);
+      return freezeExportPlan(buildExportPlan(latestProject.current, current.start, current.end, framingEnabled && media?.supportsFraming === true, burnIntoExport));
     } catch (error) {
       const messageText = errorMessage(error);
       if (error instanceof ExportPlanError && error.code === 'caption-overlap') {
@@ -142,25 +152,26 @@ export function ExportControls({ project, start, end, onMessage, framingEnabled 
   function requestExport() {
     if (loadingRef.current || busyRef.current || ACTIVE_STATUSES.has(latestJob.current?.status ?? 'cancelled')) return;
 
-    if (latestProject.current.refinement?.status === 'running') {
+    const plan = planForExport();
+    if (!plan) return;
+    const selectedProjectId = latestProject.current.id;
+    if (selectedBurn && latestProject.current.refinement?.status === 'running') {
       Alert.alert(
         'Audio recheck in progress',
         'Wait for the saved-audio recheck for better caption timing, or export the current captions with their existing timing.',
         [
           { text: 'Wait', style: 'cancel' },
-          { text: 'Export current captions', onPress: () => confirmCaptionTiming() },
+          { text: 'Export current captions', onPress: () => confirmCaptionTiming(plan, selectedProjectId) },
         ],
       );
       return;
     }
-    confirmCaptionTiming();
+    confirmCaptionTiming(plan, latestProject.current.id);
   }
 
-  function confirmCaptionTiming(estimatedConfirmed = false) {
-    const plan = planForExport();
-    if (!plan) return;
-    if (!plan.hasEstimatedCaptions || estimatedConfirmed) {
-      void startExport(plan);
+  function confirmCaptionTiming(plan: ExportPlan, selectedProjectId: string) {
+    if (!plan.hasEstimatedCaptions) {
+      void startExport(plan, selectedProjectId);
       return;
     }
     Alert.alert(
@@ -168,16 +179,13 @@ export function ExportControls({ project, start, end, onMessage, framingEnabled 
       'These captions were timed while recording. The words may be readable, but their frame timing is not guaranteed. Recheck the saved audio first, or explicitly use the current estimates.',
       [
         { text: 'Recheck first', style: 'cancel', onPress: () => announce('Recheck saved audio before exporting frame-aligned captions.') },
-        // Rebuild after the alert. A refinement can finish, or the editor can
-        // change the trim, while this confirmation is open. If the latest
-        // plan still uses estimated timing, this callback is the explicit
-        // confirmation immediately preceding the export request.
-        { text: 'Use current captions', onPress: () => { confirmCaptionTiming(true); } },
+        { text: 'Use selected captions', onPress: () => { void startExport(plan, selectedProjectId); } },
       ],
     );
   }
 
-  async function startExport(plan: ExportPlan) {
+  async function startExport(plan: ExportPlan, selectedProjectId: string) {
+    if (!mounted.current || latestProject.current.id !== selectedProjectId) return;
     if (!media || busyRef.current || ACTIVE_STATUSES.has(latestJob.current?.status ?? 'cancelled')) {
       if (!media) announce('Video export requires the Android development build.');
       return;
@@ -187,7 +195,7 @@ export function ExportControls({ project, start, end, onMessage, framingEnabled 
     setBusy(true);
     setMessage('Starting export…');
     jobId.current = id;
-    const initial: MediaExport = { id, status: 'queued', progress: 0 };
+    const initial: MediaExport = { id, status: 'queued', progress: 0, timelineRevision: plan.timelineRevision };
     latestJob.current = initial;
     setJob(initial);
     const projectId = latestProject.current.id;
@@ -210,7 +218,7 @@ export function ExportControls({ project, start, end, onMessage, framingEnabled 
       const history = JSON.parse(await getSetting(historyKey) || '[]') as string[];
       await saveSetting(historyKey, JSON.stringify([...new Set([...history, id])]));
       if (deleted) throw new Error('This project is being deleted.');
-      await media.startExport({ id, sourceUri: plan.sourceUri, cuts: plan.cuts, captions: plan.captions, segments: plan.segments });
+      await media.startExport({ id, sourceUri: plan.sourceUri, cuts: plan.cuts, captions: plan.captions, segments: plan.segments, timelineRevision: plan.timelineRevision });
       finishStart();
       if (deleted || !mounted.current || jobId.current !== id) return;
       announce('Export queued. You can leave this screen while it runs.');
@@ -292,7 +300,7 @@ export function ExportControls({ project, start, end, onMessage, framingEnabled 
         : status === 'failed' ? `Export failed${job?.error ? ` · ${job.error}` : ''}`
           : status === 'interrupted' ? 'Export interrupted · retry available'
             : status === 'cancelled' ? 'Export cancelled'
-              : 'Create a captioned copy';
+              : selectedBurn ? 'Create a captioned copy' : 'Create a copy without captions';
 
   return <View className="border-t border-neutral-800 mt-4 pt-1">
     <View className="py-3 flex-row items-baseline gap-2">
@@ -301,15 +309,16 @@ export function ExportControls({ project, start, end, onMessage, framingEnabled 
     </View>
     {active && <Text className="text-neutral-300 text-xs mb-2">{statusText}</Text>}
     <Text className="text-neutral-400 text-xs mb-1">
-      {selection.label} · {formatSeconds(selection.duration)} output · original preserved
+      Next export: {selection.label} · {formatSeconds(selection.duration)} output · original preserved
     </Text>
-    <Text className="text-neutral-500 text-xs mb-3">Portrait MP4 · 720×1280 SDR · white captions on dark.</Text>
-    {project.refinement?.status === 'running' && !active && <Text className="text-amber-200 text-xs mt-2">Saved-audio caption recheck is running. Export can wait or use current captions.</Text>}
+    {job?.timelineRevision !== undefined && <Text className="text-neutral-400 text-xs mb-1">Export job uses timeline revision {job.timelineRevision}.</Text>}
+    <Text className="text-neutral-500 text-xs mb-3">Portrait MP4 · 720×1280 SDR · {selectedBurn ? 'Captions burned in (when available)' : 'No captions burned in'}.</Text>
+    {selectedBurn && project.refinement?.status === 'running' && !active && <Text className="text-amber-200 text-xs mt-2">Saved-audio caption recheck is running. Export can wait or use current captions.</Text>}
     <View className="mt-3">
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={canRetry ? 'Retry video export' : 'Export video'}
-        disabled={loading || busy || active || (!project.videoUri && !project.reviewSegments?.length) || cutsNeedReview}
+        disabled={loading || busy || active || timelinePlan === null || selection.duration <= 0 || (timelinePlan === undefined && !project.videoUri && !project.reviewSegments?.length) || cutsNeedReview}
         onPress={requestExport}
         className="items-center rounded-xl bg-white py-3.5 active:opacity-80 disabled:opacity-40"
       >

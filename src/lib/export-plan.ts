@@ -217,8 +217,8 @@ export function buildTimelineExportPlan(
     if (typeof recording.duration === 'number' && segment.t1 > recording.duration) {
       throw new ExportPlanError('invalid-cuts', 'The timeline exceeds its source duration.');
     }
-    const transcript = transcriptForSource(project, segment.uri)
-      .filter(cue => cue.t0 < segment.t1 && cue.t1 > segment.t0);
+    const transcript = burnIntoExport ? transcriptForSource(project, segment.uri)
+      .filter(cue => cue.t0 < segment.t1 && cue.t1 > segment.t0) : [];
     const plan = buildExportPlan({ ...project, videoUri: segment.uri, reviewSegments: undefined,
       cuts: undefined, transcript, mediaMissing: false }, segment.t0, segment.t1, false, burnIntoExport);
     timings.push(plan.captionTiming);
