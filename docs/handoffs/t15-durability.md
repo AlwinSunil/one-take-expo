@@ -215,3 +215,9 @@ Caption/timeline/asset adapter retries retain the original caller intent, so ret
 
 Run `node --experimental-strip-types tests/t15-fixture-replay.mjs` for exact source/timeline/history/caption/job/result transport envelopes.
 The output is also captured in `docs/validation/evidence/t15-durability/canonical-envelopes.json`.
+
+
+Late-capture preservation increment: `1f389f7`.
+A cache-backed original finalization is treated as evidence delivery, preserving intervening editor trim/review/framing decisions and manual caption corrections.
+The real-store replay covers finalization after a concurrent pickup/editor save.
+Final source verification is recorded in `docs/validation/evidence/t15-durability/latest-commands.json`.

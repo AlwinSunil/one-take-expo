@@ -1,0 +1,44 @@
+{
+  "commit": "1f389f7e807f89c23a2adcc3fa11a3cb09b90f0d",
+  "commands": [
+    {
+      "command": [
+        "npm",
+        "test"
+      ],
+      "environment": {
+        "EXPO_NO_DOTENV": "1"
+      },
+      "exitCode": 0,
+      "log": "docs/validation/evidence/t15-durability/latest-tests.log"
+    },
+    {
+      "command": [
+        "npm",
+        "run",
+        "typecheck"
+      ],
+      "environment": {
+        "EXPO_NO_DOTENV": "1"
+      },
+      "exitCode": 0,
+      "log": "docs/validation/evidence/t15-durability/latest-typecheck.log"
+    },
+    {
+      "command": [
+        "npx",
+        "expo",
+        "export",
+        "--platform",
+        "android",
+        "--output-dir",
+        "/tmp/t15-durable-final-export"
+      ],
+      "environment": {
+        "EXPO_NO_DOTENV": "1"
+      },
+      "exitCode": 0,
+      "log": "docs/validation/evidence/t15-durability/latest-export.log"
+    }
+  ]
+}
