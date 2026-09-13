@@ -10,6 +10,7 @@ import com.google.mlkit.vision.face.FaceDetection
 import com.google.mlkit.vision.face.FaceDetector
 import com.google.mlkit.vision.face.FaceDetectorOptions
 import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.Executor
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
@@ -51,6 +52,7 @@ internal class VisionImageAnalyzer(
   private val executor = Executors.newSingleThreadExecutor { runnable ->
     Thread(runnable, "one-take-vision").apply { isDaemon = true }
   }
+  private val listenerExecutor: Executor = VisionCallbackExecutor(executor) { closed.get() }
   private val detector: FaceDetector = FaceDetection.getClient(
     FaceDetectorOptions.Builder()
       .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_FAST)
@@ -105,6 +107,11 @@ internal class VisionImageAnalyzer(
     }
     nextAllowedAtMs = capturedAtMs + VisionDeviceStatusReader.intervalMs(thermalStatus)
     activeImage.set(imageProxy)
+    if (closed.get()) {
+      inFlight.set(false)
+      closeImage(imageProxy)
+      return
+    }
 
     val mediaImage = imageProxy.image
     if (mediaImage == null) {
@@ -117,7 +124,7 @@ internal class VisionImageAnalyzer(
     try {
       val input = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
       detector.process(input)
-        .addOnSuccessListener(executor) { faces ->
+        .addOnSuccessListener(listenerExecutor) { faces ->
           if (closed.get()) return@addOnSuccessListener
           val inferenceMs = (SystemClock.elapsedRealtime() - startedAtMs).coerceAtLeast(0L)
           detectorSuccesses.incrementAndGet()
@@ -135,20 +142,22 @@ internal class VisionImageAnalyzer(
             ),
           )
         }
-        .addOnFailureListener(executor) { failure ->
+        .addOnFailureListener(listenerExecutor) { failure ->
           if (closed.get()) return@addOnFailureListener
           detectorFailures.incrementAndGet()
           onError(failure)
         }
-        .addOnCompleteListener(executor) {
+        .addOnCompleteListener(listenerExecutor) {
           inFlight.set(false)
           closeImage(imageProxy)
         }
     } catch (failure: Throwable) {
-      detectorFailures.incrementAndGet()
       inFlight.set(false)
       closeImage(imageProxy)
-      onError(failure)
+      if (!closed.get()) {
+        detectorFailures.incrementAndGet()
+        onError(failure)
+      }
     }
   }
 
@@ -171,8 +180,9 @@ internal class VisionImageAnalyzer(
     if (!closed.compareAndSet(false, true)) return
     // Keep an in-flight ImageProxy alive until ML Kit's completion callback.
     // Closing it before the task finishes can invalidate the media.Image that
-    // the detector is still reading. The completion listener always closes it,
-    // and a graceful executor shutdown lets that listener drain.
+    // the detector is still reading. The completion listener always closes it.
+    // VisionCallbackExecutor also handles the race where ML Kit dispatches
+    // after the graceful executor shutdown.
     val pendingImage = activeImage.get()
     runCatching { detector.close() }
     executor.shutdown()
@@ -181,6 +191,7 @@ internal class VisionImageAnalyzer(
         try {
           if (!executor.awaitTermination(2L, java.util.concurrent.TimeUnit.SECONDS)) {
             closeImage(pendingImage)
+            executor.shutdownNow()
           }
         } catch (_: InterruptedException) {
           closeImage(pendingImage)

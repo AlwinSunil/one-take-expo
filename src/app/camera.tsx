@@ -48,6 +48,7 @@ import {
 import { setCaptureInputActive, subscribeCaptureInput } from '@/features/capture/input';
 import { loadAcceptedScriptDocument } from '@/lib/script-draft';
 import { parseScript, setCueStatus, type ScriptDocument } from '@/lib/script-lines';
+import { basicVisualCheck, type BasicVisualCheck } from '@/features/vision/basic-check';
 import { createGazeCollector } from '@/features/vision/gaze';
 import { useVision } from '@/features/vision/use-vision';
 import { createSuggestionJobController } from '@/features/coach/suggestion-job';
@@ -221,6 +222,7 @@ export default function CameraScreen() {
   const [requestingPermission, setRequestingPermission] = useState(false);
   const [appInForeground, setAppInForeground] = useState(AppState.currentState === 'active');
   const [suggestionsVisible, setSuggestionsVisible] = useState(false);
+  const [basicCheck, setBasicCheck] = useState<BasicVisualCheck | null>(null);
   const [suggestionJobs] = useState(createSuggestionJobController);
   const [suggestionSnapshot, setSuggestionSnapshot] = useState(suggestionJobs.getSnapshot);
   const [cameraSessionId] = useState(() => `camera:${uuid.v4()}`);
@@ -246,7 +248,7 @@ export default function CameraScreen() {
     intent: shotIntent,
   }), [cameraSessionId, recording, preparing, facing, cameraRetry, zoom, shotIntent, vision.evidence.sessionId]);
   useEffect(() => suggestionJobs.subscribe(setSuggestionSnapshot), [suggestionJobs]);
-  useEffect(() => { suggestionJobs.bind(suggestionIdentity); }, [suggestionIdentity, suggestionJobs]);
+  useEffect(() => { suggestionJobs.bind(suggestionIdentity); setBasicCheck(null); }, [suggestionIdentity, suggestionJobs]);
   useEffect(() => {
     if (!isFocused || !appInForeground || !ready || previewUri) {
       suggestionJobs.cancel(!appInForeground ? 'background' : 'navigation');
@@ -255,12 +257,16 @@ export default function CameraScreen() {
     return () => { suggestionJobs.cancel('route-exit'); };
   }, [isFocused, appInForeground, ready, previewUri, suggestionJobs]);
   const dismissSuggestions = useCallback(() => {
+    setBasicCheck(null);
     suggestionJobs.cancel('dismissed');
     setSuggestionsVisible(false);
   }, [suggestionJobs]);
   function requestSuggestions() {
     setSuggestionsVisible(true);
-    if (!showDevelopmentCoaching) return;
+    if (!showDevelopmentCoaching) {
+      if (__DEV__) setBasicCheck(basicVisualCheck(latestVisionEvidence.current, performance.now()));
+      return;
+    }
     suggestionJobs.bind(suggestionIdentity);
     suggestionJobs.start({ ...suggestionIdentity, requestedAtMs: performance.now(), evidence: coachEvidence });
   }
@@ -1018,7 +1024,12 @@ export default function CameraScreen() {
           onRetry={requestSuggestions} onDismiss={dismissSuggestions}
           intent={shotIntent} onIntentChange={setShotIntent}
           diagnostics={__DEV__ ? suggestionJobs.getDiagnostics() : undefined} /> : <View>
-          <Text className="text-neutral-300 text-sm">Visual analysis is not enabled in this build.</Text>
+          {__DEV__ ? <View>
+            <Text accessibilityRole="header" className="text-white text-sm font-semibold">Basic face check · Preview</Text>
+            <Text accessibilityLiveRegion="polite" className="text-neutral-200 text-sm mt-2">{basicCheck?.message ?? 'The camera changed. Tap Check again for a fresh result.'}</Text>
+            <Text className="text-neutral-400 text-xs mt-2">Snapshot from your last tap. Face detection only; lighting, background and eye contact are not assessed.</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel="Check face framing again" onPress={requestSuggestions} className="min-h-12 justify-center"><Text className="text-amber-200">Check again</Text></Pressable>
+          </View> : <Text className="text-neutral-300 text-sm">Visual analysis is not enabled in this build.</Text>}
           <Pressable accessibilityRole="button" accessibilityLabel="Dismiss Visual Suggestions" onPress={dismissSuggestions} className="min-h-12 justify-center"><Text className="text-white">Dismiss</Text></Pressable>
         </View>}
         {__DEV__ && <Text selectable className="text-neutral-500 text-xs mt-3">

@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
 
 import type { CaptionFailureReason } from '@/lib/live-caption-state';
+import { splitFillerText } from '@/lib/transcript-fillers';
 
 /**
  * What the person recording can do about each named failure.  The wording
@@ -38,6 +39,8 @@ export function LiveCaptions({ text, isFinal, status, reason, retryable, onRetry
     : status === 'delayed' ? 'Captions catching up'
     : !text ? 'Listening' : isFinal ? 'Captions' : 'Live draft';
   const explanation = reason ? REASON_GUIDANCE[reason] : 'Captions are unavailable for this take.';
+  const displayText = failed ? `Video is still recording. ${explanation}`
+    : text || (status === 'preparing' ? 'Getting ready…' : 'Speak clearly near the microphone to see captions.');
   return <View className="mx-4 mt-3 rounded-xl bg-black/80 px-3">
     <Pressable accessibilityRole="button" accessibilityLabel={`${expanded ? 'Hide' : 'Show'} live captions`}
       accessibilityState={{ expanded }} onPress={() => setExpanded(value => !value)}
@@ -47,9 +50,8 @@ export function LiveCaptions({ text, isFinal, status, reason, retryable, onRetry
     </Pressable>
     {expanded && <ScrollView ref={scroll} style={{ maxHeight: Math.min(160, height * 0.22) }}
       onContentSizeChange={() => scroll.current?.scrollToEnd({ animated: false })}>
-      <Text accessibilityLabel="Live caption text" className="text-white text-base pb-3">
-        {failed ? `Video is still recording. ${explanation}`
-          : text || (status === 'preparing' ? 'Getting ready…' : 'Speak clearly near the microphone to see captions.')}
+      <Text accessibilityLabel={`Live caption text: ${displayText}`} className="text-white text-base pb-3">
+        {renderFillerText(displayText)}
       </Text>
       {failed && retryable && onRetry && <Pressable accessibilityRole="button" accessibilityLabel="Try captions again"
         onPress={onRetry} className="self-start rounded-lg bg-white/15 px-3 mb-3 justify-center" style={{ minHeight: 48 }}>
@@ -58,4 +60,10 @@ export function LiveCaptions({ text, isFinal, status, reason, retryable, onRetry
       {status === 'delayed' && <Text className="text-amber-200 text-xs pb-3">Keep recording. Review the transcript after stopping.</Text>}
     </ScrollView>}
   </View>;
+}
+
+function renderFillerText(text: string) {
+  return splitFillerText(text).map((part, index) => part.isFiller
+    ? <Text key={`${index}:filler`} style={{ color: '#f87171' }}>{part.text}</Text>
+    : <Text key={`${index}:text`}>{part.text}</Text>);
 }

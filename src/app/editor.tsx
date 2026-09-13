@@ -7,6 +7,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, Keyboard, PanResponder, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { fillerTimelineMarks, type TranscriptTimelineMark } from '@/lib/transcript-filler-timeline';
+import { FillerBands, TranscriptFillerMarkers } from '@/components/review/transcript-filler-markers';
 import { recordedMediaDuration } from '@/lib/recorded-media';
 import { transcriptForSource } from '@/lib/review-source';
 import { reviewExportSelection } from '@/lib/review-export-selection';
@@ -246,6 +248,25 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
   useEffect(() => {
     if (useNative && !nativeStarted.current && !isPlaying) { nativeStarted.current = true; setNativePlaying(true); }
   }, [useNative, isPlaying]);
+  const valid = Number.isFinite(duration) && duration > 0;
+  const fillerSegments = useMemo(() => peek ? [peek] : previewSource === 'clean' ? activeSegments : valid ? [{ uri, t0: 0, t1: duration }] : [],
+    [peek, previewSource, activeSegments, valid, uri, duration]);
+  const fillerMarks = useMemo(() => project ? fillerTimelineMarks(project, fillerSegments) : [], [project, fillerSegments]);
+  const fillerDuration = fillerSegments.reduce((sum, segment) => sum + segment.t1 - segment.t0, 0);
+  function previewTranscriptFiller(mark: TranscriptTimelineMark) {
+    clearPeek();
+    player.pause();
+    if (NativeCutPreview && availableMediaUris.includes(mark.sourceUri)) {
+      const bound = mark.sourceUri === uri ? duration : sourceDuration(durationChecks[mark.sourceUri]?.duration, project?.recordings?.find(recording => recording.mediaUri === mark.sourceUri)?.duration);
+      if (!bound) return;
+      setPeek({ uri: mark.sourceUri, t0: Math.max(0, mark.sourceTime - 0.5), t1: Math.min(bound, mark.sourceTime + 1.5), captions: [] });
+      setNativeSeek(0);
+      setNativePlaying(true);
+    } else if (mark.sourceUri === uri) {
+      setPreviewSource('original');
+      player.currentTime = Math.max(0, mark.sourceTime - 0.5);
+    }
+  }
   const nativeRequest = useMemo(() => JSON.stringify({ id: 'preview', sourceUri: playingSegments[0]?.uri ?? uri, cuts: [], captions: [], segments: playingSegments }), [playingSegments, uri]);
   useEffect(() => { if (useNative) player.pause(); else setNativePlaying(false); }, [useNative, player]);
   const previewCuts = !useNative && !peek && previewSource === 'clean' && activeCleanReady ? activeLegacyCuts : undefined;
@@ -263,7 +284,6 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
   const previewFullSource = !peek && previewSource === 'original';
   const cleanPreviewEmpty = !peek && previewSource === 'clean' && !activeCleanReady;
   const limit = end || duration;
-  const valid = Number.isFinite(duration) && duration > 0;
   const reviewProject = mediaProject ? { ...mediaProject, duration: valid ? duration : mediaProject.duration } : null;
   const captionCues = useMemo(() => {
     try { return partitionCaptionTimeline((project ? transcriptForSource(project, uri) : []).map(s => ({ ...s, text: sanitizeExportCaption(s.manualCorrection ?? s.correctedText ?? s.text) }))); }
@@ -304,7 +324,7 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
     ? reviewExportSelection({ ...reviewProject!, duration: valid ? duration : project.duration }, exportMode, !!sequence?.segments.length)
     : null;
 
-  const outputDuration = previewSource === 'original'
+  const outputDuration = peek ? peek.t1 - peek.t0 : previewSource === 'original'
     ? (valid ? duration : 0)
     : previewSource === 'trim'
       ? (valid ? Math.max(0, limit - start) : 0)
@@ -427,7 +447,8 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
     <ScrollView automaticallyAdjustKeyboardInsets keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 20 }} className="px-5 pt-2 w-full self-center" style={{ maxWidth: 600, maxHeight: '38%', display: editing ? 'flex' : 'none' }}>
       <SourceTabs value={editTool} onChange={value => { setEditTool(value); if (value !== 'clean' || hasClean) switchSource(value); }} cleanDisabled={false} />
       {editTool === 'original' && <Text className="text-neutral-400 text-xs py-3">Full recording · retakes included</Text>}
-      {editTool === 'trim' && <View className="pt-5">
+      {(editTool === 'trim' || editTool === 'original') && <View className="pt-5">
+
         {valid && <View onLayout={e => setWidth(e.nativeEvent.layout.width)} style={{ height: 56, marginHorizontal: 12 }}>
           <View onStartShouldSetResponder={() => true} onMoveShouldSetResponder={() => true}
             onResponderGrant={e => { if (width) seek(e.nativeEvent.locationX / width * duration); }}
@@ -436,27 +457,31 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
             <View pointerEvents="none" style={{ flex: 1, flexDirection: 'row' }}>
               {thumbnails.map((thumbnail, i) => <Image key={i} source={thumbnail} contentFit="cover" style={{ flex: 1, height: 56 }} />)}
             </View>
+            <FillerBands marks={fillerMarks} duration={duration} />
+            {previewSource === 'trim' && <>
             <View pointerEvents="none" style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: `${start / duration * 100}%`, backgroundColor: '#000b' }} />
             <View pointerEvents="none" style={{ position: 'absolute', top: 0, bottom: 0, right: 0, width: `${(1 - limit / duration) * 100}%`, backgroundColor: '#000b' }} />
             <View pointerEvents="none" style={{ position: 'absolute', top: 0, bottom: 0, left: `${start / duration * 100}%`, width: `${(limit - start) / duration * 100}%`, borderTopWidth: 3, borderBottomWidth: 3, borderColor: '#e5e5e5' }} />
+            </>}
             <View pointerEvents="none" style={{ position: 'absolute', top: 0, bottom: 0, left: `${Math.min(100, currentTime / duration * 100)}%`, width: 2, backgroundColor: 'white' }} />
           </View>
-          <TrimHandle value={start} duration={duration} width={width} onChange={v => {
+          {previewSource === 'trim' && <><TrimHandle value={start} duration={duration} width={width} onChange={v => {
             const next = Math.max(0, Math.min(limit - Math.min(0.25, duration), v));
             updateTrim(next, limit); player.pause(); player.currentTime = next;
           }} />
           <TrimHandle value={limit} duration={duration} width={width} onChange={v => {
             const next = Math.min(duration, Math.max(start + Math.min(0.25, duration), v));
             updateTrim(start, next); player.pause(); player.currentTime = next;
-          }} />
+          }} /></>}
         </View>}
-        <View className="flex-row justify-between mt-3">
+        {previewSource === 'trim' && <><View className="flex-row justify-between mt-3">
           <Text className="text-neutral-400 text-xs">{time(start)}</Text>
           <Text className="text-neutral-400 text-xs">{time(valid ? limit - start : 0)} selected</Text>
           <Text className="text-neutral-400 text-xs">{time(valid ? limit : 0)}</Text>
         </View>
-
+        </>}
       </View>}
+      <TranscriptFillerMarkers marks={fillerMarks} duration={fillerDuration} showTrack={previewSource === 'clean' || !!peek} onSelect={previewTranscriptFiller} />
 
       {project && reviewProject && tier1Enabled('reframing', __DEV__, tier1Test) && <View className="border-t border-neutral-800 py-3">
         <Text className="text-white font-semibold">Optional reframing</Text>
