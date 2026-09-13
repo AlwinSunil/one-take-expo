@@ -56,3 +56,15 @@ Independent work proceeds against small fixtures until these contracts merge.
 Integrated iQOO device/OS/build, model/processor, five-session cadence/confusion/drop/thermal/battery/recording-impact evidence, large-text/screen-reader UI, A/V and named human acceptance remain pending.
 No device installation or recording is authorized by this handoff alone while other sessions may be testing.
 Session 3 owns `docs/validation/T1.5.md`; this document and later Session 2 evidence supply its lane results.
+
+## Published dependency inspection
+
+Session 1 proposal inspected at `f097b0f`, `feat/t15-speech-analysis`, PR #70.
+Session 3 proposal inspected at `ccce524`, `t3code/feat/t15-timeline`, PR #72.
+Session 3 confirms legacy primary `sourceId = project.id` and pickup `sourceId = recordings[].id`.
+Its durable observation/checkpoint APIs remain design-only pending #58; no API exists to call yet.
+Session 1's voice-follow hook/component is not published yet; its initial DTOs alone do not implement following.
+Revision encoding differs between proposals (Session 1 string script/edit revisions, Session 3 integer revision vector), so owners must specify conversion rather than capture inventing it.
+Session 2 can provide capture/source/binding identity and source-relative timing independently.
+The baseline web camera route was reproduced on port 8096 and fails before rendering at SQLite `.wasm` resolution.
+Session 3 owns the Metro asset configuration fix; evidence is `evidence/t15-session-2/web-baseline-blocker.png`.
