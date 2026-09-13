@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { VisionEvidence } from './state';
 type AdviceKind = 'face' | 'bright' | 'dark' | 'frame';
+type FeedbackKind = AdviceKind | 'clear' | 'measuring' | 'unavailable';
 const MESSAGES: Record<AdviceKind, string> = {
   face: 'Face out of view. Move into frame.',
   bright: 'Harsh light on your face. Try softer light.',
@@ -26,7 +27,7 @@ export function visualAdvice(evidence: VisionEvidence): string | null {
   const kind = adviceKind(evidence);
   return kind ? MESSAGES[kind] : null;
 }
-export interface VisualAdviceState { current: AdviceKind | null; pending: AdviceKind | null; since: number; shownAt: number; lastReadyAt: number; identity: string }
+export interface VisualAdviceState { current: FeedbackKind | null; pending: FeedbackKind | null; since: number; shownAt: number; lastReadyAt: number; identity: string }
 export function emptyVisualAdvice(): VisualAdviceState { return { current: null, pending: null, since: 0, shownAt: 0, lastReadyAt: 0, identity: '' }; }
 export function advanceVisualAdvice(previous: VisualAdviceState, evidence: VisionEvidence, enabled: boolean, now: number): VisualAdviceState {
   if (!enabled || !Number.isFinite(now)) return emptyVisualAdvice();
@@ -35,40 +36,45 @@ export function advanceVisualAdvice(previous: VisualAdviceState, evidence: Visio
     // Brief frame delays affect evidence validity, not the readability of the last displayed hint.
     if (evidence.status === 'unavailable' && evidence.reason === 'stale-frame'
       && previous.identity === identity && now >= previous.lastReadyAt && now - previous.lastReadyAt < 2000) {
-      return { ...previous, pending: previous.current, since: now };
+      return previous;
     }
-    return emptyVisualAdvice();
+    if (evidence.status === 'pending') return { ...emptyVisualAdvice(), identity };
+    return previous.current === 'unavailable' && previous.identity === identity ? previous
+      : { ...emptyVisualAdvice(), identity, current: 'unavailable', shownAt: now };
   }
   const state = { ...(previous.identity === identity ? previous : { ...emptyVisualAdvice(), identity }), lastReadyAt: now };
-  const next = adviceKind(evidence, state.current);
+  const warning = state.current && state.current in MESSAGES ? state.current as AdviceKind : null;
+  const exposure = evidence.exposure;
+  const measured = exposure && [exposure.mean, exposure.clipped, exposure.dark].every(value => Number.isFinite(value) && value >= 0 && value <= 1) && exposure.clipped + exposure.dark <= 1.01;
+  const next: FeedbackKind | null = !evidence.faceStable || evidence.facePresence === 'unknown' ? null
+    : adviceKind(evidence, warning) ?? (measured ? 'clear' : 'measuring');
   if (next === state.current) return { ...state, pending: next, since: now };
   if (next !== state.pending || now < state.since) return { ...state, pending: next, since: now };
   const delay = next === null ? 1500 : 2000;
   const readable = state.current === null || now - state.shownAt >= 4500;
   return readable && now-state.since >= delay ? { ...state, current: next, since: now, shownAt: now } : state;
 }
-export function useLiveVisualAdvice(evidence: VisionEvidence, enabled: boolean) {
-  const [message, setMessage] = useState<string | null>(null);
+export function visualFeedback(state: VisualAdviceState) {
+  const advice = state.current && state.current in MESSAGES ? MESSAGES[state.current as AdviceKind] : null;
+  const summary = advice ?? (state.current === 'clear' ? 'Lighting and framing look good.'
+    : state.current === 'measuring' ? 'Face detected. Lighting measurement is unavailable.'
+      : state.current === 'unavailable' ? 'Camera analysis paused. Keep the camera open or retry.'
+        : 'Checking lighting and framing…');
+  return { advice, summary };
+}
+export function useVisualFeedback(evidence: VisionEvidence, enabled: boolean) {
+  const [feedback, setFeedback] = useState(() => visualFeedback(emptyVisualAdvice()));
   const state = useRef(emptyVisualAdvice());
   useEffect(() => {
     const update = () => {
       state.current = advanceVisualAdvice(state.current, evidence, enabled, Date.now());
-      setMessage(state.current.current ? MESSAGES[state.current.current] : null);
+      const next = visualFeedback(state.current);
+      setFeedback(previous => previous.advice === next.advice && previous.summary === next.summary ? previous : next);
     };
     update();
     if (!enabled) return;
     const timer = setInterval(update, 100);
     return () => clearInterval(timer);
   }, [evidence, enabled]);
-  return message;
-}
-
-export function visualSuggestionSummary(evidence: VisionEvidence, advice: string | null): string {
-  const waiting = 'Watching lighting and framing. Suggestions appear here.';
-  if (evidence.status === 'unavailable') {
-    if (evidence.reason === 'stale-frame') return advice ?? waiting;
-    return 'Lighting and framing checks are unavailable. Reopen the camera to retry.';
-  }
-  if (evidence.status !== 'ready') return waiting;
-  return advice ?? waiting;
+  return feedback;
 }

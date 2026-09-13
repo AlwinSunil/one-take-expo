@@ -29,7 +29,7 @@ import { NativeCutPreview } from '../../modules/one-take-media';
 import { LOCAL_VIDEO_BUFFER } from '@/lib/video-buffer';
 import { LiveCaptions } from '@/components/captions/live-captions';
 import { VisualHint } from '@/components/capture/visual-hint';
-import { useLiveVisualAdvice, visualSuggestionSummary } from '@/features/vision/live-advice';
+import { useVisualFeedback } from '@/features/vision/live-advice';
 import { useScriptAnalysis } from '@/features/local-ai/use-script-analysis';
 import { matchLocalSpeech, type SemanticMatch } from '@/features/local-ai/script-model';
 import { canAutoRetake, liveScriptCoverage, missedImportantLine } from '@/features/capture/live-script';
@@ -237,7 +237,7 @@ export default function CameraScreen() {
     lensFacing: facing,
     recording: preparing || recording || saving,
   });
-  const visualAdvice = useLiveVisualAdvice(vision.evidence, isFocused && appInForeground && ready && previewUri === null && !saving);
+  const { advice: visualAdvice, summary: visualSummary } = useVisualFeedback(vision.evidence, isFocused && appInForeground && ready && previewUri === null && !saving);
   const localAi = useScriptAnalysis(scriptDocument, isScript && scriptDocumentLoaded);
   const scriptAnalysisRef = useRef(localAi.analysis);
   scriptAnalysisRef.current = localAi.analysis;
@@ -1076,7 +1076,7 @@ export default function CameraScreen() {
           intent={shotIntent} onIntentChange={setShotIntent}
           diagnostics={__DEV__ ? suggestionJobs.getDiagnostics() : undefined} /> : <View>
           <Text accessibilityRole="header" className="text-white text-sm font-semibold">Visual Suggestions</Text>
-          <Text accessibilityLiveRegion="polite" className="text-neutral-200 text-sm mt-2">{visualSuggestionSummary(vision.evidence, visualAdvice)}</Text>
+          <Text accessibilityLiveRegion="polite" className="text-neutral-200 text-sm mt-2">{visualSummary}</Text>
           {vision.status === 'unavailable' && !preparing && !recording && !saving && <Pressable accessibilityRole="button" accessibilityLabel="Retry visual analysis" onPress={() => { setReady(false); setCameraRetry(value => value + 1); }} className="min-h-12 justify-center"><Text className="text-amber-200">Try again</Text></Pressable>}
           <Pressable accessibilityRole="button" accessibilityLabel="Dismiss Visual Suggestions" onPress={dismissSuggestions} className="min-h-12 justify-center"><Text className="text-white">Dismiss</Text></Pressable>
         </View>}

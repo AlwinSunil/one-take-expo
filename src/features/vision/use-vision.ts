@@ -3,12 +3,12 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import nativeVision, {
   type VisionDeviceStatus,
   type VisionDiagnostics,
-  type VisionFrameEvent,
   type VisionLensFacing,
   type VisionStatusEvent,
 } from '../../../modules/one-take-vision';
 
 import { startVisionBinding } from './binding';
+import { receiveVisionFrame } from './frame-receipt';
 
 import {
   beginVisionSession,
@@ -68,19 +68,6 @@ function toStateStatusEvent(event: VisionStatusEvent) {
   };
 }
 
-function toStateFrameEvent(event: VisionFrameEvent, frameCapturedAtMs: number) {
-  return {
-    type: 'frame' as const,
-    sessionId: event.sessionId,
-    lensFacing: event.lensFacing,
-    frameId: event.frameId,
-    frameCapturedAtMs,
-    facePresent: event.facePresent,
-    stable: event.stable,
-    faces: event.faces,
-    exposure: event.exposure,
-  };
-}
 
 /**
  * Owns the JS side of the optional native analyzer. It starts after the
@@ -257,15 +244,10 @@ export function useVision({
         return;
       }
       const receivedAtMs = monotonicNowMs();
-      if (clockOffsetMs.current === null) {
-        clockOffsetMs.current = receivedAtMs - event.frameEmittedAtMs;
-      }
-      const normalizedCaptureAtMs = event.frameCapturedAtMs + (clockOffsetMs.current ?? 0);
-      updateState(reduceVisionEvent(
-        stateRef.current,
-        toStateFrameEvent(event, normalizedCaptureAtMs),
-        receivedAtMs,
-      ));
+      const receipt = receiveVisionFrame(stateRef.current, event, clockOffsetMs.current, receivedAtMs);
+      clockOffsetMs.current = receipt.clockOffsetMs;
+      setNowMs(receipt.nowMs);
+      updateState(receipt.state);
     });
     return () => {
       statusSubscription.remove();

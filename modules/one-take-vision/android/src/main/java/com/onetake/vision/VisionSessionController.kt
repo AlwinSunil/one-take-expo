@@ -15,7 +15,6 @@ import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -33,7 +32,6 @@ private const val ENGINE_ID = "mlkit-face"
 private const val PROCESSOR_ID = "cpu-fallback"
 private const val NPU_UNAVAILABLE_REASON =
   "qnn-face-engine-unavailable: ORT 1.27/1.28 native collision and no reviewed bundled face model"
-private const val STALE_FRAME_TIMEOUT_MS = 1_000L
 
 /**
  * Coordinates one optional ImageAnalysis use case with Expo Camera's existing
@@ -59,7 +57,7 @@ internal class VisionSessionController(
     val analysis: ImageAnalysis,
     val analyzer: VisionImageAnalyzer,
     val tracker: FacePresenceTracker,
-    val lastResultAtMs: AtomicLong = AtomicLong(0L),
+    val resultHeartbeat: VisionResultHeartbeat = VisionResultHeartbeat(android.os.SystemClock::elapsedRealtime),
     val staleReported: AtomicBoolean = AtomicBoolean(false),
     var staleScheduler: ScheduledExecutorService? = null,
   )
@@ -234,10 +232,7 @@ internal class VisionSessionController(
     active.staleScheduler = scheduler
     scheduler.scheduleAtFixedRate({
       if (activeSession !== active) return@scheduleAtFixedRate
-      val lastResultAtMs = active.lastResultAtMs.get()
-      val nowMs = android.os.SystemClock.elapsedRealtime()
-      if (lastResultAtMs > 0L
-        && nowMs - lastResultAtMs >= STALE_FRAME_TIMEOUT_MS
+      if (active.resultHeartbeat.stale()
         && active.staleReported.compareAndSet(false, true)) {
         active.tracker.reset()
         emitStatus(active.sessionId, active.lensFacing, "unavailable", "stale-frame")
@@ -254,7 +249,8 @@ internal class VisionSessionController(
     val active = activeSession ?: return
     if (active.sessionId != sessionId || active.lensFacing != lensFacing || active.tracker !== tracker) return
 
-    active.lastResultAtMs.set(frame.frameCapturedAtMs)
+    // Availability tracks callback delivery; evidence still retains capture age.
+    active.resultHeartbeat.received()
     val wasStale = active.staleReported.getAndSet(false)
     val stable = tracker.update(frame.faces.isNotEmpty(), frame.frameCapturedAtMs)
     if (wasStale) emitStatus(sessionId, lensFacing, "ready")
