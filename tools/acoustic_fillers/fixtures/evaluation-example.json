@@ -1,0 +1,59 @@
+{
+  "recordings": [
+    {
+      "sourceId": "synthetic-train-01",
+      "durationSeconds": 12,
+      "split": "train",
+      "speakerId": "synthetic-speaker-train",
+      "consented": false,
+      "synthetic": true,
+      "annotations": [
+        {"id": "ann-train-um", "startSeconds": 1.0, "endSeconds": 2.0, "label": "um"}
+      ],
+      "predictions": [
+        {"id": "pred-train-um", "startSeconds": 1.1, "endSeconds": 1.9, "label": "um", "score": 0.94}
+      ]
+    },
+    {
+      "sourceId": "human-validation-01",
+      "durationSeconds": 30,
+      "split": "validation",
+      "speakerId": "human-speaker-validation",
+      "consented": true,
+      "synthetic": false,
+      "annotations": [
+        {"id": "ann-validation-uh", "startSeconds": 4.0, "endSeconds": 5.0, "label": "uh"}
+      ],
+      "predictions": []
+    },
+    {
+      "sourceId": "human-test-01",
+      "durationSeconds": 60,
+      "split": "test",
+      "speakerId": "human-speaker-test",
+      "consented": true,
+      "synthetic": false,
+      "annotations": [
+        {"id": "ann-test-um", "startSeconds": 5.0, "endSeconds": 6.0, "label": "um"},
+        {"id": "ann-test-uh", "startSeconds": 10.0, "endSeconds": 10.5, "label": "uh"}
+      ],
+      "predictions": [
+        {"id": "pred-test-um", "startSeconds": 5.1, "endSeconds": 5.9, "label": "um", "score": 0.91},
+        {"id": "pred-test-uh", "startSeconds": 10.0, "endSeconds": 10.4, "label": "uh", "score": 0.88},
+        {"id": "pred-test-false-positive", "startSeconds": 40.0, "endSeconds": 40.2, "label": "um", "score": 0.61}
+      ]
+    },
+    {
+      "sourceId": "synthetic-test-01",
+      "durationSeconds": 15,
+      "split": "test",
+      "speakerId": "synthetic-speaker-test",
+      "consented": false,
+      "synthetic": true,
+      "annotations": [],
+      "predictions": [
+        {"id": "pred-synthetic-false-positive", "startSeconds": 3.0, "endSeconds": 3.3, "label": "uh", "score": 0.52}
+      ]
+    }
+  ]
+}
