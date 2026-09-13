@@ -1,17 +1,13 @@
-# Transcript filler markers
+# Filler and gap review
 
-Live captions highlight recognized vocal fillers in red while recording.
-The editor automatically derives red timeline markers from the saved transcript, including manual corrections.
-Supported words are `um`, `umm`, `uh`, `uhh`, `erm`, `er`, and `hmm`, matched as whole words without changing transcript text.
-Context-dependent words such as `like`, `so`, and `well` remain unmarked.
+The simplified editor shows the automatic edit as a timeline. Removed footage is greyed out. Tap a segment to preview its original range, then use Restore or Remove to change that decision. Video and audio use the same included ranges during preview and export; original recordings remain available.
 
-Tap a filler chip to review its source recording.
-Clean previews map markers through the selected source segments, so removed speech has no marker in the output timeline.
-Positions are proportional estimates within transcript segments because transcription does not supply exact word alignment.
-Markers do not automatically delete audio.
-Fillers omitted by transcription cannot be detected by this approach.
+Unambiguous vocal fillers such as `um`, `uh`, `erm`, and elongated variants receive filler labels. Context-dependent words such as `like`, `so`, and `well` stay ordinary speech. Caption corrections do not conceal a filler that remains in the recorded audio.
 
-The former acoustic model, native inference bridge, manual analysis panel, and host benchmark have been removed.
-No extra model download or analysis action is required.
+Mixed-sentence filler cuts require verified saved-audio word timing. Otherwise the estimated interval remains a suggestion for review. Standalone filler utterances can be removed automatically, with overlapping meaningful speech protected. Live word confidence alone does not establish precise timing, and saved recordings are refined offline when needed.
 
-Validation covers whole-word matching, punctuation, corrected text, invalid timing, source isolation, and clean timeline offsets.
+Gaps are based on measured quiet audio, with speech-edge padding and protection for verified spoken words. Audio without a transcript is labelled Audio, not a confirmed gap. Improved timing can restore speech mistakenly removed by an earlier automatic gap cut; explicit manual decisions remain unchanged.
+
+Repeated equivalent deliveries are ranked by completeness, fillers, pace, available recognition confidence, and measured pauses. Uncertain matches and changed facts are preserved. Every automatic exclusion is reversible.
+
+The source-timeline mapping and filler-removal helpers also preserve occurrence identity when a recording appears more than once in an edit. Their older dedicated filler-preview panel is not used by the simplified editor.
