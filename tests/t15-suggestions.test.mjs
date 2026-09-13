@@ -362,3 +362,18 @@ test('completion does not start another job until the creator taps again', async
   assert.equal(evaluations, 1);
   assert.equal(controller.getDiagnostics().starts, 1);
 });
+
+test('malformed evaluator payloads stay unavailable rather than crashing presentation', async () => {
+  for (const value of [
+    { kind: 'all-good', message: 'Looks good' },
+    { ...allGood(), unsupportedCategories: 'lighting' },
+    { ...allGood(), evidence: { source: 'none', calibrated: false } },
+    { kind: 'unavailable', reason: 'unknown', message: 'Unavailable', unsupportedCategories: ['invented-category'] },
+  ]) {
+    const controller = createSuggestionJobController({ evaluator: async () => value });
+    controller.start(request());
+    await controller.whenSettled();
+    assert.equal(controller.getSnapshot().status, 'unavailable');
+    assert.equal(controller.getSnapshot().evaluation.reason, 'evaluator-error');
+  }
+});

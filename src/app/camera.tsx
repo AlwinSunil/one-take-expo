@@ -664,6 +664,8 @@ export default function CameraScreen() {
         };
         setRecordedProject(recoverable);
         pendingSave.current = () => saveProject(recoverable);
+        // Retain the cache URI for reopen/retry if low space prevents the copy.
+        await saveProjectMetadata(recoverable);
         setRecordedProject(await checkpointCaptureOriginal(pendingSave.current, () => {
           if (captureScope.current) {
             captureEvents.current.push(captureEvent(captureScope.current, 'original-saved', sourceZeroMonotonicMs.current, performance.now()));

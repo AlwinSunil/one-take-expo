@@ -276,7 +276,7 @@ function isFiniteNonNegative(value: unknown): value is number {
 function isIdentity(value: SuggestionJobIdentity): boolean {
   return isNonEmptyString(value.sessionId)
     && isNonEmptyString(value.lensGeneration)
-    && isNonEmptyString(value.intent);
+    && ['talking-head', 'product', 'subject', 'intentional-look'].includes(value.intent);
 }
 
 function sameIdentity(a: SuggestionJobIdentity | null, b: SuggestionJobIdentity | null): boolean {
@@ -500,23 +500,41 @@ export function evaluateSuggestionRequest(request: SuggestionJobRequest): Sugges
   return evaluateReadyEvidence(request, request.evidence);
 }
 
+function validEvaluationEvidence(value: unknown): value is SuggestionEvidence {
+  if (!value || typeof value !== 'object') return false;
+  const evidence = value as Partial<SuggestionEvidence>;
+  if (evidence.source === 'none') return evidence.calibrated === false;
+  return (evidence.source === 'fixture' || evidence.source === 'on-device-vision')
+    && evidence.calibrated === true
+    && isNonEmptyString(evidence.detectorId) && isNonEmptyString(evidence.detectorVersion);
+}
+
+function validCategories(value: unknown): boolean {
+  return value === undefined || (Array.isArray(value)
+    && value.every(category => typeof category === 'string' && Object.hasOwn(CATEGORY_LABELS, category)));
+}
+
 function isEvaluation(value: unknown): value is SuggestionEvaluation {
   if (!value || typeof value !== 'object') return false;
   const candidate = value as Partial<SuggestionEvaluation>;
-  if (candidate.kind === 'all-good') return isNonEmptyString(candidate.message);
-  if (candidate.kind === 'intentional') return isNonEmptyString(candidate.message);
+  if (candidate.kind === 'all-good') return isNonEmptyString(candidate.message)
+    && validEvaluationEvidence(candidate.evidence) && candidate.evidence.source !== 'none'
+    && validCategories(candidate.unsupportedCategories);
+  if (candidate.kind === 'intentional') return isNonEmptyString(candidate.message)
+    && validEvaluationEvidence(candidate.evidence) && candidate.evidence.source === 'none';
   if (candidate.kind === 'actionable') {
     return isNonEmptyString(candidate.message)
       && isNonEmptyString(candidate.title)
       && isNonEmptyString(candidate.reason)
-      && isNonEmptyString(candidate.cue)
-      && isNonEmptyString(candidate.category)
-      && !!candidate.evidence;
+      && isNonEmptyString(candidate.cue) && Object.hasOwn(cueCopy, candidate.cue)
+      && isNonEmptyString(candidate.category) && Object.hasOwn(CATEGORY_LABELS, candidate.category)
+      && validEvaluationEvidence(candidate.evidence) && candidate.evidence.source !== 'none'
+      && validCategories(candidate.unsupportedCategories);
   }
   if (candidate.kind === 'unavailable') {
     return isNonEmptyString(candidate.reason)
       && isNonEmptyString(candidate.message)
-      && Array.isArray(candidate.unsupportedCategories);
+      && Array.isArray(candidate.unsupportedCategories) && validCategories(candidate.unsupportedCategories);
   }
   return false;
 }

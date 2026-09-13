@@ -27,3 +27,10 @@ test('old binding cleanup failure cannot publish stale success or alter a newer 
   }), null);
   assert.deepEqual(stopped, ['old']);
 });
+
+test('a rejected partial native start is stopped even after its owner leaves', async () => {
+  const stopped = [];
+  await assert.rejects(startVisionBinding(async () => { throw new Error('partial bind rejected'); },
+    () => false, async () => { stopped.push('old-binding'); }), /partial bind rejected/);
+  assert.deepEqual(stopped, ['old-binding']);
+});

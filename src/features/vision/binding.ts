@@ -4,7 +4,14 @@ export async function startVisionBinding<T>(
   isCurrent: () => boolean,
   stop: () => Promise<void>,
 ): Promise<T | null> {
-  const result = await start();
+  let result: T;
+  try {
+    result = await start();
+  } catch (error) {
+    // A bridge rejection may occur after native work partially attached.
+    await stop().catch(() => undefined);
+    throw error;
+  }
   if (isCurrent()) return result;
   // A binding-specific stop cannot stop the subsequent camera owner.
   await stop().catch(() => undefined);
