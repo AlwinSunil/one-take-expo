@@ -568,7 +568,9 @@ export function validateFramingSuggestion(
   }
   validateRect(suggestion.crop, 'suggestion crop', errors);
   if (isRecord(suggestion.crop)
-    && Math.abs(Number(suggestion.crop.width) - Number(suggestion.crop.height)) > EPSILON) {
+    && isFiniteNumber(suggestion.crop.width)
+    && isFiniteNumber(suggestion.crop.height)
+    && Math.abs(suggestion.crop.width - suggestion.crop.height) > EPSILON) {
     errors.push('suggestion crop must preserve the original upright aspect ratio');
   }
   if (!isBoolean(suggestion.originalFrameFallback)) errors.push('originalFrameFallback must be boolean');
@@ -586,8 +588,10 @@ export function validateFramingSuggestion(
     }
   }
   if (isRecord(suggestion.crop) && !suggestion.originalFrameFallback
-    && (Number(suggestion.crop.width) < 1 / MAX_CONTRACT_ZOOM - EPSILON
-      || Number(suggestion.crop.height) < 1 / MAX_CONTRACT_ZOOM - EPSILON)) {
+    && isFiniteNumber(suggestion.crop.width)
+    && isFiniteNumber(suggestion.crop.height)
+    && (suggestion.crop.width < 1 / MAX_CONTRACT_ZOOM - EPSILON
+      || suggestion.crop.height < 1 / MAX_CONTRACT_ZOOM - EPSILON)) {
     errors.push('suggestion crop exceeds the 1.35x maximum zoom');
   }
   if (!suggestion.originalFrameFallback

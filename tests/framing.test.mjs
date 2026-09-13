@@ -263,3 +263,22 @@ test('malformed object requests produce complete diagnostic fallbacks without in
     assert.equal(validateFramingSuggestion(result, request).valid, false);
   }
 });
+
+test('malformed JSON crop dimensions are rejected without coercion exceptions', () => {
+  const sample = fixture('portrait-talking-head');
+  const suggestion = buildFramingSuggestion(sample.request, sample.tracks, enabled);
+  const malformedDimension = { valueOf: null, toString: null };
+
+  for (const dimension of ['width', 'height']) {
+    const malformed = {
+      ...suggestion,
+      crop: { ...suggestion.crop, [dimension]: malformedDimension },
+    };
+    let validation;
+    assert.doesNotThrow(() => {
+      validation = validateFramingSuggestion(malformed, sample.request);
+    });
+    assert.equal(validation.valid, false, dimension);
+    assert.ok(validation.errors.some(error => error.includes('coordinates must be finite numbers')), dimension);
+  }
+});
