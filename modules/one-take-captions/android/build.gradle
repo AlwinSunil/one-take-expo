@@ -7,12 +7,10 @@ group = 'com.onetake.captions'
 version = '0.1.0'
 
 def moonshineCache = rootProject.file('../tools/.cache/moonshine')
-def acousticFillerCache = rootProject.file('../tools/.cache/acoustic-fillers/assets')
 def moonshineAar = file('libs/moonshine-voice-0.1.5-java.aar')
 
 android {
   namespace 'com.onetake.captions'
-  ndkVersion rootProject.ext.ndkVersion
 
   defaultConfig {
     versionCode 1
@@ -21,11 +19,6 @@ android {
     // library manifest's minimum lower avoids forcing the whole app to API 26.
     minSdkVersion 24
     consumerProguardFiles 'proguard-rules.pro'
-    externalNativeBuild {
-      cmake {
-        cppFlags '-std=c++17 -fexceptions -frtti'
-      }
-    }
   }
 
   compileOptions {
@@ -51,18 +44,6 @@ android {
       assets.srcDir moonshineCache.toPath().resolve('assets')
       jniLibs.srcDir moonshineCache.toPath().resolve('jniLibs')
     }
-    // The Uhm weights are intentionally available only to debuggable builds.
-    // The directory is a local staging cache and is never committed or fetched
-    // by Gradle.
-    debug {
-      assets.srcDir rootProject.file('../tools/.cache/acoustic-fillers/assets')
-    }
-  }
-
-  externalNativeBuild {
-    cmake {
-      path file('src/main/cpp/CMakeLists.txt')
-    }
   }
 }
 
@@ -79,16 +60,6 @@ tasks.configureEach { task ->
         throw new GradleException(
           'Moonshine is not staged. Run python3 tools/prepare_moonshine.py '
             + '--native-dir /path/to/rebuilt/arm64-v8a before building.'
-        )
-      }
-      def acousticModel = acousticFillerCache.toPath().resolve('uhm-web-fp16.onnx').toFile()
-      def acousticLicense = acousticFillerCache.toPath().resolve('DESERT-ANT-LICENSE.txt').toFile()
-      def acousticNotice = acousticFillerCache.toPath().resolve('DESERT-ANT-NOTICE.txt').toFile()
-      if (task.name.toLowerCase().contains('debug') && acousticModel.isFile() &&
-          (!acousticLicense.isFile() || !acousticNotice.isFile())) {
-        throw new GradleException(
-          'The staged Uhm model requires DESERT-ANT-LICENSE.txt and '
-            + 'DESERT-ANT-NOTICE.txt in tools/.cache/acoustic-fillers/assets.'
         )
       }
     }

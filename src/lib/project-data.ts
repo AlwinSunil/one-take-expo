@@ -1,4 +1,3 @@
-import { normalizeAcousticFillerReviews } from './acoustic-filler-review.ts';
 import { canonicalJson, validateFoundation } from './t15-schema.ts';
 import type { Project, TranscriptSeg } from './session';
 
@@ -46,7 +45,6 @@ export function normalizeProject(value: unknown): Project {
   ) : [];
   return {
     ...p, schemaVersion: 2,
-    acousticFillerReviews: normalizeAcousticFillerReviews(p.acousticFillerReviews, p),
     videoUri: typeof p.videoUri === 'string' ? p.videoUri : null,
     clips: Array.isArray(p.clips) ? p.clips : [],
     transcript: transcript.map((s, i) => ({ ...s, id: s.id || `${p.id}:legacy:${i}` })),

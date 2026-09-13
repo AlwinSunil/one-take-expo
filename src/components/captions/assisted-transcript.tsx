@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
 
 import { buildLiveTranscriptView, type LiveTranscriptSegment, type LiveTranscriptStatus } from '@/features/speech-control/live-transcript';
+import { splitFillerText } from '@/lib/transcript-fillers';
 
 export interface AssistedTranscriptProps {
   /** Tier 1 is opt-in. The parent must explicitly enable this overlay. */
@@ -72,8 +73,8 @@ export function AssistedTranscript({
       style={{ maxHeight: boundedHeight }}
       onContentSizeChange={() => scroll.current?.scrollToEnd({ animated: false })}
     >
-      {!!view.text && <Text accessibilityLiveRegion="polite" accessibilityLabel={`${view.label} text`} selectable className="pb-2 text-base text-white">
-        {view.text}
+      {!!view.text && <Text accessibilityLiveRegion="polite" accessibilityLabel={`${view.label} text: ${view.text}`} selectable className="pb-2 text-base text-white">
+        {renderFillerText(view.text)}
       </Text>}
       {!view.text && <Text accessibilityLiveRegion="polite" className="pb-2 text-sm text-neutral-200">{view.hint}</Text>}
       {!!view.text && <Text className={view.state === 'unavailable' || view.state === 'delayed' ? 'pb-2 text-xs text-amber-200' : 'pb-2 text-xs text-neutral-400'}>
@@ -81,6 +82,12 @@ export function AssistedTranscript({
       </Text>}
     </ScrollView>}
   </View>;
+}
+
+function renderFillerText(text: string) {
+  return splitFillerText(text).map((part, index) => part.isFiller
+    ? <Text key={`${index}:filler`} style={{ color: '#f87171' }}>{part.text}</Text>
+    : <Text key={`${index}:text`}>{part.text}</Text>);
 }
 
 function normalizeStatus(status: LiveTranscriptStatus | string): LiveTranscriptStatus {

@@ -40,7 +40,6 @@ export interface Clip {
 }
 
 export interface Project {
-  acousticFillerReviews?: import('./acoustic-filler-review').AcousticFillerReview[];
   /** Additive durable T1.5 state; legacy projects retain their existing edit until opted in. */
   v15?: import('./t15-schema').DurableFoundation;
   /** Raw versioned producer envelope. Never derive take identities during reopen. */
