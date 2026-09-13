@@ -42,5 +42,13 @@
   "limitations": [
     "Debug APK needs Metro; final JavaScript export is separately verified.",
     "No staged camera, eye-contact, A/V or named human acceptance."
-  ]
+  ],
+  "javascriptExport": {
+    "sourceCommit": "3bd5a01",
+    "platform": "android",
+    "result": "passed",
+    "bundleSha256": "4442592c6dfce5817d7dda2efabc3afc7628a33ffe26060f84d5b3df7894285c",
+    "bundleBytes": 6669876,
+    "installedForThisTask": false
+  }
 }

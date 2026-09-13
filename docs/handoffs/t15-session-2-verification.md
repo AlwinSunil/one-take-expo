@@ -60,9 +60,9 @@ Review by a Luna agent is a separate code pass, not cross-family or named human 
 ## Final source verification
 
 Implementation reference: `8709a7f` on `feat/t15-capture-signals`.
-`npm test`: 362 passed, zero failed/cancelled/skipped.
+`npm test`: 365 passed, zero failed/cancelled/skipped after final review.
 `npm run typecheck`: passed.
-Focused new coverage includes 13 gaze tests, 15 suggestion-job tests, 4 durable Stop tests and 3 delayed-binding tests.
+Focused new coverage includes 13 gaze tests, 17 suggestion-job tests, 4 durable Stop tests and 4 delayed-binding tests.
 `git diff --check`: passed.
 The combined replay output is `evidence/t15-session-2/replay.json`.
 
@@ -91,3 +91,15 @@ No merged dependency was available to incorporate or recheck.
 
 GitHub checks for implementation `8709a7f` passed in runs `34728799750` and `34728801852`.
 These are repository CI checks, not device or named human acceptance.
+
+Initial hardening reference: `d291de7`.
+Malformed evaluator payloads become unavailable; rejected partial native starts receive cleanup; the original cache-URI checkpoint remains before the durable copy for low-space recovery.
+`EXPO_NO_DOTENV=1 npx expo export --platform android --output-dir /tmp/t15-capture-reviewed-export`: passed after final hardening.
+The final Hermes bundle SHA-256 is recorded in `evidence/t15-session-2/build.json`.
+
+Final reviewed implementation: `3bd5a01`.
+The exported retry API requires a fresh evidence snapshot and never replays the old frame; stale results retain Dismiss.
+The final separate signal review found no additional material gaze defects; both reported suggestion issues were fixed.
+Known durable-metadata and real-device/human acceptance gaps remain open.
+
+`EXPO_NO_DOTENV=1 npx expo export --platform android --output-dir /tmp/t15-capture-delivery-export`: passed for final reviewed source `3bd5a01`; final hash recorded in `build.json`.

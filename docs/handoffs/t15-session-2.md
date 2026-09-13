@@ -125,3 +125,7 @@ This is why #64 and the Stop-to-analysis integration cannot be described as comp
 
 Published executable references: gaze producer `1d7c8d6`; integrated camera/jobs/Stop payload `8709a7f`.
 See `t15-session-2-verification.md` for the issue acceptance matrix and exact command results.
+
+Final reviewed source reference: `3bd5a01`.
+`retry(freshEvidence?)` never reuses old scene evidence; camera Retry calls its current-snapshot request handler.
+Native cleanup also covers rejected partial starts, and the root's cache-URI checkpoint is retained before durable copy for low-space recovery.
