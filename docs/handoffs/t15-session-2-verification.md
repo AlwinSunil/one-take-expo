@@ -106,3 +106,15 @@ The final separate signal review found no additional material gaze defects; both
 Known durable-metadata and real-device/human acceptance gaps remain open.
 
 `EXPO_NO_DOTENV=1 npx expo export --platform android --output-dir /tmp/t15-capture-delivery-export`: passed for final reviewed source `3bd5a01`; final hash recorded in `build.json`.
+
+## Rebase onto merged Tier 1 and UI updates
+
+Rebased onto `origin/main` at `3da03c4` after PR #58 and PR #73 merged.
+Resolved camera and suggestion-panel conflicts by preserving main's camera styling and this branch's request-only controller/panel contract.
+The earlier #58-open and web-blocker observations above describe the prior baseline.
+`npm run typecheck`: passed.
+`npm test`: 462 passed, zero failures, skips or cancellations.
+`npm run test:samples`: 19/19 passed.
+`EXPO_NO_DOTENV=1 npx expo export --platform android --output-dir /tmp/t15-rebase-android`: passed, 7 MB Hermes bundle.
+`git diff --check`: passed.
+No device installation or new physical-device acceptance was performed for this rebase.
