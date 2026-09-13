@@ -1,0 +1,115 @@
+{
+  "schema": "one-take-t1-commands/v1",
+  "source": "synthetic",
+  "synthetic": true,
+  "scope": {
+    "sessionId": "fixture-session",
+    "sourceId": "fixture-recording"
+  },
+  "cases": [
+    {
+      "id": "standalone-final",
+      "t0": 2.1,
+      "t1": 2.6,
+      "text": "scratch that",
+      "isFinal": true,
+      "state": "final",
+      "commandContext": "standalone",
+      "expectedCommand": true
+    },
+    {
+      "id": "standalone-punctuated",
+      "t0": 2.1,
+      "t1": 2.6,
+      "text": "Scratch-that!",
+      "isFinal": true,
+      "state": "final",
+      "commandContext": "standalone",
+      "expectedCommand": true
+    },
+    {
+      "id": "cut-is-dialogue",
+      "t0": 2.1,
+      "t1": 2.8,
+      "text": "cut that part",
+      "isFinal": true,
+      "state": "final",
+      "commandContext": "standalone",
+      "expectedCommand": false
+    },
+    {
+      "id": "scratch-is-dialogue",
+      "t0": 2.1,
+      "t1": 3.0,
+      "text": "we should scratch that from the plan",
+      "isFinal": true,
+      "state": "final",
+      "commandContext": "continuation",
+      "expectedCommand": false
+    },
+    {
+      "id": "split-dialogue-segment-is-ambiguous",
+      "t0": 2.1,
+      "t1": 2.6,
+      "precedingText": "we should",
+      "text": "scratch that",
+      "followingText": "from the plan",
+      "isFinal": true,
+      "state": "final",
+      "commandContext": "ambiguous",
+      "expectedCommand": false
+    },
+    {
+      "id": "script-literal-is-protected",
+      "t0": 2.1,
+      "t1": 2.6,
+      "text": "scratch that",
+      "isFinal": true,
+      "state": "final",
+      "commandContext": "quoted",
+      "scriptText": "For the demo, say scratch that exactly.",
+      "expectedCommand": false
+    },
+    {
+      "id": "provisional-is-not-command",
+      "t0": 2.1,
+      "t1": 2.6,
+      "text": "scratch that",
+      "isFinal": false,
+      "state": "provisional",
+      "commandContext": "ambiguous",
+      "expectedCommand": false
+    },
+    {
+      "id": "uncertain-is-not-command",
+      "t0": 2.1,
+      "t1": 2.6,
+      "text": "scratch that",
+      "isFinal": true,
+      "state": "uncertain",
+      "commandContext": "ambiguous",
+      "expectedCommand": false
+    },
+    {
+      "id": "noisy-is-not-command",
+      "t0": 2.1,
+      "t1": 2.6,
+      "text": "scratch that",
+      "isFinal": true,
+      "state": "final",
+      "quality": "noisy",
+      "commandContext": "ambiguous",
+      "expectedCommand": false
+    },
+    {
+      "id": "short-is-not-command",
+      "t0": 2.1,
+      "t1": 2.3,
+      "text": "scratch",
+      "isFinal": true,
+      "state": "final",
+      "commandContext": "ambiguous",
+      "expectedCommand": false
+    }
+  ]
+}

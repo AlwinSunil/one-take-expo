@@ -1,0 +1,25 @@
+{
+  "commands": {
+    "false_trigger_rate": null,
+    "false_triggers": 0,
+    "incomplete_rows": 0,
+    "missed_commands": 0,
+    "negative_reads": 0,
+    "positive_reads": 0
+  },
+  "human_heldout_rows": 0,
+  "limitations": [
+    "synthetic or unconsented data cannot qualify"
+  ],
+  "must_say_passes": false,
+  "must_say_runs": [],
+  "reasons": {
+    "agreement": null,
+    "correctly_detected_flags": 0,
+    "matching": 0,
+    "passes": false,
+    "reviewed": 0
+  },
+  "release_accepted": false,
+  "schema": "one-take-t1-evaluation/v1"
+}
