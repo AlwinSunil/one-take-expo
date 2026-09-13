@@ -33,7 +33,11 @@ class MediaCutPreviewView(context: Context, appContext: AppContext) : ExpoView(c
     }
   }
   init { addView(surface, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)) }
-  override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) { surface.layout(0, 0, right - left, bottom - top) }
+  override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
+    // React Native can resize the host without remeasuring PlayerView's aspect-ratio children.
+    surface.measure(MeasureSpec.makeMeasureSpec(right - left, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(bottom - top, MeasureSpec.EXACTLY))
+    surface.layout(0, 0, right - left, bottom - top)
+  }
   fun setSegments(value: String) {
     if (value == source && player != null) return
     source = value

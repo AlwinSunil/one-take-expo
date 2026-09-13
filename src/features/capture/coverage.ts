@@ -1,3 +1,4 @@
+import { resolveVoiceScratches } from './voice-scratch.ts';
 import type { ScriptDocument } from '../../lib/script-lines';
 import type { Project } from '../../lib/session';
 import {
@@ -32,6 +33,9 @@ export interface CaptureCoverageInput {
   videoUri: string | null;
   transcript: readonly TranscriptSegment[];
   scratched?: boolean;
+  voiceCommands?: boolean;
+  /** Keep acknowledged commands effective if stop truncates their final recognition interval. */
+  excludedSegmentIds?: readonly string[];
   inFrame?: boolean;
   lineEnds?: readonly LineEnd[];
   verdicts?: readonly LineVerdict[];
@@ -87,6 +91,8 @@ export function pendingCaptureCoverage(document: ScriptDocument): CaptureCoverag
 export function deriveCaptureCoverage(input: CaptureCoverageInput): CaptureCoverageSnapshot {
   if (typeof input.takeId !== 'string' || !input.takeId.trim()) throw new TypeError('Capture coverage needs a take id.');
   const lines = spokenWorkflowLines(input.document);
+  const voiceScratch = input.voiceCommands ? resolveVoiceScratches(input.transcript, lines) : null;
+  const excluded = new Set([...(input.excludedSegmentIds ?? []), ...(voiceScratch?.excluded ?? [])]);
   const takes: TakeEvidence[] = input.transcript.map((segment, index) => {
     const lineIds = matchLineIds(segment, lines);
     return {
@@ -95,7 +101,7 @@ export function deriveCaptureCoverage(input: CaptureCoverageInput): CaptureCover
       t1: segment.t1,
       mediaUri: input.videoUri,
       playable: typeof input.videoUri === 'string' && input.videoUri.trim().length > 0,
-      quality: input.scratched ? 'scratched' : 'clean',
+      quality: input.scratched || excluded.has(segment.id) ? 'scratched' : 'clean',
       inFrame: input.inFrame === true,
       transcriptSegmentIds: [segment.id],
       lineIds,

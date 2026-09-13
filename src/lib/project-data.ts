@@ -79,6 +79,8 @@ export interface PickupRecordingInput {
   transcript: Project['transcript'];
   takes: NonNullable<Project['takes']>;
   eligibleLineIds?: string[];
+  /** Explicit keep intervals after capture-time retakes, already accepted by the creator. */
+  captureCuts?: { t0: number; t1: number }[];
   evidenceStatus?: 'pending' | 'complete';
 }
 
@@ -86,16 +88,26 @@ export interface PickupRecordingInput {
 export function mergePickupRecording(project: Project, recordingId: string, input: PickupRecordingInput, createdAt: number): Project {
   const existing = project.recordings?.find(recording => recording.id === recordingId);
   if (existing && existing.mediaUri !== input.videoUri) throw new Error('This pickup evidence belongs to a different recording.');
-  if (input.evidenceStatus === 'pending' && (input.transcript.length || input.takes.length)) throw new Error('A media checkpoint cannot claim finalized caption or take evidence.');
+  if (input.evidenceStatus === 'pending' && (input.transcript.length || input.takes.length || input.captureCuts !== undefined)) throw new Error('A media checkpoint cannot claim finalized caption or take evidence.');
   if (!recordingId || !Number.isFinite(input.duration) || input.duration <= 0 || !input.videoUri) throw new Error('The pickup recording is incomplete.');
   const payload = canonicalJson({ duration: input.duration, videoUri: input.videoUri, transcript: input.transcript, takes: input.takes,
-    eligibleLineIds: input.eligibleLineIds ?? null, evidenceStatus: input.evidenceStatus ?? 'complete' });
+    eligibleLineIds: input.eligibleLineIds ?? null, evidenceStatus: input.evidenceStatus ?? 'complete',
+    ...(input.captureCuts === undefined ? {} : { captureCuts: input.captureCuts }) });
   if (existing && (existing.evidenceStatus !== 'pending' || input.evidenceStatus === 'pending')) {
     const previous = input.evidenceStatus === 'pending' ? existing.checkpointPayload : existing.completionPayload;
     if (previous !== undefined && previous !== payload) throw new Error('This pickup identity has a different payload.');
     if (existing.duration !== input.duration) throw new Error('This pickup identity has a different duration.');
     // Legacy rows lack receipts; they remain readable and cannot be rewritten by a duplicate.
     return project;
+  }
+  if (input.captureCuts !== undefined) {
+    let end = 0;
+    for (const cut of input.captureCuts) {
+      if (!Number.isFinite(cut.t0) || !Number.isFinite(cut.t1) || cut.t0 < end || cut.t1 <= cut.t0 || cut.t1 > input.duration) {
+        throw new Error('The pickup retake cuts are invalid.');
+      }
+      end = cut.t1;
+    }
   }
   const segmentIds = new Map<string, string>();
   const transcript = input.transcript.map((segment, index) => {
@@ -131,12 +143,24 @@ export function mergePickupRecording(project: Project, recordingId: string, inpu
   if ([...transcript, ...takes].some(item => existingIds.has(item.id))) throw new Error('This pickup identity is already in use.');
   const primary = project.videoUri ? [{ id: `${project.id}:original`, mediaUri: project.videoUri,
     duration: project.duration ?? Math.max(0, ...legacyTranscript.map(segment => segment.t1), ...legacyTakes.map(take => take.t1)), createdAt: project.createdAt }] : [];
+  const hasCaptureEdit = input.evidenceStatus !== 'pending' && (input.captureCuts !== undefined
+    || project.cuts !== undefined || project.reviewSegments !== undefined);
+  const previousSegments = project.reviewSegments ?? (project.recordings ?? primary)
+    .filter(recording => recording.id !== recordingId)
+    .flatMap(recording => (recording.mediaUri === project.videoUri && project.cuts !== undefined
+      ? project.cuts : [{ t0: 0, t1: recording.duration }]).map(cut => ({ ...cut, uri: recording.mediaUri })));
+  const captureSegments = hasCaptureEdit ? [...previousSegments,
+    ...(input.captureCuts ?? [{ t0: 0, t1: input.duration }]).map(cut => ({ ...cut, uri: input.videoUri }))] : undefined;
   return normalizeProject({ ...project,
     recordings: existing
       ? project.recordings!.map(recording => recording.id === recordingId ? { ...recording, duration: input.duration, evidenceStatus: 'complete' as const, completionPayload: payload } : recording)
       : [...(project.recordings ?? primary), { id: recordingId, mediaUri: input.videoUri, duration: input.duration, createdAt, evidenceStatus: input.evidenceStatus ?? 'complete', ...(input.evidenceStatus === 'pending' ? { checkpointPayload: payload } : { completionPayload: payload }) }],
     transcript: [...legacyTranscript, ...transcript], takes: [...legacyTakes, ...takes],
-    pickupRequest: input.evidenceStatus === 'pending' ? project.pickupRequest : undefined, cutsReviewed: false, reviewSegments: undefined,
+    pickupRequest: input.evidenceStatus === 'pending' ? project.pickupRequest : undefined,
+    cuts: hasCaptureEdit ? undefined : project.cuts,
+    cutsReviewed: input.evidenceStatus === 'pending' ? project.cutsReviewed : hasCaptureEdit
+      && ((project.cuts === undefined && project.reviewSegments === undefined) || project.cutsReviewed === true),
+    reviewSegments: input.evidenceStatus === 'pending' ? project.reviewSegments : captureSegments,
     recoveryMessage: existing?.evidenceStatus === 'pending' && project.recoveryMessage === PENDING_PICKUP_MESSAGE ? undefined : project.recoveryMessage,
     captionRevision: (project.captionRevision ?? 0) + 1,
   });

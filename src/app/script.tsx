@@ -1,9 +1,10 @@
 import * as Clipboard from 'expo-clipboard';
 import { router } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { suggestImportantPoints } from '@/features/speech-analysis/important-points';
 import { ScriptLineRow } from '@/components/script/script-line-row';
 import { clearScriptStructure, loadScriptDocument, saveAcceptedScriptStructure, saveScriptStructure } from '@/lib/script-draft';
 import {
@@ -31,6 +32,8 @@ export default function ScriptInput() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
   const script = doc.text;
+  const importantLineIds = useMemo(() => new Set(suggestImportantPoints(doc, 'current-script')
+    .filter(point => point.importance === 'important').map(point => point.span.lineId)), [doc]);
   const requiredOpen = unresolvedRequiredCueIds(doc).length;
 
   useEffect(() => {
@@ -136,9 +139,11 @@ export default function ScriptInput() {
                 {doc.lines.length} {doc.lines.length === 1 ? 'line' : 'lines'}
                 {requiredOpen > 0 ? ` · ${requiredOpen} required ${requiredOpen === 1 ? 'action' : 'actions'} still open` : ''}
               </Text>
+              <Text className="text-neutral-500 text-xs mt-2">On-device checks will flag unconfirmed important points after recording.</Text>
               {doc.lines.map((line, index) => (
+                <View key={line.id}>
+                {importantLineIds.has(line.id) && <Text className="text-amber-200 text-xs mt-4">Important point</Text>}
                 <ScriptLineRow
-                  key={line.id}
                   line={line}
                   position={index + 1}
                   onCueRequiredChange={(cueId, required) => setDoc(current => setCueRequired(current, cueId, required))}
@@ -147,6 +152,7 @@ export default function ScriptInput() {
                   onMove={(lineId, offset) => setDoc(current => moveLine(current, lineId, offset))}
                   onDelete={lineId => setDoc(current => deleteLine(current, lineId))}
                 />
+                </View>
               ))}
               {doc.removedLines.length > 0 && (
                 <Text className="text-neutral-500 text-[11px] mt-3">

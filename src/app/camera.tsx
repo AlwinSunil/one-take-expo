@@ -6,7 +6,7 @@ import { useKeepAwake } from 'expo-keep-awake';
 import { router, useFocusEffect, useIsFocused, useLocalSearchParams } from 'expo-router';
 import { useVideoPlayer, VideoView, type VideoThumbnail } from 'expo-video';
 import { Image } from 'expo-image';
-import { ArrowLeft, Images, ChevronLeft, ChevronRight, Grid3X3, SlidersHorizontal, SwitchCamera, X, Sparkles } from 'lucide-react-native';
+import { ArrowLeft, Images, Grid3X3, SlidersHorizontal, SwitchCamera, X, Sparkles } from 'lucide-react-native';
 import {
   beginProjectPickup,
   cancelProjectPickup,
@@ -25,12 +25,13 @@ import { buildCaptureStopHandoff, captureEvent, checkpointCaptureOriginal, type 
 import { projectCaptureDocument, requestedPickupLineIds, recordingTranscript } from '@/features/capture/project-handoff';
 import { projectScriptLines } from '@/lib/project-workflow';
 import { useLiveCaptions } from '@/hooks/use-live-captions';
+import { NativeCutPreview } from '../../modules/one-take-media';
 import { LOCAL_VIDEO_BUFFER } from '@/lib/video-buffer';
 import { LiveCaptions } from '@/components/captions/live-captions';
-import { CoverageStrip } from '@/components/prompter/coverage-strip';
-import { PrompterLines } from '@/components/prompter/prompter-lines';
-import { RetakePrompt } from '@/components/prompter/retake-prompt';
-import { CaptureControls } from '@/components/capture/capture-controls';
+import { scriptPointChecks } from '@/features/capture/script-point-checks';
+import { captureRetakeEdit, resolveManualScratch, resolveVoiceScratches, type VoiceScratch, type RetakeRange } from '@/features/capture/voice-scratch';
+import { followScript, prompterWords } from '@/lib/prompter-progress';
+import { AITeleprompter } from '@/components/prompter/ai-teleprompter';
 import { decideRetakePrompt } from '@/lib/retake-prompts';
 import {
   captureScriptLines,
@@ -76,8 +77,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 const icons = {
   arrow_back: ArrowLeft,
   photo_library: Images,
-  chevron_left: ChevronLeft,
-  chevron_right: ChevronRight,
   grid_3x3: Grid3X3,
   tune: SlidersHorizontal,
   flip_camera_android: SwitchCamera,
@@ -98,6 +97,23 @@ function IconButton({ icon, label, onPress, disabled = false }: {
 function PreviewPlayer({ uri }: { uri: string }) {
   const player = useVideoPlayer(uri, p => { p.bufferOptions = LOCAL_VIDEO_BUFFER; p.loop = true; p.play(); });
   return <VideoView style={{ flex: 1 }} player={player} nativeControls contentFit="contain" />;
+}
+
+function RetakePreview({ uri, cuts }: { uri: string; cuts: RetakeRange[] }) {
+  const [playing, setPlaying] = useState(true);
+  const [error, setError] = useState('');
+  const request = useMemo(() => JSON.stringify({ id: 'retake-preview', sourceUri: uri, cuts, captions: [] }), [uri, cuts]);
+  if (!cuts.length) return <View className="flex-1 justify-center px-6"><Text className="text-neutral-300 text-center">This take was removed. Record the line again.</Text></View>;
+  if (!NativeCutPreview || error) return <View className="flex-1 justify-center px-6"><Text className="text-neutral-300 text-center">{error || 'Edited preview is unavailable on this device.'}</Text></View>;
+  return <View className="flex-1">
+    <NativeCutPreview style={{ flex: 1 }} request={request} playing={playing} seek={0} onState={event => {
+      if (event.nativeEvent.ended) setPlaying(false);
+      if (event.nativeEvent.error) setError(event.nativeEvent.error);
+    }} />
+    <Pressable accessibilityRole="button" accessibilityLabel={playing ? 'Pause preview' : 'Play preview'} onPress={() => setPlaying(value => !value)} className="self-center min-h-12 justify-center px-6">
+      <Text className="text-white">{playing ? 'Pause' : 'Play'}</Text>
+    </Pressable>
+  </View>;
 }
 
 function LatestThumb({ uri, onPress }: { uri: string; onPress: () => void }) {
@@ -184,6 +200,7 @@ export default function CameraScreen() {
   const [chunk, setChunk] = useState(0);
   const [previewUri, setPreviewUri] = useState<string | null>(null);
   const [previewDuration, setPreviewDuration] = useState(0);
+  const [previewCuts, setPreviewCuts] = useState<RetakeRange[] | undefined>();
   const [lastUri, setLastUri] = useState<string | null>(null);
   const pendingSave = useRef<(() => Promise<Project>) | null>(null);
   const [recordedProject, setRecordedProject] = useState<Project | null>(null);
@@ -249,7 +266,7 @@ export default function CameraScreen() {
   }
   const permissionRequesting = useRef(false);
   const commandGate = useRef(createCaptureCommandGate());
-  const scratchRequested = useRef(false);
+  const retakeRanges = useRef<RetakeRange[]>([]);
   const activeCaptureTakeId = useRef<string | null>(null);
   const lastTranscript = useRef<ReturnType<typeof captureTranscriptSegments>>([]);
   const lastCoverageTakeId = useRef('');
@@ -261,6 +278,56 @@ export default function CameraScreen() {
   const interrupted = useRef(false);
   const promptLines = requestedLines ? captureCoverage.lines.filter(line => requestedLines.includes(line.id)) : captureCoverage.lines;
   const chunks = promptLines.map(line => line.spokenText);
+  const liveTranscript = captions.transcript.current;
+  const liveScratches = useMemo(() => resolveVoiceScratches(liveTranscript, captureScriptLines(scriptDocument)),
+    [liveTranscript, scriptDocument]);
+  const handledVoiceCommands = useRef(new Set<string>());
+  const voiceExcludedSegments = useRef(new Set<string>());
+  const [prompterSpeechStart, setPrompterSpeechStart] = useState(0);
+  const pointChecks = isScript && recording ? scriptPointChecks(scriptDocument,
+    liveTranscript.filter(segment => !voiceExcludedSegments.current.has(segment.id) && !liveScratches.excluded.has(segment.id)
+      && !retakeRanges.current.some(range => segment.t0 < range.t1 && segment.t1 > range.t0)), captureMode === 'live') : [];
+  const lastCoveredPoint = Math.max(-1, ...pointChecks.filter(point => point.status === 'covered').map(point => point.order));
+  const missedPoint = pointChecks.find(point => point.order < lastCoveredPoint && (point.status === 'missing' || point.status === 'partial'));
+
+
+  const applyRetake = useCallback((action: VoiceScratch) => {
+    if (handledVoiceCommands.current.has(action.commandId) || action.reason === 'pending') return;
+    handledVoiceCommands.current.add(action.commandId);
+    if (!action.commandId.startsWith('manual:')) voiceExcludedSegments.current.add(action.commandId);
+    if (action.reason !== 'scratched') {
+      if (action.endedAt > action.startedAt) retakeRanges.current.push({ t0: action.startedAt, t1: action.endedAt });
+      setCaptureFeedback(action.reason === 'ambiguous'
+        ? 'Could not isolate the last line. Pause between lines and try again.'
+        : 'No previous line to retake.');
+      return;
+    }
+    if (action.targetId) voiceExcludedSegments.current.add(action.targetId);
+    retakeRanges.current.push({ t0: action.startedAt, t1: action.endedAt });
+    const segments = captions.transcript.current;
+    const target = segments.find(segment => segment.id === action.targetId);
+    let lineIndex = promptLines.findIndex(line => line.id === action.lineId);
+    if (lineIndex < 0 && target) {
+      const preceding = segments.filter(segment => segment.t1 <= target.t0 && !voiceExcludedSegments.current.has(segment.id));
+      const cursor = followScript(promptLines.flatMap(line => prompterWords(line.spokenText)), preceding.map(segment => segment.text).join(' ')).cursor;
+      let end = 0;
+      lineIndex = promptLines.findIndex(line => { end += prompterWords(line.spokenText).length; return end > cursor; });
+    }
+    setChunk(Math.max(0, lineIndex));
+    setPrompterSpeechStart(action.endedAt);
+    setCaptureFeedback('Last line removed from video and audio. Read it again.');
+  }, [captions.transcript, promptLines]);
+
+  useEffect(() => {
+    if (!recording || !isScript) return;
+    for (const action of liveScratches.actions) applyRetake(action);
+  }, [recording, isScript, liveScratches, applyRetake]);
+
+  useEffect(() => {
+    if (!captureFeedback) return;
+    const timer = setTimeout(() => setCaptureFeedback(''), 3500);
+    return () => clearTimeout(timer);
+  }, [captureFeedback]);
 
   const refreshDeviceState = useCallback(() => {
     setStorageCheck(readCaptureStorage());
@@ -387,8 +454,10 @@ export default function CameraScreen() {
 
   const applyCaptureCommand = useCallback((command: CaptureCommand) => {
     if (command === 'scratch') {
-      scratchRequested.current = true;
-      setCaptureFeedback('Current take marked for scratch. It will not count toward coverage.');
+      const audioStart = captions.sourceStartedAt.current;
+      if (audioStart === null) { setCaptureFeedback('Speech timing is unavailable. No footage was removed.'); return; }
+      applyRetake(resolveManualScratch(captions.transcript.current, captureScriptLines(scriptDocumentRef.current),
+        (Date.now() - audioStart) / 1000, voiceExcludedSegments.current));
       return;
     }
     if (!isScript || chunks.length === 0) {
@@ -398,12 +467,8 @@ export default function CameraScreen() {
     const next = Math.min(chunks.length - 1, chunk + 1);
     setChunk(next);
     setCaptureFeedback(next === chunk ? 'Already at the last script line.' : 'Advanced to the next script line.');
-  }, [chunk, chunks.length, isScript]);
+  }, [chunk, chunks.length, isScript, applyRetake, captions.sourceStartedAt, captions.transcript]);
 
-  const receiveCaptureCommand = useCallback((command: CaptureCommand) => {
-    const result = commandGate.current.receive({ command, source: 'tap' });
-    if (result.accepted) applyCaptureCommand(result.command);
-  }, [applyCaptureCommand]);
 
   useEffect(() => {
     const unsubscribe = subscribeCaptureInput(event => {
@@ -541,10 +606,14 @@ export default function CameraScreen() {
     let returnedUri: string | null = null;
     let pickupLineIds: string[] = [];
     let captionFailure: string | undefined;
-    setSeconds(0); setError(''); setPreparing(true);
+    setSeconds(0); setError(''); setChunk(0); setPreparing(true);
+    handledVoiceCommands.current.clear();
+    voiceExcludedSegments.current.clear();
+    setPrompterSpeechStart(0);
     setCaptureFeedback('');
     setCaptureMode('pending');
-    scratchRequested.current = false;
+    retakeRanges.current = [];
+    setPreviewCuts(undefined);
     try {
       const [latestCamera, latestMic] = await Promise.all([getCameraPermission(), getMicPermission()]);
       const permissions = describeCapturePermissions(latestCamera, latestMic);
@@ -687,6 +756,18 @@ export default function CameraScreen() {
         captionFailure ??= captionMessage.current || 'Live captions became unavailable.';
         setCaptureMode('record-only');
       }
+      // Stop can deliver the final command after the last recording render.
+      const finalActions = isScript ? resolveVoiceScratches(transcript, captureScriptLines(captureDocument)).actions : [];
+      for (const action of finalActions) {
+        if (handledVoiceCommands.current.has(action.commandId) || action.reason === 'pending') continue;
+        handledVoiceCommands.current.add(action.commandId);
+        voiceExcludedSegments.current.add(action.commandId);
+        if (action.targetId) voiceExcludedSegments.current.add(action.targetId);
+        retakeRanges.current.push({ t0: action.startedAt, t1: action.endedAt });
+      }
+      const retakeEdit = captureRetakeEdit(duration, retakeRanges.current,
+        captions.sourceStartedAt.current === null ? 0 : (startedAt.current - captions.sourceStartedAt.current) / 1000);
+      setPreviewCuts(retakeEdit.cuts);
       const alignedTranscript = recordingTranscript(transcript, captions.sourceStartedAt.current, startedAt.current, duration);
       const transcriptSegments = captureTranscriptSegments(alignedTranscript.map((segment, index) => ({ ...segment, id: segment.id ?? `${captureTakeId}:${index}`, isFinal: segment.isFinal ?? true })));
       lastTranscript.current = transcriptSegments;
@@ -695,7 +776,8 @@ export default function CameraScreen() {
         takeId: captureTakeId,
         videoUri: result.uri,
         transcript: transcriptSegments,
-        scratched: scratchRequested.current,
+        voiceCommands: isScript,
+        excludedSegmentIds: [...voiceExcludedSegments.current],
       });
       const stopReason = stopLatch.current.reason;
       const wasInterrupted = interrupted.current || stopReason === 'interruption' || stopReason === 'storage'
@@ -711,7 +793,7 @@ export default function CameraScreen() {
 
       let saved: Project;
       if (project) {
-        const captured: Project = { ...project, videoUri: result.uri, duration,
+        const captured: Project = { ...project, ...retakeEdit, videoUri: result.uri, duration,
           recordingStatus: wasInterrupted ? 'interrupted' : 'complete',
           recoveryMessage: recoveryMessages.length ? recoveryMessages.join(' ') : undefined,
           scriptLines: isScript ? captureScriptLines(scriptDocumentRef.current) : undefined,
@@ -729,14 +811,15 @@ export default function CameraScreen() {
           takeId: captureTakeId,
           videoUri: saved.videoUri,
           transcript: transcriptSegments,
-          scratched: scratchRequested.current,
+          voiceCommands: isScript,
+          excludedSegmentIds: [...voiceExcludedSegments.current],
         }));
       } else {
         const targetId = targetProject!.id;
         const latestTarget = await getProject(targetId);
         if (!latestTarget) throw new Error('The pickup project was deleted.');
         await saveProjectMetadata({ ...latestTarget, scriptLines: captureScriptLines(scriptDocumentRef.current) });
-        const input = { videoUri: result.uri, duration,
+        const input = { videoUri: result.uri, duration, captureCuts: retakeEdit.cuts,
           transcript: alignedTranscript.map(segment => ({ ...segment, rawText: segment.text, timingSource: 'live-estimate' as const })), takes: coverage.review.takes };
         pendingSave.current = () => completeProjectPickup(targetId, pickupRecordingId, input);
         saved = await pendingSave.current();
@@ -830,8 +913,6 @@ export default function CameraScreen() {
   }
 
   const permissionDescription = describeCapturePermissions(cameraPermission, micPermission);
-  const currentPrompterLine = promptLines[chunk] ?? null;
-  const nextPrompterLine = promptLines[chunk + 1] ?? null;
 
   async function requestAccess() {
     if (permissionRequesting.current || permissionDescription.state !== 'requestable') return;
@@ -889,7 +970,7 @@ export default function CameraScreen() {
           }} /> : <View style={StyleSheet.absoluteFill} />}
     <View className="flex-row items-center justify-between px-4 h-16 bg-black/40">
       <IconButton icon="arrow_back" label="Back" disabled={preparing || recording || saving} onPress={() => router.back()} />
-      <Text className="text-white text-xs tracking-widest">{isScript ? 'SCRIPT' : 'ASSISTED'}</Text>
+      <Text className="text-white text-xs tracking-widest">{isScript ? 'AI Teleprompter' : 'ASSISTED'}</Text>
       {lastUri && !preparing && !recording && !saving
         ? <LatestThumb uri={lastUri} onPress={() => router.push('/projects')} />
         : <IconButton icon="photo_library" label="Projects" disabled={preparing || recording || saving} onPress={() => router.push('/projects')} />}
@@ -898,16 +979,16 @@ export default function CameraScreen() {
     <View className="flex-1">
       <PinchGestureHandler onGestureEvent={onPinch} onHandlerStateChange={onPinchState}>
         <Animated.View style={{ flex: 1 }}>
-        {grid && <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+        {grid && !isScript && <View pointerEvents="none" style={StyleSheet.absoluteFill}>
           {[1, 2].map(n => <View key={`v${n}`} style={{ position: 'absolute', left: `${n * 100 / 3}%`, top: 0, bottom: 0, borderLeftWidth: StyleSheet.hairlineWidth, borderColor: '#ffffff55' }} />)}
           {[1, 2].map(n => <View key={`h${n}`} style={{ position: 'absolute', top: `${n * 100 / 3}%`, left: 0, right: 0, borderTopWidth: StyleSheet.hairlineWidth, borderColor: '#ffffff55' }} />)}
         </View>}
-        <View className="self-center mt-4 bg-white rounded px-3 py-1.5">
+        <View className="self-center mt-4 bg-white rounded px-3 py-1.5" style={isScript ? { position: 'absolute', bottom: 16 } : undefined}>
           <Text className="text-black text-xs font-bold">{preparing ? 'PREPARING CAPTIONS' : recording ? `${captureMode === 'record-only' ? 'RECORD-ONLY · ' : ''}${saving ? 'SAVING' : 'REC'}  ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}` : `VIDEO · UP TO ${videoQuality}`}</Text>
         </View>
-        {(preparing || recording) && <LiveCaptions text={captions.text} isFinal={captions.isFinal} status={captions.status} />}
-        {(preparing || recording) && captureMode === 'record-only' && <Text accessibilityRole="alert" className="self-center mt-2 rounded bg-amber-950/90 px-3 py-1.5 text-center text-amber-200 text-xs">RECORD-ONLY · Live analysis unavailable. Video and camera audio will still be saved.</Text>}
-        <View pointerEvents="none" className="absolute bottom-3 self-center mx-3 rounded-lg bg-black/70 px-3 py-2">
+        {!isScript && (preparing || recording) && <LiveCaptions text={captions.text} isFinal={captions.isFinal} status={captions.status} />}
+        {!isScript && (preparing || recording) && captureMode === 'record-only' && <Text accessibilityRole="alert" className="self-center mt-2 rounded bg-amber-950/90 px-3 py-1.5 text-center text-amber-200 text-xs">RECORD-ONLY · Live analysis unavailable. Video and camera audio will still be saved.</Text>}
+        {!isScript && <View pointerEvents="none" className="absolute bottom-3 self-center mx-3 rounded-lg bg-black/70 px-3 py-2">
           <Text className="text-neutral-200 text-xs text-center">
             {vision.status === 'ready' && vision.faceStable
               ? vision.facePresence === 'present' ? 'Face detected' : 'No face detected'
@@ -916,25 +997,15 @@ export default function CameraScreen() {
             {vision.device && vision.device.thermalStatus !== 'none' && vision.device.thermalStatus !== 'unknown'
               ? ` · Phone ${['light', 'moderate'].includes(vision.device.thermalStatus) ? 'warm' : 'hot'}` : ''}
           </Text>
-        </View>
+        </View>}
         {isScript && scriptDocumentLoaded && <View className="absolute top-3 left-3 right-3 gap-2">
-          <CoverageStrip
-            lines={captureCoverage.spokenLines}
-            currentLineId={currentPrompterLine?.id}
-            nextLineId={nextPrompterLine?.id}
-          />
-          <PrompterLines
-            current={currentPrompterLine}
-            next={nextPrompterLine}
+          <AITeleprompter
+            lines={promptLines.slice(chunk)}
+            transcript={liveTranscript.filter(segment => segment.t0 >= prompterSpeechStart && !liveScratches.excluded.has(segment.id)).map(segment => segment.text).join(' ')}
+            recording={recording}
+            unavailable={captureMode === 'record-only'}
             onCueDone={markCueDone}
           />
-          {recording && <RetakePrompt decision={promptDecision} />}
-          {!!captureFeedback && <Text accessibilityRole="alert" className="rounded-lg bg-black/80 px-3 py-2 text-center text-neutral-200 text-xs">{captureFeedback}</Text>}
-          <View className="flex-row justify-between items-center rounded-xl bg-black/70 px-2">
-            <IconButton icon="chevron_left" label="Previous script section" disabled={chunk === 0 || recording === false && preparing} onPress={() => setChunk(i => Math.max(0, i - 1))} />
-            <Text className="text-neutral-400 text-xs">{chunks.length ? chunk + 1 : 0}/{chunks.length}</Text>
-            <IconButton icon="chevron_right" label="Next script section" disabled={chunk >= chunks.length - 1 || recording === false && preparing} onPress={() => setChunk(i => Math.min(chunks.length - 1, i + 1))} />
-          </View>
         </View>}
         </Animated.View>
       </PinchGestureHandler>
@@ -956,11 +1027,12 @@ export default function CameraScreen() {
       </ScrollView>
     </View>}
     <View className="w-full self-center px-4" style={{ maxWidth: 520 }}>
+      {missedPoint && !captureFeedback && <Text accessibilityLiveRegion="polite" numberOfLines={2} className="text-amber-200 text-xs text-center py-2">Important point not confirmed: {missedPoint.text}</Text>}
+      {!!captureFeedback && <Text accessibilityRole="alert" className="text-neutral-300 text-xs text-center py-2">{captureFeedback}</Text>}
       {!!error && <Text accessibilityRole="alert" numberOfLines={3} className="text-red-300 text-xs text-center py-2">{error}</Text>}
       {(storageCheck.state === 'warning' || storageCheck.state === 'blocked') && <Text accessibilityRole="alert" numberOfLines={3} className="text-amber-200 text-xs text-center pb-2">{storageCheck.message}</Text>}
       {!!cameraMountFailure && <Pressable accessibilityRole="button" accessibilityLabel="Retry camera" onPress={() => { setCameraMountFailure(null); setReady(false); setError(''); setCameraRetry(value => value + 1); }} className="self-center rounded-lg bg-neutral-900 border border-neutral-800 px-4 py-2 mb-2 active:opacity-70"><Text className="text-neutral-200 text-xs font-semibold">Retry camera</Text></Pressable>}
-      {isScript && recording && <View className="pb-2"><CaptureControls active={recording} onCommand={receiveCaptureCommand} /></View>}
-      <View className="flex-row items-center border-b border-neutral-800 py-2">
+      {!isScript && <View className="flex-row items-center border-b border-neutral-800 py-2">
         <View className="flex-1 items-center"><IconButton icon="grid_3x3" label={grid ? 'Hide grid' : 'Show grid'} onPress={() => setGrid(v => !v)} /></View>
         <View className="flex-1 items-center border-l border-neutral-800"><Pressable accessibilityRole="button" accessibilityLabel="Change zoom" onPress={() => setZoom(v => {
             let best = 0;
@@ -970,12 +1042,14 @@ export default function CameraScreen() {
             return ZOOM_STOPS[(best + 1) % ZOOM_STOPS.length] ?? 0;
           })} className="h-12 min-w-12 items-center justify-center"><Text className="text-white text-lg font-medium">{zoom === 0 ? 'WIDE' : `${Math.round(zoom * 100)}%`}</Text></Pressable></View>
         <View className="flex-1 items-center border-l border-neutral-800"><IconButton icon="tune" label="Camera settings" disabled={preparing || recording || saving} onPress={() => { dismissSuggestions(); setSheet('settings'); }} /></View>
-      </View>
+      </View>}
       <View className="flex-row items-center py-5">
-        <Pressable accessibilityRole="button" accessibilityLabel="Visual Suggestions" disabled={preparing || saving} accessibilityState={{ disabled: preparing || saving }} onPress={requestSuggestions} className="flex-1 items-center py-2 active:opacity-60" style={{ opacity: preparing || saving ? 0.4 : 1 }}>
+        {isScript ? <View className="flex-1 items-center">
+          <IconButton icon="tune" label="Camera settings" disabled={preparing || recording || saving} onPress={() => setSheet('settings')} />
+        </View> : <Pressable accessibilityRole="button" accessibilityLabel="Visual Suggestions" disabled={preparing || saving} accessibilityState={{ disabled: preparing || saving }} onPress={requestSuggestions} className="flex-1 items-center py-2 active:opacity-60" style={{ opacity: preparing || saving ? 0.4 : 1 }}>
           <View className="bg-amber-400 rounded-full px-5 py-2"><Sparkles size={20} strokeWidth={1.75} color="black" /></View>
           <Text className="text-neutral-500 text-[11px] mt-2 tracking-widest font-semibold">SUGGESTIONS</Text>
-        </Pressable>
+        </Pressable>}
         <View className="flex-1 items-center">
           <Pressable accessibilityRole="button" accessibilityLabel={preparing ? 'Cancel recording preparation' : recording ? 'Stop recording' : 'Start recording'} disabled={!ready || saving || storageBlocked || !scriptDocumentLoaded || (!!requestedPickupProjectId && !pickupProject)} onPress={record}
             style={{ width: 84, height: 64, borderRadius: 40, borderWidth: 3, borderColor: 'white', padding: 5, opacity: !ready || saving || storageBlocked ? 0.4 : 1 }}>
@@ -1011,7 +1085,9 @@ export default function CameraScreen() {
           <IconButton icon="close" label="Close saved preview" disabled={saving || !!pendingSave.current} onPress={() => setPreviewUri(null)} />
         </View>
         <View className="flex-1 px-4">
-          {previewUri && <PreviewPlayer key={previewUri} uri={previewUri} />}
+          {previewUri && (previewCuts !== undefined
+            ? <RetakePreview key={previewUri} uri={previewUri} cuts={previewCuts} />
+            : <PreviewPlayer key={previewUri} uri={previewUri} />)}
         </View>
         {!!recordedProject?.recoveryMessage && <Text accessibilityRole="alert" className="text-amber-200 text-sm px-4 pt-3">{recordedProject.recoveryMessage}</Text>}
         {!!error && <Text accessibilityRole="alert" className="text-red-300 text-sm px-4 pt-3">{error}</Text>}

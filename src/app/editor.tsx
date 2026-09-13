@@ -2,9 +2,9 @@ import { useEvent } from 'expo';
 import { Image } from 'expo-image';
 import { router, useNavigation, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { useVideoPlayer, VideoView, type VideoThumbnail } from 'expo-video';
-import { ArrowLeft, Pause, Play, RotateCcw, Scissors } from 'lucide-react-native';
+import { ArrowLeft, Pause, Play, RotateCcw, SlidersHorizontal } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, AppState, PanResponder, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, AppState, Keyboard, PanResponder, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { recordedMediaDuration } from '@/lib/recorded-media';
@@ -19,6 +19,8 @@ import { LOCAL_VIDEO_BUFFER } from '@/lib/video-buffer';
 import { ExportControls } from '@/components/review/export-controls';
 import media, { NativeCutPreview } from '../../modules/one-take-media';
 import { TranscriptReview } from '@/components/review/transcript-review';
+import { sourceDuration, sourceRangeFits } from '@/lib/source-duration';
+import { ImportantPointsReview } from '@/components/prompter/important-points-review';
 import { T1WrapReport } from '@/components/review/t1-wrap-report';
 import { T1CleanupReview } from '@/components/review/t1-cleanup-review';
 import { T1CaptionEditor } from '@/components/review/t1-caption-editor';
@@ -69,7 +71,7 @@ function SourceTabs({ value, onChange, cleanDisabled }: {
   value: PreviewSource; onChange: (v: PreviewSource) => void; cleanDisabled: boolean;
 }) {
   const tabs: { id: PreviewSource; label: string; disabled?: boolean }[] = [
-    { id: 'clean', label: 'Clean', disabled: cleanDisabled },
+    { id: 'clean', label: 'Takes & captions', disabled: cleanDisabled },
     { id: 'trim', label: 'Trim' },
     { id: 'original', label: 'Original' },
   ];
@@ -146,7 +148,18 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
   const { status, error: playbackError } = useEvent(player, 'statusChange', { status: player.status });
   const source = useEvent(player, 'sourceLoad');
   const progress = useEvent(player, 'timeUpdate');
-  const duration = source?.duration ?? player.duration;
+  const [durationChecks, setDurationChecks] = useState<Record<string, { duration?: number; error?: string }>>({});
+  const sourceUris = useMemo(() => [...new Set([uri, ...(project?.recordings ?? []).map(recording => recording.mediaUri)])], [uri, project?.recordings]);
+  useEffect(() => {
+    let active = true;
+    setDurationChecks({});
+    void Promise.all(sourceUris.map(async sourceUri => {
+      try { return [sourceUri, { duration: await recordedMediaDuration(sourceUri) }] as const; }
+      catch { return [sourceUri, { error: 'Could not read the video file duration. Reopen this project to retry.' }] as const; }
+    })).then(results => { if (active) setDurationChecks(Object.fromEntries(results)); });
+    return () => { active = false; };
+  }, [sourceUris]);
+  const duration = sourceDuration(durationChecks[uri]?.duration, project?.duration, source?.duration ?? player.duration);
   const currentTime = progress?.currentTime ?? 0;
   const { isPlaying } = useEvent(player, 'playingChange', { isPlaying: false });
   const [start, setStart] = useState(project?.trim?.start ?? 0);
@@ -154,6 +167,8 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
   const [width, setWidth] = useState(0);
   const [thumbnails, setThumbnails] = useState<VideoThumbnail[]>([]);
   const [message, setMessage] = useState('');
+  const [editing, setEditing] = useState(false);
+  const [editTool, setEditTool] = useState<PreviewSource>('clean');
   const [tier1Test, setTier1Test] = useState(false);
   const [previewSource, setPreviewSource] = useState<PreviewSource>(
     Array.isArray(initialProject?.reviewSegments) || Array.isArray(initialProject?.cuts) ? 'clean' : 'trim',
@@ -187,10 +202,15 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
     if (segments.some(segment => !Number.isFinite(segment.t0) || !Number.isFinite(segment.t1) || segment.t0 < 0 || segment.t1 <= segment.t0)) {
       return 'Clean sequence contains an invalid range. Adjust the clip bounds or restore another clip.';
     }
-    if (segments.some(segment => {
-      const sourceDuration = segment.uri === uri ? duration : project?.recordings?.find(recording => recording.mediaUri === segment.uri)?.duration;
-      return !sourceDuration || !Number.isFinite(sourceDuration) || segment.t1 > sourceDuration;
-    })) return 'Clean source bounds are unavailable or invalid. Reopen to refresh media or adjust the cut.';
+    for (const segment of segments) {
+      const check = durationChecks[segment.uri];
+      if (check?.error) return check.error;
+      const savedDuration = segment.uri === uri ? project?.duration : project?.recordings?.find(recording => recording.mediaUri === segment.uri)?.duration;
+      const bound = sourceDuration(check?.duration, savedDuration, segment.uri === uri ? duration : 0);
+      if (!sourceRangeFits(segment, bound)) return check
+        ? 'A cut extends beyond its source video. Adjust that cut to continue.'
+        : 'Checking source video duration…';
+    }
     if (segments.some(segment => !availableMediaUris.includes(segment.uri))) {
       return 'Clean sequence media is unavailable. Reopen to refresh media or choose another take.';
     }
@@ -284,8 +304,6 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
     ? reviewExportSelection({ ...reviewProject!, duration: valid ? duration : project.duration }, exportMode, !!sequence?.segments.length)
     : null;
 
-  const covered = review?.lines.filter(line => line.spokenText.trim() && line.selectedTakeId).length ?? 0;
-  const totalLines = review?.lines.filter(line => line.spokenText.trim()).length ?? 0;
   const outputDuration = previewSource === 'original'
     ? (valid ? duration : 0)
     : previewSource === 'trim'
@@ -297,9 +315,7 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
             ? previewCuts.reduce((sum, cut) => sum + cut.t1 - cut.t0, 0)
             : activeSegments.reduce((sum, segment) => sum + segment.t1 - segment.t0, 0)
         : 0;
-  const statusLine = project?.mode === 'script' && review
-    ? `${covered}/${totalLines} lines · ${time(outputDuration)} output${updatesWaiting && playing ? ' · applies on pause' : ''}`
-    : `${time(previewSource === 'clean' && !activeCleanReady ? 0 : useNative ? nativePosition : currentTime)} · ${time(outputDuration)} output`;
+  const statusLine = `${previewSource === 'original' ? 'Original' : previewSource === 'trim' ? 'Trimmed' : 'Edited'} · ${time(outputDuration)}`;
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', state => { if (state !== 'active') { player.pause(); setNativePlaying(false); } });
@@ -348,10 +364,11 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
       <Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={protectedBack} className="p-3">
         <ArrowLeft size={22} color="white" />
       </Pressable>
-      <Text className="text-white text-base font-semibold">Review & export</Text>
-      <Pressable accessibilityRole="button" accessibilityLabel={persistenceError ? 'Retry save' : 'Save project'} disabled={!project || pendingWrites > 0} onPress={() => { void retrySave().catch(() => {}); }} className="p-3 disabled:opacity-40" style={{ minHeight: 48 }}>
-        <Text accessibilityLiveRegion="polite" className="text-neutral-300 text-sm">{pendingWrites > 0 ? 'Saving…' : persistenceError ? 'Retry save' : 'Save project'}</Text>
-      </Pressable>
+      <Text className="text-white text-base font-semibold">Review</Text>
+      <View style={{ minWidth: 48, alignItems: 'flex-end' }}>
+        {persistenceError ? <Pressable accessibilityRole="button" onPress={() => { void retrySave().catch(() => {}); }} className="p-3"><Text className="text-amber-200 text-sm">Retry save</Text></Pressable>
+          : pendingWrites > 0 ? <ActivityIndicator accessibilityLabel="Saving edits" color="#a3a3a3" /> : null}
+      </View>
     </View>
     <View className="flex-1 bg-neutral-950">
       {useNative && NativeCutPreview ? <NativeCutPreview style={{ flex: 1 }} request={nativeRequest} playing={nativePlaying} seek={nativeSeek} onState={event => {
@@ -371,17 +388,18 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
       {!useNative && status === 'loading' && <ActivityIndicator style={{ position: 'absolute', alignSelf: 'center', top: '50%' }} color="white" />}
       {!!peek && <Pressable accessibilityRole="button" accessibilityLabel="Return from take peek" onPress={clearPeek}
         className="absolute top-3 self-center rounded-full bg-black/80 px-4 py-2 active:opacity-70">
-        <Text className="text-white text-xs">Peeking · tap to return</Text>
+        <Text className="text-white text-xs">Back to edit</Text>
       </Pressable>}
     </View>
     {status === 'error' && <Text accessibilityRole="alert" className="text-red-300 px-6 py-2">{playbackError?.message ?? 'This video could not be opened. The file may no longer be available.'}</Text>}
-    <ScrollView automaticallyAdjustKeyboardInsets keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 48 }} className="px-5 pt-3 w-full self-center" style={{ maxWidth: 600, maxHeight: '55%' }}>
-      {previewSource === 'clean' && !peek && !nativeSourcesAvailable && playingSegments.length > 0 && <Text accessibilityRole="alert" className="text-amber-200 py-2">Prepared footage is unavailable. Restore the source or choose another take; missing media is not playable.</Text>}
-      {previewSource === 'clean' && !peek && !NativeCutPreview && proposedSegments.some(segment => segment.uri !== uri) && <Text className="text-amber-200 text-xs mb-2">Multi-recording clean preview needs the Android development build.</Text>}
-      <SourceTabs value={previewSource} onChange={switchSource} cleanDisabled={!hasClean && !peek && !nativeError} />
+    <View className="px-5 pt-2 w-full self-center" style={{ maxWidth: 600 }}>
       <View className="flex-row items-center justify-between mt-3 mb-2">
         <Text accessibilityLiveRegion="polite" className="text-neutral-300 text-xs flex-1 pr-3">{statusLine}</Text>
         <View className="flex-row items-center gap-1">
+      <Pressable accessibilityRole="button" accessibilityLabel={editing ? 'Done editing' : 'Edit video'} accessibilityState={{ expanded: editing }} onPress={() => { Keyboard.dismiss(); if (editing) clearPeek(); setEditing(value => !value); player.pause(); setNativePlaying(false); }} className="flex-row items-center gap-2 px-3 py-3">
+        <SlidersHorizontal size={16} color={editing ? 'white' : '#a3a3a3'} />
+        <Text className="text-white text-sm font-medium">{editing ? 'Done' : 'Edit'}</Text>
+      </Pressable>
           <Pressable disabled={!valid || status === 'error' || (previewSource === 'clean' && !peek && !activeCleanReady)} accessibilityRole="button" accessibilityLabel={playing ? 'Pause' : 'Play'} className="p-3 bg-neutral-800 rounded-full disabled:opacity-40" onPress={() => {
             if (useNative) {
               if (!nativePlaying && nativePosition >= outputDuration - 0.05) setNativeSeek(v => v + 1);
@@ -399,13 +417,17 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
           }}>
             {playing ? <Pause size={22} color="white" /> : <Play size={22} color="white" />}
           </Pressable>
-          {previewSource === 'trim' && <Pressable accessibilityRole="button" accessibilityLabel="Reset trim" className="p-3" onPress={() => updateTrim(0, duration)}>
+          {editing && editTool === 'trim' && <Pressable accessibilityRole="button" accessibilityLabel="Reset trim" className="p-3" onPress={() => updateTrim(0, duration)}>
             <RotateCcw size={20} color="#a3a3a3" />
           </Pressable>}
         </View>
       </View>
-
-      {previewSource === 'trim' && <>
+    </View>
+    {project && <View className="px-5"><ImportantPointsReview project={reviewProject ?? project} compact /></View>}
+    <ScrollView automaticallyAdjustKeyboardInsets keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 20 }} className="px-5 pt-2 w-full self-center" style={{ maxWidth: 600, maxHeight: '38%', display: editing ? 'flex' : 'none' }}>
+      <SourceTabs value={editTool} onChange={value => { setEditTool(value); if (value !== 'clean' || hasClean) switchSource(value); }} cleanDisabled={false} />
+      {editTool === 'original' && <Text className="text-neutral-400 text-xs py-3">Full recording · retakes included</Text>}
+      {editTool === 'trim' && <View className="pt-5">
         {valid && <View onLayout={e => setWidth(e.nativeEvent.layout.width)} style={{ height: 56, marginHorizontal: 12 }}>
           <View onStartShouldSetResponder={() => true} onMoveShouldSetResponder={() => true}
             onResponderGrant={e => { if (width) seek(e.nativeEvent.locationX / width * duration); }}
@@ -433,13 +455,9 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
           <Text className="text-neutral-400 text-xs">{time(valid ? limit - start : 0)} selected</Text>
           <Text className="text-neutral-400 text-xs">{time(valid ? limit : 0)}</Text>
         </View>
-        <View className="flex-row items-center gap-2 mt-3">
-          <Scissors size={16} color="#a3a3a3" />
-          <Text className="text-neutral-400 text-xs">Drag the ends to trim. Trims save automatically.</Text>
-        </View>
-      </>}
 
-      {!!message && <Text accessibilityRole="alert" className="text-neutral-200 text-sm mt-3">{message}</Text>}
+      </View>}
+
       {project && reviewProject && tier1Enabled('reframing', __DEV__, tier1Test) && <View className="border-t border-neutral-800 py-3">
         <Text className="text-white font-semibold">Optional reframing</Text>
         <Text className="text-neutral-400 py-2">{!framingAllowed ? 'Reframing unavailable in this native build. Original frame retained.' : !(Array.isArray(project.framing?.suggestions) && project.framing.suggestions.length) ? 'No framing suggestions supplied. Original frame retained.' : project.framing.enabled ? 'Suggested static crops enabled. Unsafe or missing tracks use the original.' : 'Off · original frame'}</Text>
@@ -481,7 +499,8 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
         if (!source || !NativeCutPreview || !reviewProject.availableMediaUris?.includes(source.uri)) { setMessage('Take preview is unavailable in this build.'); return; }
         player.pause(); clearPeek(); setPreviewSource('clean'); setPeek({ ...range, uri: source.uri }); setNativeSeek(0); setNativePlaying(true);
       }} />}
-      {project && reviewProject && <TranscriptReview project={reviewProject} duration={valid ? duration : undefined} onChange={changeProject} onPreviewRecording={NativeCutPreview && reviewProject.recordings?.every(recording => reviewProject.availableMediaUris?.includes(recording.mediaUri)) ? async (recordingUri) => {
+      <View style={{ display: editTool === 'clean' ? 'flex' : 'none' }}>
+      {project && reviewProject && <TranscriptReview embedded project={reviewProject} duration={valid ? duration : undefined} onChange={changeProject} onPreviewRecording={NativeCutPreview && reviewProject.recordings?.every(recording => reviewProject.availableMediaUris?.includes(recording.mediaUri)) ? async (recordingUri) => {
         if (!reviewProject.availableMediaUris?.includes(recordingUri)) { setMessage('This pickup original is unavailable.'); return; }
         setNativePlaying(false); player.pause();
         try {
@@ -498,16 +517,26 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
         setPeek({ uri: take.mediaUri, t0: take.t0, t1: take.t1, takeId: id, captions: [] });
         setPreviewSource('clean'); setNativeSeek(0); setNativePlaying(true);
       } : undefined} onSeek={value => {
-        clearPeek(); setPreviewSource('original'); player.pause(); player.currentTime = Math.max(0, Math.min(duration, value));
+        player.pause();
+        const position = Math.max(0, Math.min(duration, value));
+        if (NativeCutPreview && position < duration) {
+          const cut = project.cuts?.find(item => position >= item.t0 && position < item.t1);
+          setPeek({ uri, t0: position, t1: cut?.t1 ?? duration, captions: [] });
+          setNativeSeek(0); setNativePlaying(true);
+        } else {
+          clearPeek(); setPreviewSource('original'); player.currentTime = position;
+        }
       }} />}
-      {!!persistenceError && <Text accessibilityRole="alert" className="text-red-300 py-3">{persistenceError}</Text>}
-      {!!exportBlockedReason && <Text className="text-amber-200 text-xs mt-3">{exportBlockedReason}</Text>}
-      {project && valid && !persistenceError && !exportBlockedReason && (exportProject ? <>
-        <Text className="text-neutral-300 text-xs mt-3">{exportMode === 'original' ? 'Export original video without captions' : exportMode === 'trim' ? 'Export the manual trim with captions' : project.cuts || project.reviewSegments?.length ? 'Export prepared cuts with captions' : 'Export the manual trim with captions'}</Text>
-        <ExportControls framingEnabled={framingAllowed && exportMode === 'cut'} project={exportProject} start={exportMode === 'original' ? 0 : start} end={exportMode === 'original' ? duration : limit} onMessage={setMessage} />
-      </> : <Text className="text-amber-200 text-xs mt-3">Prepare selected takes below, then review every cut before exporting.</Text>)}
-      <View style={{ height: 24 }} />
+      </View>
     </ScrollView>
+    <View className="px-5 pb-3 w-full self-center" style={{ maxWidth: 600 }}>
+      {!!message && <Text accessibilityRole="alert" className="text-neutral-200 text-xs py-2">{message}</Text>}
+      {!!persistenceError && <Text accessibilityRole="alert" className="text-red-300 py-2">{persistenceError}</Text>}
+      {!!exportBlockedReason && !cleanPreviewEmpty && <Text className="text-amber-200 text-xs py-2">{exportBlockedReason}</Text>}
+      {project && valid && !persistenceError && !exportBlockedReason && exportProject
+        ? <ExportControls compact onReviewCuts={() => { setEditing(true); setEditTool('clean'); player.pause(); setNativePlaying(false); }} label={exportMode === 'original' ? 'Export original' : 'Export video'} framingEnabled={framingAllowed && exportMode === 'cut'} project={exportProject} start={exportMode === 'original' ? 0 : start} end={exportMode === 'original' ? duration : limit} />
+        : <Pressable accessibilityRole="button" disabled className="items-center rounded-xl bg-neutral-800 py-4"><Text className="text-neutral-500 font-semibold">Export video</Text></Pressable>}
+    </View>
   </SafeAreaView>;
 }
 
