@@ -200,3 +200,9 @@ No Session 2 or Session 3 agreement is implied by these references.
 The conservative matcher does not support arbitrary clause reordering or all English paraphrases.
 Its synthetic diagnostic has one missed paraphrase and the extraction baseline overselects three greeting/sign-off lines; real-read evaluation remains pending.
 Manual movement without a source-clock timestamp holds following until a timed reanchor or a new recognition lifecycle, while manual controls remain usable.
+
+
+Merged-main refresh: `5bed4c7` incorporates upstream `faeda74` / PR #73 without conflicts.
+The producer implementation remains `5947706`; use the current branch head with this merged UI baseline for later integration.
+Final refreshed typecheck, 378 tests, 19 sample checks and Android JavaScript export pass.
+PR #58 remains open; no unmerged consumer code was incorporated.

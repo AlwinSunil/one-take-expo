@@ -24,7 +24,7 @@ Logs are under `docs/handoffs/evidence/t15-session-1/`.
 Host: Darwin arm64, Node v26.7.0, Python 3.13.7.
 `npm ci --ignore-scripts` installed 690 packages successfully without changing package/lock files.
 The first typecheck before installation failed because `tsc` was absent; a subsequent in-progress check reported the not-yet-written alignment module.
-Final source verification is against `5947706`, including the review safety corrections.
+Final source verification is against `5bed4c7`, which incorporates merged main `faeda74` and producer safety corrections `5947706`.
 The final suite has 378 passing tests, including 51 Tier 1.5 producer tests; zero failures or skips.
 
 | Command | Result | Evidence |
@@ -92,3 +92,12 @@ The baseline deliberately leaves that unresolved because a generic token-reorder
 Only narrow lexical/inflection/contraction equivalents and supported full ordered content advance the reader.
 The sample extraction baseline flags three greeting/sign-off lines as important, which is why creator controls and manual selection are required.
 The diagnostic is agent-authored synthetic data, not a held-out human dataset, and these counts must not be reported as production precision or recall.
+
+## Merged-main refresh
+
+PR #73 merged during final verification as `faeda74`.
+It was incorporated through `5bed4c7` without conflicts or owner-file edits by Session 1.
+Typecheck, all 378 tests, 19 sample checks and Android JavaScript export pass again on this merged source.
+The producer diff against current main still contains only Session 1 modules/components/tests and its own handoff/evidence documents.
+PR #58 remains open and is not incorporated.
+GitHub checks on producer revision `5947706` passed in runs `34729312771` and `34729311115`; subsequent head checks are separate from these local results.

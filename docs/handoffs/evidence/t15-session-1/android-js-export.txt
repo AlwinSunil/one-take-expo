@@ -2,9 +2,19 @@ Using src/app as the root directory for Expo Router.
 React Compiler enabled
 Starting Metro Bundler
 
-| (node:23437) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (node:28425) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 | (Use `node --trace-warnings ...` to show where the warning was created)
-Android Bundled 6635ms node_modules/expo-router/entry.js (3791 modules)
+| (node:28425) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:28425) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:28425) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:28425) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:28425) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+Android Bundled 7190ms node_modules/expo-router/entry.js (3792 modules)
 
 › Assets (45):
 node_modules/@expo-google-fonts/inter/100Thin_Italic/Inter_100Thin_Italic.ttf (347KB)
@@ -42,7 +52,7 @@ node_modules/expo-router/assets/sitemap.png (465B)
 node_modules/expo-router/assets/unmatched.png (4.8KB)
 
 › android bundles (1):
-_expo/static/js/android/entry-9c6824a7bae4a4aff380a65809883cd1.hbc (6.7MB)
+_expo/static/js/android/entry-62fc270193911d91b9327a92f14f5679.hbc (6.7MB)
 
 › Files (1):
 metadata.json (3KB)
