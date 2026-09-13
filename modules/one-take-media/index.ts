@@ -41,6 +41,12 @@ export type MediaExportRequest = {
   cuts: MediaCut[];
   captions: MediaCaption[];
   segments?: MediaSourceSegment[];
+  /**
+   * Revision of the explicitly materialized export sequence. When present,
+   * this must be a nonnegative JavaScript safe integer and `segments` must be
+   * nonempty so a later edit cannot change the queued media order.
+   */
+  timelineRevision?: number;
 };
 
 export type MediaExportStatus =
@@ -55,6 +61,8 @@ export type MediaExport = {
   id: string;
   status: MediaExportStatus;
   progress: number;
+  /** Revision frozen into the request, when the export was created from one. */
+  timelineRevision?: number;
   uri?: string;
   galleryUri?: string;
   error?: string;

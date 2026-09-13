@@ -6,6 +6,8 @@ import java.util.Locale
 import org.json.JSONArray
 import org.json.JSONObject
 
+internal const val MAX_SAFE_TIMELINE_REVISION = 9_007_199_254_740_991L
+
 internal enum class MediaExportStatus {
   QUEUED,
   RUNNING,
@@ -76,7 +78,19 @@ internal data class MediaExportRequest(
   val cuts: List<SourceCut>,
   val captions: List<SourceCaption>,
   val segments: List<MediaSourceSegment> = emptyList(),
-)
+  val timelineRevision: Long? = null,
+) {
+  init {
+    timelineRevision?.let { revision ->
+      require(revision >= 0L && revision <= MAX_SAFE_TIMELINE_REVISION) {
+        "timelineRevision must be a nonnegative JavaScript safe integer"
+      }
+      require(segments.isNotEmpty()) {
+        "timelineRevision requires explicit export segments"
+      }
+    }
+  }
+}
 
 internal data class MediaExportJob(
   val request: MediaExportRequest,
@@ -87,6 +101,20 @@ internal data class MediaExportJob(
   val galleryUri: String? = null,
   val galleryPending: Boolean = false,
 )
+
+private fun parseTimelineRevision(value: Any?): Long? {
+  if (value == null || value == JSONObject.NULL) return null
+  val number = value as? Number
+    ?: throw IllegalArgumentException("Export field 'timelineRevision' must be a number")
+  val revision = number.toDouble()
+  require(revision.isFinite() && revision >= 0.0 && revision <= MAX_SAFE_TIMELINE_REVISION.toDouble()) {
+    "timelineRevision must be a nonnegative JavaScript safe integer"
+  }
+  require(revision % 1.0 == 0.0) {
+    "timelineRevision must be a nonnegative JavaScript safe integer"
+  }
+  return revision.toLong()
+}
 
 internal object MediaExportRequestParser {
   private val idPattern = Regex("[A-Za-z0-9._-]{1,80}")
@@ -129,7 +157,8 @@ internal object MediaExportRequestParser {
       MediaSourceSegment(nested.sourceUri, nested.cuts.single(), nested.captions, crop)
     }
     require(segments.size <= MediaExportTimeline.MAX_CUTS) { "Too many export segments" }
-    return MediaExportRequest(id, sourceUri, cuts, captions, segments)
+    val timelineRevision = parseTimelineRevision(raw["timelineRevision"])
+    return MediaExportRequest(id, sourceUri, cuts, captions, segments, timelineRevision)
   }
 
   fun parseJson(json: JSONObject): MediaExportRequest {
@@ -203,6 +232,7 @@ internal object MediaExportJobJson {
         }) }
       }) }
     })
+    job.request.timelineRevision?.let { put("timelineRevision", it) }
     put("status", job.status.name.lowercase(Locale.US))
     put("progress", job.progress.coerceIn(0, 100))
     putNullable("uri", job.uri)
@@ -239,7 +269,8 @@ internal object MediaExportJobJson {
           "segment crop at index $index",
         ))
     }
-    val request = MediaExportRequest(id, sourceUri, cuts, captions, segments)
+    val timelineRevision = parseTimelineRevision(value.opt("timelineRevision"))
+    val request = MediaExportRequest(id, sourceUri, cuts, captions, segments, timelineRevision)
     MediaExportTimeline.validateCuts(cuts)
     MediaExportTimeline.validateCaptions(captions)
     return MediaExportJob(
@@ -486,6 +517,7 @@ internal fun MediaExportJob.toJsMap(): Map<String, Any?> = buildMap {
   put("id", request.id)
   put("status", status.name.lowercase(Locale.US))
   put("progress", progress.coerceIn(0, 100))
+  request.timelineRevision?.let { put("timelineRevision", it) }
   uri?.let { put("uri", it) }
   error?.let { put("error", it) }
   galleryUri?.let { put("galleryUri", it) }

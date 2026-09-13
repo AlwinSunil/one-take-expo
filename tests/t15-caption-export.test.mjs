@@ -101,3 +101,15 @@ test('missing inventory, mismatched identity and out-of-source trim block both b
     assert.throws(() => buildTimelineExportPlan(project, sequence(), burn), /duration/);
   }
 });
+
+test('stable source IDs isolate captions even if two source records alias the same URI', () => {
+  const project = fixture();
+  project.recordings[1].mediaUri = source;
+  const selected = sequence(); selected.segments[0].uri = source;
+  const plan = buildTimelineExportPlan(project, selected, true);
+  assert.deepEqual(mapped(plan), [
+    { t0: 0, t1: 2, text: 'Pickup phrase' },
+    { t0: 2, t1: 3, text: 'Corrected whole phrase' },
+    { t0: 3, t1: 5, text: 'Corrected whole phrase' },
+  ]);
+});
