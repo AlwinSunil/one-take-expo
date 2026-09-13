@@ -167,7 +167,7 @@ No changes to native capture/build/manifest integration were needed.
 | Exact command | Actual result |
 | --- | --- |
 | `npm run typecheck` | Passed |
-| `npm test` | 441 passed, zero failed (424 baseline + 8 mapping + 9 component cases) |
+| `npm test` | 442 passed, zero failed (424 baseline + 9 mapping/framing + 9 component cases) |
 | `npm run samples` | Passed synthetic caption replay |
 | `npm run test:samples` | 19/19 passed |
 | `python3 tests/speech-evaluation.test.py` | 12 passed |
@@ -201,3 +201,8 @@ Native composition continues to use one audio/video sequence with only the capti
 
 Evidence sent to A in [#65 comment](https://github.com/AlwinSunil/one-take-expo/issues/65#issuecomment-5649980767) and integration instructions sent to B in [#67 comment](https://github.com/AlwinSunil/one-take-expo/issues/67#issuecomment-5649980828).
 No response, named reviewer approval or completed integration is inferred from those messages.
+
+Final source-ID review also scopes framing to the resolved recording when two records alias one URI.
+Both burn modes retain the same safe crop/fallback, covered by an additional framing fixture.
+The final Android JS export was rerun with `EXPO_NO_DOTENV=1 npx expo export --platform android --output-dir /tmp/t15-c-android-export-final`.
+CI passed on checkpoint `1548dbf`; final-head CI is tracked on PR #74.

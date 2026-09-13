@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { readFileSync } from 'node:fs';
 import { buildTimelineEditorCaptions, buildTimelineExportPlan, buildExportPlan, freezeExportPlan } from '../src/lib/export-plan.ts';
 import { mapExportCaptions } from '../modules/one-take-media/timeline.ts';
 
@@ -112,4 +113,21 @@ test('stable source IDs isolate captions even if two source records alias the sa
     { t0: 2, t1: 3, text: 'Corrected whole phrase' },
     { t0: 3, t1: 5, text: 'Corrected whole phrase' },
   ]);
+});
+
+test('framing remains source-ID scoped and identical in both caption modes', () => {
+  const row = JSON.parse(readFileSync(new URL('../tools/fixtures/t1-framing.json', import.meta.url))).cases[0].input;
+  const project = fixture();
+  project.recordings = [{ id: row.sourceMediaId, mediaUri: source, duration: 8 }, { id: 'alias', mediaUri: source, duration: 8 }];
+  project.framing = { enabled: true, suggestions: row.suggestions };
+  project.transcript = [];
+  const selected = { revision: 8, duration: 6, issues: [], segments: [
+    { clipId: 'first', sourceId: row.sourceMediaId, uri: source, takeId: 'take-1', t0: 2, t1: 5, outputT0: 0, outputT1: 3 },
+    { clipId: 'alias', sourceId: 'alias', uri: source, takeId: 'take-1', t0: 2, t1: 5, outputT0: 3, outputT1: 6 },
+  ] };
+  for (const burn of [true, false]) {
+    const plan = buildTimelineExportPlan(project, selected, burn, true);
+    assert.deepEqual(plan.segments[0].crop, row.expected.nativeCrop);
+    assert.equal(plan.segments[1].crop, undefined);
+  }
 });

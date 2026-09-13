@@ -225,8 +225,10 @@ export function buildTimelineExportPlan(
       cuts: undefined, transcript, mediaMissing: false }, segment.t0, segment.t1, false, burnIntoExport);
     timings.push(plan.captionTiming);
     offset = segment.outputT1;
-    return { uri: segment.uri, t0: segment.t0, t1: segment.t1, takeId: segment.takeId,
-      captions: plan.captions.filter(cue => cue.t0 < segment.t1 && cue.t1 > segment.t0) };
+    return applyProjectFraming({ ...project, recordings: [recording] }, [{
+      uri: segment.uri, t0: segment.t0, t1: segment.t1, takeId: segment.takeId,
+      captions: plan.captions.filter(cue => cue.t0 < segment.t1 && cue.t1 > segment.t0),
+    }], framingEnabled)[0];
   });
   if (!Number.isFinite(sequence.duration) || Math.abs(offset - sequence.duration) > 1e-6) {
     throw new ExportPlanError('invalid-cuts', 'The timeline duration is inconsistent.');
@@ -235,7 +237,7 @@ export function buildTimelineExportPlan(
   const hasSaved = timings.some(timing => timing === 'saved-audio' || timing === 'mixed');
   return freezeExportPlan({ timelineRevision: sequence.revision, burnIntoExport,
     sourceUri: segments[0].uri, cuts: [], captions: [],
-    segments: applyProjectFraming(project, segments, framingEnabled),
+    segments,
     captionTiming: hasEstimatedCaptions ? hasSaved ? 'mixed' : 'live-estimate' : hasSaved ? 'saved-audio' : 'none',
     hasEstimatedCaptions });
 }
