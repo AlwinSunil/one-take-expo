@@ -7,6 +7,7 @@ import { projectReview, projectScriptLines, projectSegments } from './project-wo
 
 import media from '../../modules/one-take-media';
 
+import { deserializeScriptDraftSnapshot, serializeScriptDraftSnapshot, type ScriptDraftSnapshot } from './t1-script-draft';
 import type { Project } from './session';
 import { PENDING_PICKUP_MESSAGE, projectWithDurableOriginal, mergePickupRecording, normalizeProject, preserveNewRecordings, type PickupRecordingInput } from './project-data';
 
@@ -134,6 +135,46 @@ export async function getAcceptedScript(): Promise<string> {
   const d = await getDb();
   const row = await d.getFirstAsync<{ value: string }>('SELECT value FROM kv WHERE key = ?', ACCEPTED_KEY);
   return row?.value ?? '';
+}
+
+/** Additive atomic draft API. Legacy string readers keep their exact keys. */
+export async function saveTier1ScriptDraft(snapshot: ScriptDraftSnapshot): Promise<void> {
+  const serialized = serializeScriptDraftSnapshot(snapshot);
+  const d = await getDb();
+  await d.withTransactionAsync(async () => {
+    for (const [key, value] of [[DRAFT_KEY, snapshot.text], ['script_draft_lines', snapshot.structure], ['t1_script_draft', serialized]]) {
+      await d.runAsync('INSERT OR REPLACE INTO kv (key, value) VALUES (?, ?)', key, value);
+    }
+  });
+}
+
+/** A present stale/malformed snapshot throws; callers must keep autosave disabled. */
+export async function getTier1ScriptDraft(expectedIdentity?: string) {
+  return readTier1ScriptSnapshot(DRAFT_KEY, 't1_script_draft', expectedIdentity);
+}
+
+export async function acceptTier1ScriptDraft(snapshot: ScriptDraftSnapshot): Promise<string> {
+  const serialized = serializeScriptDraftSnapshot(snapshot);
+  const d = await getDb();
+  await d.withTransactionAsync(async () => {
+    for (const [key, value] of [[ACCEPTED_KEY, snapshot.text], ['script_accepted_lines', snapshot.structure], ['t1_script_accepted', serialized]]) {
+      await d.runAsync('INSERT OR REPLACE INTO kv (key, value) VALUES (?, ?)', key, value);
+    }
+    await d.runAsync('DELETE FROM kv WHERE key IN (?, ?, ?)', DRAFT_KEY, 'script_draft_lines', 't1_script_draft');
+  });
+  return snapshot.text;
+}
+
+export async function getAcceptedTier1Script(expectedIdentity?: string) {
+  return readTier1ScriptSnapshot(ACCEPTED_KEY, 't1_script_accepted', expectedIdentity);
+}
+
+async function readTier1ScriptSnapshot(rawKey: string, snapshotKey: string, expectedIdentity?: string) {
+  const d = await getDb();
+  // One statement observes the paired values from the same committed snapshot.
+  const rows = await d.getAllAsync<{ key: string; value: string }>('SELECT key, value FROM kv WHERE key IN (?, ?)', rawKey, snapshotKey);
+  const snapshot = rows.find(row => row.key === snapshotKey)?.value;
+  return deserializeScriptDraftSnapshot(snapshot, { expectedIdentity, expectedText: rows.find(row => row.key === rawKey)?.value ?? '' });
 }
 
 export async function saveSetting(key: string, value: string): Promise<void> {

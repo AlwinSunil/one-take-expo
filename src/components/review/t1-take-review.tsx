@@ -22,6 +22,7 @@ export function Tier1TakeReview({ project, onChange, onPreview }: {
         <Text className="text-white">{reason.footage && canReviewFootage(project, reason.footage) ? 'Review supporting footage' : 'Supporting footage unavailable'}</Text>
       </Pressable>
     </View>)}
+    {!!evidence?.scratchHistory?.length && <View className="py-3"><Text className="text-white">Scratch history</Text>{evidence.scratchHistory.map(event => <Text key={event.id} className="text-neutral-400 py-1">{event.takeId} · {event.state} · {event.source ?? 'supplied command'}</Text>)}</View>}
     {review.lines.map(line => <View key={line.id} className="py-2">
       <Text className="text-white">{line.spokenText}</Text>
       {line.candidateTakeIds.map(id => {

@@ -40,6 +40,10 @@ export interface Clip {
 }
 
 export interface Project {
+  /** Raw versioned producer envelope. Never derive take identities during reopen. */
+  speechControl?: import('./t1-speech-provider').T1SpeechProviderEnvelope;
+  /** Exact accepted draft metadata; missing legacy snapshots remain supported. */
+  scriptSnapshot?: import('./t1-script-draft').ScriptDraftSnapshot;
   framing?: { enabled: boolean; suggestions: import('./t1-framing').FramingSuggestion[] };
   tier1Evidence?: import('./t1-contracts').Tier1Evidence;
   wrapAcknowledgement?: import('./t1-contracts').WrapAcknowledgement;

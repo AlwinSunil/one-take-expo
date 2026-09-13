@@ -22,7 +22,9 @@ export interface MustSayResult {
 export interface ScratchEvent {
   id: string;
   takeId: string;
-  commandSegmentId: string;
+  /** Manual scratch has no recognition command; never fabricate a segment ID. */
+  commandSegmentId: string | null;
+  source?: 'manual' | 'voice';
   state: 'proposed' | 'applied' | 'restored';
 }
 export interface CleanupDecision {

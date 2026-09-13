@@ -205,7 +205,7 @@ function validateEvidence(
   for (let index = 0; index < value.scratchHistory.length; index += 1) {
     const event = value.scratchHistory[index];
     if (!isRecord(event) || !isNonEmptyString(event.id) || !isNonEmptyString(event.takeId)
-      || !isNonEmptyString(event.commandSegmentId) || !SCRATCH_STATES.includes(event.state as typeof SCRATCH_STATES[number])) {
+      || !(isNonEmptyString(event.commandSegmentId) || (event.commandSegmentId === null && event.source === 'manual')) || !SCRATCH_STATES.includes(event.state as typeof SCRATCH_STATES[number])) {
       return { valid: false, error: `Tier 1 scratch event ${index + 1} is malformed.` };
     }
   }
@@ -253,7 +253,8 @@ function validateEvidence(
       scratchHistory: value.scratchHistory.map(event => ({
         id: event.id as string,
         takeId: event.takeId as string,
-        commandSegmentId: event.commandSegmentId as string,
+        commandSegmentId: event.commandSegmentId as string | null,
+        ...(event.source === 'manual' || event.source === 'voice' ? { source: event.source } : {}),
         state: event.state as typeof SCRATCH_STATES[number],
       })),
       cleanup: value.cleanup.map(decision => ({

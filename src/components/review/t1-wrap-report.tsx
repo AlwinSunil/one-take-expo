@@ -39,7 +39,8 @@ function statusText(status: string): string {
   }
 }
 
-function ActionRow({ action, onConfirm }: {
+function ActionRow({ action, onConfirm, disabled = false }: {
+  disabled?: boolean;
   action: WrapActionReport;
   onConfirm?: (actionId: string, confirmed: boolean) => void;
 }) {
@@ -53,16 +54,18 @@ function ActionRow({ action, onConfirm }: {
     {action.required && !action.confirmed && onConfirm && <Pressable
       accessibilityRole="button"
       accessibilityLabel={`Confirm required action ${action.text}`}
-      accessibilityState={{ disabled: false }}
-      onPress={() => onConfirm(action.id, true)}
+      accessibilityState={{ disabled }}
+      disabled={disabled}
+      onPress={() => { if (!disabled) onConfirm(action.id, true); }}
       className="self-start bg-neutral-800 rounded-lg px-3 py-3 mt-2 active:bg-neutral-700">
       <Text className="text-white text-xs">Confirm action done</Text>
     </Pressable>}
     {action.required && action.confirmed && onConfirm && <Pressable
       accessibilityRole="button"
       accessibilityLabel={`Undo confirmation for required action ${action.text}`}
-      accessibilityState={{ disabled: false }}
-      onPress={() => onConfirm(action.id, false)}
+      accessibilityState={{ disabled }}
+      disabled={disabled}
+      onPress={() => { if (!disabled) onConfirm(action.id, false); }}
       className="self-start px-3 py-3 mt-2 active:opacity-70">
       <Text className="text-neutral-300 text-xs">Undo confirmation</Text>
     </Pressable>}
@@ -203,10 +206,10 @@ export function T1WrapReport({
 
     <View className="mt-4">
       <Text className="text-neutral-300 text-xs font-semibold">Required actions · manual confirmation</Text>
-      {report.requiredActions.length ? report.requiredActions.map(action => <ActionRow key={action.id} action={action} onConfirm={onConfirmAction} />) : <Text className="text-neutral-500 text-xs mt-3">No required actions.</Text>}
+      {report.requiredActions.length ? report.requiredActions.map(action => <ActionRow key={action.id} action={action} onConfirm={onConfirmAction} disabled={disabled} />) : <Text className="text-neutral-500 text-xs mt-3">No required actions.</Text>}
       {!!report.optionalActions.length && <View className="mt-3">
         <Text className="text-neutral-400 text-xs">Optional actions</Text>
-        {report.optionalActions.map(action => <ActionRow key={action.id} action={action} onConfirm={onConfirmAction} />)}
+        {report.optionalActions.map(action => <ActionRow key={action.id} action={action} onConfirm={onConfirmAction} disabled={disabled} />)}
       </View>}
     </View>
 
@@ -220,7 +223,7 @@ export function T1WrapReport({
     {!report.qualifiedAllClear && !report.acknowledgementValid && !!report.evidenceRevision && !report.evidenceError && !!report.currentFlagIds.length && <Pressable
       accessibilityRole="button"
       accessibilityLabel="Wrap anyway"
-      accessibilityState={{ disabled: false }}
+      accessibilityState={{ disabled }}
       disabled={disabled}
       onPress={() => { void wrapAnyway(); }}
       className="self-start bg-neutral-800 rounded-lg px-4 py-3 mt-4 active:bg-neutral-700">

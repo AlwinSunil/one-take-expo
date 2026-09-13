@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { createTier1ReviewFixture } from '@/lib/t1-fixtures';
 import { normalizeProject } from '@/lib/project-data';
 import { getSetting, saveSetting } from '@/lib/store';
+import { integrateFramingFixture } from '@/lib/t1-framing-integrated';
 import { tier1Enabled } from '@/lib/t1-gates';
 import { T1NativeFramingFixture } from '@/components/review/t1-native-framing-fixture';
 import { T1FramingFixture } from '@/components/review/t1-framing-fixture';
@@ -16,6 +17,7 @@ import { Tier1TakeReview } from '@/components/review/t1-take-review';
 
 export default function Tier1ReviewFixtures() {
   const [storageMessage, setStorageMessage] = useState('');
+  const [producerStatus, setProducerStatus] = useState('');
   const [enabled, setEnabled] = useState(false);
   const [project, setProject] = useState(createTier1ReviewFixture);
   const [saved, setSaved] = useState(() => JSON.stringify(project));
@@ -25,6 +27,11 @@ export default function Tier1ReviewFixtures() {
     <Text className="text-amber-200 py-3">Invented provider results. No recorded media, human accuracy or hardware evidence. Only the dedicated test fixture is saved by the test controls.</Text>
     <Pressable accessibilityRole="button" className="py-3" onPress={() => setEnabled(v => !v)}><Text className="text-white">{enabled ? 'Disable Tier 1 test' : 'Enable Tier 1 test'}</Text></Pressable>
     {tier1Enabled('takeReview', __DEV__, enabled) && <View>
+      <Pressable accessibilityRole="button" className="py-3" onPress={() => {
+        const result = integrateFramingFixture('portrait-talking-head', { enabled: true });
+        setProducerStatus(`Merged producer fixture validates: ${result.producerValidation.valid}. Consumer: ${result.consumer.suggestion?.mode ?? 'unavailable'}. Missing proof: ${result.remainingFieldGaps.map(gap => gap.field).join(', ')}. This is deterministic geometry, not device vision.`);
+      }}><Text className="text-white">Replay merged framing producer</Text></Pressable>
+      {!!producerStatus && <Text className="text-amber-200">{producerStatus}</Text>}
       <T1NativeFramingFixture />
       <Pressable accessibilityRole="button" className="py-3" onPress={() => setProject(normalizeProject(JSON.parse(saved)))}><Text className="text-white">Reopen serialized fixture</Text></Pressable>
       {Platform.OS !== 'web' && <Pressable accessibilityRole="button" className="py-3" onPress={async () => {
