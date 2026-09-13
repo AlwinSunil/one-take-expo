@@ -86,7 +86,10 @@ Durable metadata remains explicitly pending because the owner-authored #65 API d
 The camera's temporary handoff must not be described as persisted gaze or complete Stop-to-analysis V1.
 
 `EXPO_NO_DOTENV=1 npx expo export --platform android --output-dir /tmp/t15-capture-final-export`: passed after integration; generated a 6.7 MB Hermes bundle.
-Final dependency refresh still found main at `15d80d6`, PR #58 open, and the Session 1/3 proposal references unchanged.
+That dependency refresh found main at `15d80d6` and PR #58 open.
+A later refresh found Session 1 implementation at `5947706` (PR #70), including the follower and toggle APIs; Session 3 remains at `ccce524` (PR #72).
+Both remain unmerged; see the handoff latest producer refresh for exact APIs.
+CI for `7bbbcc7` passed: https://github.com/AlwinSunil/one-take-expo/actions/runs/34729254239.
 No merged dependency was available to incorporate or recheck.
 
 GitHub checks for implementation `8709a7f` passed in runs `34728799750` and `34728801852`.

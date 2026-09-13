@@ -63,7 +63,7 @@ Session 1 proposal inspected at `f097b0f`, `feat/t15-speech-analysis`, PR #70.
 Session 3 proposal inspected at `ccce524`, `t3code/feat/t15-timeline`, PR #72.
 Session 3 confirms legacy primary `sourceId = project.id` and pickup `sourceId = recordings[].id`.
 Its durable observation/checkpoint APIs remain design-only pending #58; no API exists to call yet.
-Session 1's voice-follow hook/component is not published yet; its initial DTOs alone do not implement following.
+At the initial inspection, Session 1 had published DTOs only; the producer refresh below supersedes this status.
 Revision encoding differs between proposals (Session 1 string script/edit revisions, Session 3 integer revision vector), so owners must specify conversion rather than capture inventing it.
 Session 2 can provide capture/source/binding identity and source-relative timing independently.
 The baseline web camera route was reproduced on port 8096 and fails before rendering at SQLite `.wasm` resolution.
@@ -110,7 +110,7 @@ Session 3: add the #65 durable observation sink and source metadata checkpoint, 
 Wire the callback at `createGazeCollector` and persist `buildCaptureStopHandoff` with the original before enqueueing final analysis.
 Do not serialize only the 120-observation diagnostic ring as complete collection history.
 Session 3: supply the final-analysis route/job API in the existing editor; camera continues routing directly to `/editor` after durable save, without rendering/export.
-Session 1: publish and merge the follower hook/component and manual-reanchor API; camera must feed accepted caption revisions and all manual/remote movements through it.
+Session 1: merge the published follower/component and confirm caption revision adaptation; camera must feed accepted caption revisions and all manual/remote movements through it after merge.
 Session 1/3: supply stable important-point/revision pickup fields through the existing pickup request schema; current camera preserves existing requested line/source IDs.
 No unmerged producer or shared-schema implementation is copied here.
 
@@ -129,3 +129,15 @@ See `t15-session-2-verification.md` for the issue acceptance matrix and exact co
 Final reviewed source reference: `3bd5a01`.
 `retry(freshEvidence?)` never reuses old scene evidence; camera Retry calls its current-snapshot request handler.
 Native cleanup also covers rejected partial starts, and the root's cache-URI checkpoint is retained before durable copy for low-space recovery.
+
+## Latest producer refresh
+
+Session 1 implementation inspected read-only at `5947706053dde425bb30d2a20f47a23e7f657a4a` on `feat/t15-speech-analysis`, open PR #70.
+`VoiceFollowToggle` accepts `enabled`, `onEnabledChange`, optional `status`, `disabled`, and `featureEnabled` (default false).
+`createAlignmentFollower(options)` exposes `state`/`getState`, `consume`, `manualNext(at?)`, `manualPrevious(at?)`, `reanchor(lineId, at?)`, `setEnabled`, `setPickupLineIds`, and `reset`.
+Its state carries `currentLineId` and `nextLineId`; camera can resolve those IDs to existing script text after integration.
+Manual timestamps and incoming speech must share the producer's source-relative seconds contract, with unknown clocks left explicit.
+These are published APIs, not code integrated into this branch; no unmerged implementation was copied.
+Session 3 remains at `ccce52479e741b3853d7a8bdf4253ebb4e4691b5`, open PR #72.
+Its durable metadata/job methods remain proposals, so the in-memory gaze/Stop limitation above remains open.
+Session 2 CI passed at `7bbbcc7`: https://github.com/AlwinSunil/one-take-expo/actions/runs/34729254239.
