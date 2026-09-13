@@ -68,6 +68,8 @@ Its exact shape is:
 
 B resolves inclusion, ordering, bounds, availability and output offsets once.
 C rejects nonempty `issues`, empty segments, inconsistent offsets/duration, source identity mismatch and unavailable inventory.
+B must pass the project with the existing refreshed `availableMediaUris` inventory; absent inventory fails closed for this new path.
+An unavailable primary recording does not block an independently inventoried pickup selection.
 C neither reorders nor restores clips and does not require `cutsReviewed` for this explicit selected sequence.
 B's Save/accept operation remains responsible for persisting a displayed proposal as one creator decision.
 The adapter ignores legacy `cuts` and `reviewSegments` when consuming this sequence.
@@ -167,7 +169,7 @@ No changes to native capture/build/manifest integration were needed.
 | Exact command | Actual result |
 | --- | --- |
 | `npm run typecheck` | Passed |
-| `npm test` | 442 passed, zero failed (424 baseline + 9 mapping/framing + 9 component cases) |
+| `npm test` | 443 passed, zero failed (424 baseline + 10 mapping/framing/availability + 9 component cases) |
 | `npm run samples` | Passed synthetic caption replay |
 | `npm run test:samples` | 19/19 passed |
 | `python3 tests/speech-evaluation.test.py` | 12 passed |
@@ -206,3 +208,7 @@ Final source-ID review also scopes framing to the resolved recording when two re
 Both burn modes retain the same safe crop/fallback, covered by an additional framing fixture.
 The final Android JS export was rerun with `EXPO_NO_DOTENV=1 npx expo export --platform android --output-dir /tmp/t15-c-android-export-final`.
 CI passed on checkpoint `1548dbf`; final-head CI is tracked on PR #74.
+
+A separate code review identified the source-availability override when inventory was absent.
+The final adapter requires explicit inventoried availability, with missing/stale and independently available pickup regression coverage.
+This review is not named human or cross-family acceptance.

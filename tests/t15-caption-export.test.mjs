@@ -131,3 +131,13 @@ test('framing remains source-ID scoped and identical in both caption modes', () 
     assert.equal(plan.segments[1].crop, undefined);
   }
 });
+
+test('missing or stale source availability cannot bypass export validation', () => {
+  for (const burn of [true, false]) {
+    assert.throws(() => buildTimelineExportPlan({ ...fixture(), mediaMissing: true, availableMediaUris: undefined }, sequence(), burn), /unavailable/);
+    assert.throws(() => buildTimelineExportPlan({ ...fixture(), availableMediaUris: undefined }, sequence(), burn), /unavailable/);
+    // Primary-source absence does not prevent an independently inventoried pickup export.
+    const selected = sequence(); selected.segments = selected.segments.slice(0, 1); selected.duration = 2;
+    assert.equal(buildTimelineExportPlan({ ...fixture(), mediaMissing: true, availableMediaUris: [pickup] }, selected, burn).segments.length, 1);
+  }
+});

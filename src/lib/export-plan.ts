@@ -205,7 +205,8 @@ export function buildTimelineExportPlan(
   const timings: CaptionTiming[] = [];
   const segments = sequence.segments.map(segment => {
     const recording = project.recordings?.find(source => source.id === segment.sourceId);
-    if (!recording || recording.mediaUri !== segment.uri) {
+    if (!recording || recording.mediaUri !== segment.uri
+      || !project.availableMediaUris?.includes(segment.uri)) {
       throw new ExportPlanError('missing-source', 'The timeline source is unavailable.');
     }
     if (!Number.isFinite(segment.outputT0) || !Number.isFinite(segment.outputT1)
