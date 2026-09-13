@@ -1,6 +1,9 @@
 # Tier 1.5 Session 3 proposed shared foundation
 
-Status: design only, awaiting #58 ownership availability.
+Status: historical design proposal, superseded by the merged implementation handoffs.
+PRs #58, #70, #71, #74, #75 and #76 are now merged.
+Use `t15-durability.md`, `t15-timeline.md` and `t15-captions-export.md` for implemented interfaces.
+The ownership and dependency snapshots below describe the original proposal date, not current blockers.
 Base: merged main `15d80d62c91a28457a360fe5e0389f1d37e8ea6e`.
 Publication branch: `t3code/feat/t15-timeline`.
 This document proposes transport and persistence interfaces; Sessions 1 and 2 have not agreed to them.
