@@ -62,13 +62,13 @@ export function PrompterLines({ current, next, onCueDone, showStatus = true }: {
     </Text>
     {(truncated || expanded) && <Pressable accessibilityRole="button" accessibilityState={{ expanded }}
       accessibilityLabel={expanded ? 'Show less of this line' : 'Show the rest of this line'}
-      onPress={() => setExpanded(value => !value)} className="active:opacity-65 justify-center" style={{ minHeight: 44 }}>
+      onPress={() => setExpanded(value => !value)} className="active:opacity-65 justify-center" style={{ minHeight: 48 }}>
       <Text className="text-white text-sm underline">{expanded ? 'Less' : 'More'}</Text>
     </Pressable>}
 
     {current.actionCues.map(cue => <CueRow key={cue.id} cue={cue} lineNumber={current.number} onDone={onCueDone} fontSize={nextSize} />)}
 
-    {next && <View className="mt-3 border-t border-neutral-700 pt-2">
+    {next && <View className="mt-3 border-t border-neutral-800 pt-2">
       <Text className="text-neutral-400 text-xs">Next · line {next.number}</Text>
       <Text accessibilityLabel={`Next, line ${next.number}. ${next.spokenText}`}
         numberOfLines={lineClamp({ fontScale, compact: true })} className="text-neutral-200 mt-0.5"
@@ -92,7 +92,7 @@ function CueRow({ cue, lineNumber, onDone, fontSize }: {
     {cue.required && (cue.resolved
       ? <Text className="text-emerald-200 text-xs ml-2">● Done</Text>
       : <Pressable accessibilityRole="button" accessibilityLabel={`Mark done: ${cue.text}`} onPress={() => onDone(cue.id)}
-        className="ml-2 rounded-lg bg-white px-3 justify-center active:opacity-80" style={{ minHeight: 44 }}>
+        className="ml-2 rounded-lg bg-white px-3 justify-center active:opacity-80" style={{ minHeight: 48 }}>
         <Text className="text-black text-xs font-semibold">Done</Text>
       </Pressable>)}
   </View>;

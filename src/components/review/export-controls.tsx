@@ -294,43 +294,43 @@ export function ExportControls({ project, start, end, onMessage, framingEnabled 
             : status === 'cancelled' ? 'Export cancelled'
               : 'Create a captioned copy';
 
-  return <View className="border-t border-neutral-800 mt-3 pt-3">
-    <View className="flex-row items-center justify-between">
-      <View className="flex-1 pr-3">
-        <Text className="text-white font-semibold">Export</Text>
-        <Text className="text-neutral-400 text-xs mt-1" numberOfLines={2}>{statusText}</Text>
-      </View>
-      {active && <ActivityIndicator color="#fbbf24" />}
+  return <View className="border-t border-neutral-800 mt-4 pt-1">
+    <View className="py-3 flex-row items-baseline gap-2">
+      <Text accessibilityRole="header" className="text-white text-base font-semibold flex-1">Export</Text>
+      {active ? <ActivityIndicator color="#fbbf24" /> : <Text className="text-neutral-400 text-xs">{statusText}</Text>}
     </View>
-    <Text className="text-neutral-500 text-xs mt-2">
-      {selection.label} · {formatSeconds(selection.duration)} output · original video is preserved
+    {active && <Text className="text-neutral-300 text-xs mb-2">{statusText}</Text>}
+    <Text className="text-neutral-400 text-xs mb-1">
+      {selection.label} · {formatSeconds(selection.duration)} output · original preserved
     </Text>
-    <Text className="text-neutral-500 text-xs mt-2">Android · 720 × 1280 SDR MP4; source fits inside the frame. White captions on a dark background.</Text>
+    <Text className="text-neutral-500 text-xs mb-3">Portrait MP4 · 720×1280 SDR · white captions on dark.</Text>
     {project.refinement?.status === 'running' && !active && <Text className="text-amber-200 text-xs mt-2">Saved-audio caption recheck is running. Export can wait or use current captions.</Text>}
-    <View className="flex-row flex-wrap gap-2 mt-3">
+    <View className="mt-3">
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={canRetry ? 'Retry video export' : 'Export video'}
         disabled={loading || busy || active || (!project.videoUri && !project.reviewSegments?.length) || cutsNeedReview}
         onPress={requestExport}
-        className="bg-white rounded-lg px-4 py-3 disabled:opacity-40"
+        className="items-center rounded-xl bg-white py-3.5 active:opacity-80 disabled:opacity-40"
       >
-        <Text className="text-black text-xs font-bold">{canRetry ? 'Retry export' : 'Export video'}</Text>
+        <Text className="text-black text-sm font-semibold">{canRetry ? 'Retry export' : 'Export video'}</Text>
       </Pressable>
-      {active && <Pressable accessibilityRole="button" accessibilityLabel="Cancel video export" disabled={busy} onPress={() => { void cancel(); }} className="bg-neutral-800 rounded-lg px-4 py-3 disabled:opacity-40">
-        <Text className="text-white text-xs">Cancel</Text>
+      <View className="gap-2 mt-2">
+      {active && <Pressable accessibilityRole="button" accessibilityLabel="Cancel video export" disabled={busy} onPress={() => { void cancel(); }} className="items-center rounded-xl bg-neutral-800 py-3.5 active:opacity-70 disabled:opacity-40">
+        <Text className="text-white text-sm font-semibold">Cancel export</Text>
       </Pressable>}
-      {status === 'completed' && <>
-        <Pressable accessibilityRole="button" accessibilityLabel="Open exported video" disabled={busy} onPress={() => { void share(true); }} className="bg-neutral-800 rounded-lg px-4 py-3 disabled:opacity-40">
-          <Text className="text-white text-xs">Open video</Text>
+      {status === 'completed' && <View className="flex-row gap-2">
+        <Pressable accessibilityRole="button" accessibilityLabel="Open exported video" disabled={busy} onPress={() => { void share(true); }} className="flex-1 items-center rounded-xl bg-neutral-800 py-3 active:opacity-70 disabled:opacity-40">
+          <Text className="text-white text-xs font-semibold">Open</Text>
         </Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel="Save exported video to gallery" disabled={busy} onPress={() => { void saveToGallery(); }} className="bg-neutral-800 rounded-lg px-4 py-3 disabled:opacity-40">
-          <Text className="text-white text-xs">Save to gallery</Text>
+        <Pressable accessibilityRole="button" accessibilityLabel="Save exported video to gallery" disabled={busy} onPress={() => { void saveToGallery(); }} className="flex-1 items-center rounded-xl bg-neutral-800 py-3 active:opacity-70 disabled:opacity-40">
+          <Text className="text-white text-xs font-semibold">Save</Text>
         </Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel="Share exported video" disabled={busy} onPress={() => { void share(); }} className="bg-neutral-800 rounded-lg px-4 py-3 disabled:opacity-40">
-          <Text className="text-white text-xs">Share</Text>
+        <Pressable accessibilityRole="button" accessibilityLabel="Share exported video" disabled={busy} onPress={() => { void share(); }} className="flex-1 items-center rounded-xl bg-neutral-800 py-3 active:opacity-70 disabled:opacity-40">
+          <Text className="text-white text-xs font-semibold">Share</Text>
         </Pressable>
-      </>}
+      </View>}
+      </View>
     </View>
     {!!job?.error && (status === 'failed' || status === 'interrupted') && <Text accessibilityRole="alert" className="text-red-300 text-xs mt-2">{job.error}</Text>}
     {!!message && <Text accessibilityRole="alert" className="text-neutral-200 text-xs mt-2">{message}</Text>}

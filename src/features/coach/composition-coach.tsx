@@ -56,8 +56,8 @@ function IntentPicker({ intent, onChange }: { intent: CoachIntent | null; onChan
   return (
     <View style={styles.intentPicker} accessibilityLabel="Shot intent">
       <Text style={styles.intentLabel}>SHOT INTENT</Text>
-      <View style={styles.intentOptions}>
-        {intents.map(option => {
+      <View>
+        {intents.map((option, index) => {
           const selected = intent === option.value;
           return (
             <Pressable
@@ -66,10 +66,11 @@ function IntentPicker({ intent, onChange }: { intent: CoachIntent | null; onChan
               accessibilityLabel={option.label}
               accessibilityState={{ selected }}
               onPress={() => onChange(option.value)}
-              style={[styles.intentOption, selected && styles.intentOptionSelected]}>
+              style={[styles.intentOption, index === intents.length - 1 && styles.intentOptionLast]}>
               <Text style={[styles.intentOptionText, selected && styles.intentOptionTextSelected]}>
                 {option.label}
               </Text>
+              {selected && <Text style={styles.intentCheck}>✓</Text>}
             </Pressable>
           );
         })}
@@ -83,12 +84,10 @@ function DecisionCard({ decision, onDismiss }: { decision: CoachDecision; onDism
 
   if (decision.kind === 'prompt') {
     return (
-      <View style={styles.card} accessibilityLiveRegion="polite">
-        <View style={styles.copy}>
-          <Text style={styles.eyebrow}>SUGGESTION · {decision.title.toUpperCase()}</Text>
-          <Text style={styles.message} numberOfLines={2}>{decision.message}</Text>
-          <Text style={styles.reason} numberOfLines={2}>{decision.reason}</Text>
-        </View>
+      <View style={styles.section} accessibilityLiveRegion="polite">
+        <Text style={styles.eyebrow}>SUGGESTION · {decision.title.toUpperCase()}</Text>
+        <Text style={styles.message} numberOfLines={3}>{decision.message}</Text>
+        <Text style={styles.reason} numberOfLines={3}>{decision.reason}</Text>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Dismiss suggestion"
@@ -103,26 +102,26 @@ function DecisionCard({ decision, onDismiss }: { decision: CoachDecision; onDism
 
   if (decision.kind === 'all-good') {
     return (
-      <View style={[styles.card, styles.statusCard]} accessibilityLiveRegion="polite">
+      <View style={styles.section} accessibilityLiveRegion="polite">
         <Text style={styles.statusLabel}>READY</Text>
-        <Text style={styles.statusMessage} numberOfLines={2}>{decision.message}</Text>
+        <Text style={styles.statusMessage} numberOfLines={3}>{decision.message}</Text>
       </View>
     );
   }
 
   if (decision.kind === 'intentional') {
     return (
-      <View style={[styles.card, styles.statusCard]} accessibilityLiveRegion="polite">
+      <View style={styles.section} accessibilityLiveRegion="polite">
         <Text style={styles.statusLabel}>SUGGESTIONS OFF</Text>
-        <Text style={styles.statusMessage} numberOfLines={2}>{decision.message}</Text>
+        <Text style={styles.statusMessage} numberOfLines={3}>{decision.message}</Text>
       </View>
     );
   }
 
   return (
-    <View style={[styles.card, styles.statusCard]} accessibilityLiveRegion="polite">
+    <View style={styles.section} accessibilityLiveRegion="polite">
       <Text style={styles.statusLabel}>SUGGESTIONS</Text>
-      <Text style={styles.statusMessage} numberOfLines={2}>{decision.message}</Text>
+      <Text style={styles.statusMessage} numberOfLines={3}>{decision.message}</Text>
     </View>
   );
 }
@@ -228,30 +227,18 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 520,
     alignSelf: 'center',
-    gap: 8,
   },
-  card: {
-    minHeight: 64,
+  section: {
     width: '100%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#ffffff26',
-    backgroundColor: '#111827ee',
-  },
-  copy: {
-    flex: 1,
-    minWidth: 0,
-    gap: 2,
+    paddingVertical: 16,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#262626',
+    gap: 4,
   },
   eyebrow: {
     color: '#fcd34d',
-    fontSize: 10,
-    lineHeight: 14,
+    fontSize: 11,
+    lineHeight: 15,
     fontWeight: '700',
     letterSpacing: 1,
   },
@@ -269,12 +256,10 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   dismissButton: {
-    minHeight: 44,
-    minWidth: 64,
+    alignSelf: 'flex-start',
+    minHeight: 48,
     justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    borderRadius: 8,
+    paddingVertical: 12,
   },
   dismissText: {
     color: '#fcd34d',
@@ -282,63 +267,53 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     fontWeight: '700',
   },
-  statusCard: {
-    alignItems: 'flex-start',
-  },
-  statusLabel: {
-    color: '#fcd34d',
-    fontSize: 10,
-    lineHeight: 14,
-    fontWeight: '700',
-    letterSpacing: 1,
-  },
   statusMessage: {
-    flex: 1,
     color: '#e5e7eb',
     fontSize: 13,
     lineHeight: 18,
   },
-  intentPicker: {
-    width: '100%',
-    padding: 10,
-    borderRadius: 12,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#ffffff1f',
-    backgroundColor: '#00000080',
-  },
-  intentLabel: {
-    color: '#94a3b8',
-    fontSize: 10,
-    lineHeight: 14,
+  statusLabel: {
+    color: '#fcd34d',
+    fontSize: 11,
+    lineHeight: 15,
     fontWeight: '700',
     letterSpacing: 1,
   },
-  intentOptions: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginTop: 6,
+  intentPicker: {
+    width: '100%',
+    paddingTop: 16,
+  },
+  intentLabel: {
+    color: '#737373',
+    fontSize: 11,
+    lineHeight: 15,
+    fontWeight: '700',
+    letterSpacing: 1,
   },
   intentOption: {
-    minHeight: 44,
-    justifyContent: 'center',
-    paddingHorizontal: 10,
-    borderRadius: 8,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#ffffff30',
-    backgroundColor: '#111827cc',
+    minHeight: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#262626',
   },
-  intentOptionSelected: {
-    borderColor: '#fcd34d',
-    backgroundColor: '#fcd34d1f',
+  intentOptionLast: {
+    borderBottomWidth: 0,
   },
   intentOptionText: {
-    color: '#cbd5e1',
-    fontSize: 12,
-    lineHeight: 18,
-    fontWeight: '600',
+    color: '#a3a3a3',
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '500',
   },
   intentOptionTextSelected: {
-    color: '#fef3c7',
+    color: '#ffffff',
+    fontWeight: '600',
+  },
+  intentCheck: {
+    color: '#fcd34d',
+    fontSize: 14,
+    fontWeight: '700',
   },
 });

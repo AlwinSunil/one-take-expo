@@ -6,6 +6,8 @@ Review/wrap fixture implementation: `4b6de61`, `d78ee3c`.
 Merged Tier 0 integration: `3c36d41`, incorporating merged main `11f4455`.
 Native crops, multi-source wrap and provider adapter: `414d748`.
 Merged producer main `15d80d6` (#59/#60) incorporated at `3536a88`.
+Merged UI consistency PR #73 at `faeda74` supplies the authoritative layout and styling.
+Session 3 preserves that UI and adds gated functionality without changing producer semantics.
 The producer/persistence integration commit is `552fd00` (`Connect merged producer contracts and preserve concurrent review edits`).
 These commits are pushed; no unmerged producer work was merged, rewritten or cherry-picked.
 These seams remain proposals about transport, not agreement about recognition or vision verdicts.
