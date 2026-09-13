@@ -26,7 +26,7 @@ export default function Home() {
     <SafeAreaView className="flex-1 bg-black">
       <View className="flex-1 px-6 pt-10 pb-8 w-full max-w-[480px] self-center">
         <View className="flex-1 justify-center">
-          <Text className="text-neutral-500 text-[11px] tracking-[1px] text-center">ONE TAKE</Text>
+          <Text className="text-neutral-500 text-[11px] tracking-widest font-semibold text-center">ONE TAKE</Text>
           <Text className="text-white text-[40px] leading-[44px] font-bold text-center mt-3">
             Shoot it once.
           </Text>

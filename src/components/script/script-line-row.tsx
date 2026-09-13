@@ -29,9 +29,9 @@ export function ScriptLineRow({
   onDelete,
 }: ScriptLineRowProps) {
   return (
-    <View className="border-t border-neutral-800 py-3">
+    <View className="border-t border-neutral-800 py-4">
       <View className="flex-row items-start">
-        <Text className="text-neutral-600 text-[11px] w-6 pt-0.5">{position}</Text>
+        <Text className="text-neutral-500 text-[11px] w-6 leading-5">{position}</Text>
         <View className="flex-1">
           {line.kind === 'action-only' ? (
             <Text className="text-neutral-500 text-xs italic">Action only · nothing to say here</Text>
@@ -39,7 +39,7 @@ export function ScriptLineRow({
             <Text className="text-white text-sm leading-5">{line.spokenText}</Text>
           )}
           {line.kind === 'spoken' && (
-            <Text className="text-neutral-600 text-[11px] mt-0.5">
+            <Text className="text-neutral-500 text-[11px] mt-1">
               {line.wordCount} {line.wordCount === 1 ? 'spoken word' : 'spoken words'}
             </Text>
           )}
@@ -50,14 +50,14 @@ export function ScriptLineRow({
               accessibilityRole="button"
               accessibilityLabel={`Move line ${position} up`}
               onPress={() => onMove(line.id, -1)}
-              className="px-2 py-1 active:opacity-70">
+              className="min-h-12 justify-center px-3 active:opacity-70">
               <Text className="text-neutral-400 text-xs">Up</Text>
             </Pressable>
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={`Move line ${position} down`}
               onPress={() => onMove(line.id, 1)}
-              className="px-2 py-1 active:opacity-70">
+              className="min-h-12 justify-center px-3 active:opacity-70">
               <Text className="text-neutral-400 text-xs">Down</Text>
             </Pressable>
           </>
@@ -67,7 +67,7 @@ export function ScriptLineRow({
             accessibilityRole="button"
             accessibilityLabel={`Delete line ${position}`}
             onPress={() => onDelete(line.id)}
-            className="px-2 py-1 active:opacity-70">
+            className="min-h-12 justify-center px-3 active:opacity-70">
             <Text className="text-neutral-400 text-xs">Delete</Text>
           </Pressable>
         )}
@@ -83,23 +83,23 @@ export function ScriptLineRow({
       ))}
 
       {line.ambiguousCues.map((cue) => (
-        <View key={cue.id} className="bg-neutral-900 border-l-2 border-neutral-600 px-3 py-2 mt-1">
+        <View key={cue.id} className="bg-neutral-900 border-l-2 border-neutral-500 px-3 py-2.5 mt-2">
           <Text className="text-neutral-300 text-xs">
             “{cue.raw}” has no closing bracket, so it is still counted as spoken.
           </Text>
-          <View className="flex-row flex-wrap items-center mt-1">
+          <View className="flex-row flex-wrap items-center mt-2">
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={`Make an action cue from ${cue.text}`}
               onPress={() => onCorrectAmbiguousCue?.(cue.id, 'action')}
-              className="pr-4 py-1 active:opacity-70">
+              className="pr-4 py-2 active:opacity-70">
               <Text className="text-amber-200 text-[11px]">This is an action</Text>
             </Pressable>
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={`Keep ${cue.text} as spoken text`}
               onPress={() => onCorrectAmbiguousCue?.(cue.id, 'spoken')}
-              className="pr-4 py-1 active:opacity-70">
+              className="pr-4 py-2 active:opacity-70">
               <Text className="text-white text-[11px]">This is actually spoken</Text>
             </Pressable>
           </View>

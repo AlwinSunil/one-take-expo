@@ -21,7 +21,7 @@ export function CaptureControls({
       accessibilityState={{ disabled: !active }}
       disabled={!active}
       onPress={() => onCommand('advance')}
-      className="min-h-12 rounded-lg border border-neutral-700 bg-neutral-900 px-4 py-3 active:opacity-70 disabled:opacity-35">
+      className="min-h-12 rounded-xl border border-neutral-800 bg-neutral-900 px-4 py-3 active:opacity-70 disabled:opacity-40">
       <Text className="text-neutral-100 text-xs font-semibold">Advance</Text>
     </Pressable>
     <Pressable
@@ -30,7 +30,7 @@ export function CaptureControls({
       accessibilityState={{ disabled: !active }}
       disabled={!active}
       onPress={() => onCommand('scratch')}
-      className="min-h-12 rounded-lg border border-amber-700 bg-amber-950/60 px-4 py-3 active:opacity-70 disabled:opacity-35">
+      className="min-h-12 rounded-xl border border-amber-700 bg-amber-950/60 px-4 py-3 active:opacity-70 disabled:opacity-40">
       <Text className="text-amber-100 text-xs font-semibold">Scratch take</Text>
     </Pressable>
   </View>;
