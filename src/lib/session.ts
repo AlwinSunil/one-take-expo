@@ -42,6 +42,7 @@ export interface Clip {
 export interface Project {
   /** Raw versioned producer envelope. Never derive take identities during reopen. */
   speechControl?: import('./t1-speech-provider').T1SpeechProviderEnvelope;
+  cleanupReview?: import('./t1-cleanup-review').T1CleanupReviewState;
   /** Exact accepted draft metadata; missing legacy snapshots remain supported. */
   scriptSnapshot?: import('./t1-script-draft').ScriptDraftSnapshot;
   framing?: { enabled: boolean; suggestions: import('./t1-framing').FramingSuggestion[] };

@@ -20,6 +20,7 @@ import { ExportControls } from '@/components/review/export-controls';
 import media, { NativeCutPreview } from '../../modules/one-take-media';
 import { TranscriptReview } from '@/components/review/transcript-review';
 import { T1WrapReport } from '@/components/review/t1-wrap-report';
+import { T1CleanupReview } from '@/components/review/t1-cleanup-review';
 import { T1CaptionEditor } from '@/components/review/t1-caption-editor';
 import { Tier1TakeReview } from '@/components/review/t1-take-review';
 import { projectScriptLines } from '@/lib/project-workflow';
@@ -310,6 +311,11 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
         }}><Text className="text-white">{project.framing?.enabled ? 'Off / reset original frame' : 'Apply suggested framing'}</Text></Pressable>
       </View>}
       {!!speechReview?.error && <Text className="text-amber-200 py-3">Speech evidence unavailable: {speechReview.error}. Original media and saved metadata remain preserved.</Text>}
+      {project && reviewProject && <T1CleanupReview project={reviewProject} onChange={changeProject} enabled={tier1Enabled('takeReview', __DEV__, tier1Test) && !speechReview?.error} disabled={pendingWrites > 0} onPreviewFootage={range => {
+        const source = resolveReviewFootage(reviewProject, range);
+        if (!source || !NativeCutPreview) { setMessage('Cleanup footage is unavailable in this build.'); return; }
+        player.pause(); setPreviewOriginal(false); setPreviewTrim(false); setTakePreview([{ uri: source.uri, t0: range.t0, t1: range.t1 }]); setNativeSeek(0); setNativePlaying(true);
+      }} />}
       {project && reviewProject && <T1CaptionEditor project={reviewProject} onChange={changeProject} enabled={tier1Enabled('takeReview', __DEV__, tier1Test)} disabled={pendingWrites > 0} />}
       {project && reviewProject && <T1WrapReport project={reviewProject} onChange={changeProject} enabled={tier1Enabled('wrapReport', __DEV__, tier1Test)} disabled={pendingWrites > 0} onPickup={lineId => {
         const current = latestProject.current;
@@ -408,6 +414,7 @@ function MissingMediaReview({ project, onChange }: { project: Project; onChange:
     </View>}
     {__DEV__ && <Pressable accessibilityRole="button" className="py-3" onPress={() => setEnabled(v => !v)}><Text className="text-amber-200">{enabled ? 'Disable Tier 1 development test' : 'Enable Tier 1 development test'}</Text></Pressable>}
     {!!speechReview.error && <Text className="text-amber-200 py-3">Speech evidence unavailable: {speechReview.error}</Text>}
+    <T1CleanupReview project={current} onChange={change} enabled={tier1Enabled('takeReview', __DEV__, enabled) && !speechReview.error} disabled={busy} onPreviewFootage={reviewFootage} />
     <T1CaptionEditor project={current} onChange={change} enabled={tier1Enabled('takeReview', __DEV__, enabled)} disabled={busy} />
     <T1WrapReport project={current} onChange={change} disabled={busy} enabled={tier1Enabled('wrapReport', __DEV__, enabled)} onReviewFootage={reviewFootage} onPickup={lineId => { void pickup(lineId); }} />
     {tier1Enabled('takeReview', __DEV__, enabled) && <Tier1TakeReview project={current} onChange={change} onPreview={reviewFootage} />}
