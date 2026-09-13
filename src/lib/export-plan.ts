@@ -1,12 +1,13 @@
 import { validateExportCaptions, validateExportCuts } from '../../modules/one-take-media/timeline.ts';
 
+import { applyProjectFraming } from './t1-framing-selection.ts';
 import { transcriptForSource } from './review-source.ts';
 import { partitionCaptionTimeline } from './caption-timeline.ts';
 import type { Project, TranscriptSeg } from './session';
 
 export type ExportCut = { t0: number; t1: number };
 export type ExportCaption = ExportCut & { text: string };
-export type ExportSegment = ExportCut & { uri: string; captions?: ExportCaption[]; takeId?: string };
+export type ExportSegment = ExportCut & { uri: string; captions?: ExportCaption[]; takeId?: string; crop?: import('./t1-framing').NativeFramingCrop };
 export type CaptionTiming = 'none' | 'saved-audio' | 'live-estimate' | 'mixed';
 
 export type ExportPlanErrorCode =
@@ -43,7 +44,7 @@ export interface ExportPlan {
  * Explicit project cuts take precedence over the current trim.  Otherwise the
  * editor's selected trim becomes one source-relative cut.
  */
-export function buildExportPlan(project: Project, start: number, end: number): ExportPlan {
+export function buildExportPlan(project: Project, start: number, end: number, framingEnabled = false): ExportPlan {
   if (project.reviewSegments !== undefined) {
     if (!project.cutsReviewed) throw new ExportPlanError('unreviewed-cuts', 'Review and accept each cut before exporting.');
     if (!Array.isArray(project.reviewSegments) || project.reviewSegments.length === 0) throw new ExportPlanError('invalid-cuts', 'Choose at least one segment.');
@@ -54,7 +55,7 @@ export function buildExportPlan(project: Project, start: number, end: number): E
       return { uri: segment.uri, t0: segment.t0, t1: segment.t1, captions: plan.captions, takeId: segment.takeId };
     });
     if (segments.length > 100) throw new ExportPlanError('invalid-cuts', 'Too many export segments.');
-    return { sourceUri: segments[0].uri, cuts: [], captions: [], segments,
+    return { sourceUri: segments[0].uri, cuts: [], captions: [], segments: applyProjectFraming(project, segments, framingEnabled),
       captionTiming: segments.some(segment => segment.captions.length) ? 'live-estimate' : 'none',
       hasEstimatedCaptions: segments.some(segment => segment.captions.length > 0) };
   }

@@ -4,26 +4,27 @@ import { router, useNavigation, useLocalSearchParams, useFocusEffect } from 'exp
 import { useVideoPlayer, VideoView, type VideoThumbnail } from 'expo-video';
 import { ArrowLeft, Pause, Play, RotateCcw, Scissors } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, AppState, PanResponder, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, AppState, KeyboardAvoidingView, Platform, PanResponder, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { recordedMediaDuration } from '@/lib/recorded-media';
 import { transcriptForSource } from '@/lib/review-source';
 import { reviewExportSelection } from '@/lib/review-export-selection';
 import { sanitizeExportCaption } from '@/lib/export-plan';
-import { cleanReview, selectedReviewCuts, selectedReviewSegments } from '@/lib/clean-review';
+import { cleanReview, pickupLineIds, selectedReviewCuts, selectedReviewSegments } from '@/lib/clean-review';
 import type { Project } from '@/lib/session';
 import { getProject, saveProject, saveProjectMetadata } from '@/lib/store';
 import { partitionCaptionTimeline, activeCaptionAt } from '@/lib/caption-timeline';
 import { LOCAL_VIDEO_BUFFER } from '@/lib/video-buffer';
 import { ExportControls } from '@/components/review/export-controls';
-import { NativeCutPreview } from '../../modules/one-take-media';
+import media, { NativeCutPreview } from '../../modules/one-take-media';
 import { TranscriptReview } from '@/components/review/transcript-review';
 import { T1WrapReport } from '@/components/review/t1-wrap-report';
 import { T1CaptionEditor } from '@/components/review/t1-caption-editor';
 import { Tier1TakeReview } from '@/components/review/t1-take-review';
 import { projectScriptLines } from '@/lib/project-workflow';
 import { resolveReviewFootage } from '@/lib/t1-review';
+import { applyProjectFraming } from '@/lib/t1-framing-selection';
 import { tier1Enabled } from '@/lib/t1-gates';
 
 const time = (seconds: number) => `${Math.floor(seconds / 60)}:${Math.floor(seconds % 60).toString().padStart(2, '0')}`;
@@ -95,7 +96,9 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
   const review = useMemo(() => project ? cleanReview(project) : null, [project]);
   const clean = useMemo(() => review ? selectedReviewCuts(review, uri, duration > 0 ? duration : undefined) : null, [review, uri, duration]);
   const sequence = useMemo(() => project ? selectedReviewSegments({ ...project, duration: duration > 0 ? duration : project.duration }, review!) : null, [project, review, duration]);
-  const proposedSegments = useMemo<NonNullable<Project['reviewSegments']>>(() => project?.reviewSegments?.map(segment => ({ ...segment, captions: project.transcript.length ? transcriptForSource(project, segment.uri).filter(caption => caption.isFinal !== false).map(caption => ({ t0: caption.t0, t1: caption.t1, text: sanitizeExportCaption(caption.manualCorrection ?? caption.correctedText ?? caption.text) })).filter(caption => caption.text.trim()) : segment.captions })) ?? (project?.cuts?.length ? project.cuts.map(cut => ({ ...cut, uri, captions: transcriptForSource(project, uri).filter(segment => segment.isFinal !== false).map(segment => ({ t0: segment.t0, t1: segment.t1, text: sanitizeExportCaption(segment.manualCorrection ?? segment.correctedText ?? segment.text) })).filter(caption => caption.text.trim()) })) : project?.cuts ? [] : sequence?.segments ?? []), [project?.reviewSegments, project?.cuts, project?.transcript, uri, sequence]);
+  const rawProposedSegments = useMemo<NonNullable<Project['reviewSegments']>>(() => project?.reviewSegments?.map(segment => ({ ...segment, captions: project.transcript.length ? transcriptForSource(project, segment.uri).filter(caption => caption.isFinal !== false).map(caption => ({ t0: caption.t0, t1: caption.t1, text: sanitizeExportCaption(caption.manualCorrection ?? caption.correctedText ?? caption.text) })).filter(caption => caption.text.trim()) : segment.captions })) ?? (project?.cuts?.length ? project.cuts.map(cut => ({ ...cut, uri, captions: transcriptForSource(project, uri).filter(segment => segment.isFinal !== false).map(segment => ({ t0: segment.t0, t1: segment.t1, text: sanitizeExportCaption(segment.manualCorrection ?? segment.correctedText ?? segment.text) })).filter(caption => caption.text.trim()) })) : project?.cuts ? [] : sequence?.segments ?? []), [project?.reviewSegments, project?.cuts, project?.transcript, uri, sequence]);
+  const framingAllowed = tier1Enabled('reframing', __DEV__, tier1Test) && media?.supportsFraming === true;
+  const proposedSegments = useMemo(() => project ? applyProjectFraming(project, rawProposedSegments, framingAllowed) : rawProposedSegments, [project, rawProposedSegments, framingAllowed]);
   const [activeSegments, setActiveSegments] = useState(proposedSegments);
   const [takePreview, setTakePreview] = useState<Project['reviewSegments']>();
   const [nativePlaying, setNativePlaying] = useState(true);
@@ -192,7 +195,7 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
     } finally { setSaving(false); }
   }
 
-  return <SafeAreaView className="flex-1 bg-black">
+  return <SafeAreaView className="flex-1 bg-black"><KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
     <View className="flex-row items-center justify-between px-4 py-2">
       <Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={() => router.back()} className="p-3">
         <ArrowLeft size={22} color="white" />
@@ -219,7 +222,7 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
     </View>
     {!!nativeError && <Text accessibilityRole="alert" className="text-amber-200 px-6 py-3">Clean preview failed: {nativeError}. Preview the original recording or attach replacement footage. Coverage is not verified.</Text>}
     {status === 'error' && <Text accessibilityRole="alert" className="text-red-300 px-6 py-3">{playbackError?.message ?? 'This video could not be opened. The file may no longer be available.'}</Text>}
-    <ScrollView keyboardShouldPersistTaps="handled" className="px-6 pt-4 pb-6 w-full self-center" style={{ maxWidth: 600, maxHeight: '55%' }}>
+    <ScrollView automaticallyAdjustKeyboardInsets keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 32 }} className="px-6 pt-4 w-full self-center" style={{ maxWidth: 600, maxHeight: '55%' }}>
       {!NativeCutPreview && proposedSegments.some(segment => segment.uri !== uri) && <Text className="text-amber-200 text-xs mb-3">Multi-recording preview needs the Android development build with the media player. Your original recording remains available.</Text>}
       {takePreview && <Pressable accessibilityRole="button" className="py-3" onPress={() => { setTakePreview(undefined); setNativePlaying(false); setNativeSeek(0); }}><Text className="text-white text-xs">Return to clean cut</Text></Pressable>}
       {review && <Text accessibilityLiveRegion="polite" className="text-neutral-300 text-xs mb-3">
@@ -286,8 +289,27 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
       <Text className="text-neutral-500 text-xs text-center mt-3">Drag the ends to trim. Slide across the filmstrip to preview.</Text>
       {!!message && <Text accessibilityRole="alert" className="text-neutral-200 text-sm mt-3 text-center">{message}</Text>}
       {__DEV__ && <Pressable accessibilityRole="button" className="py-3" onPress={() => setTier1Test(v => !v)}><Text className="text-amber-200">{tier1Test ? 'Disable Tier 1 development test' : 'Enable Tier 1 development test'}</Text></Pressable>}
+      {project && tier1Enabled('reframing', __DEV__, tier1Test) && <View className="border-t border-neutral-800 py-3">
+        <Text className="text-white font-semibold">Optional reframing</Text>
+        <Text className="text-neutral-400 py-2">{!framingAllowed ? 'Reframing unavailable in this native build. Original frame retained.' : !(Array.isArray(project.framing?.suggestions) && project.framing.suggestions.length) ? 'No framing suggestions supplied. Original frame retained.' : project.framing.enabled ? 'Suggested static crops enabled. Unsafe or missing tracks use the original.' : 'Off · original frame'}</Text>
+        <Pressable accessibilityRole="button" disabled={!framingAllowed || !(Array.isArray(project.framing?.suggestions) && project.framing.suggestions.length) || pendingWrites > 0} className="py-3 disabled:opacity-40" onPress={() => {
+          setNativePlaying(false); player.pause(); setTakePreview(undefined);
+          void changeProject({ ...project, framing: { ...project.framing!, enabled: !project.framing?.enabled } }).catch(() => setMessage('Framing choice could not be saved.'));
+        }}><Text className="text-white">{project.framing?.enabled ? 'Off / reset original frame' : 'Apply suggested framing'}</Text></Pressable>
+      </View>}
       {project && reviewProject && <T1CaptionEditor project={reviewProject} onChange={changeProject} enabled={tier1Enabled('takeReview', __DEV__, tier1Test)} disabled={pendingWrites > 0} />}
-      {project && reviewProject && <T1WrapReport project={reviewProject} onChange={changeProject} enabled={tier1Enabled('wrapReport', __DEV__, tier1Test)} onConfirmAction={(id, confirmed) => {
+      {project && reviewProject && <T1WrapReport project={reviewProject} onChange={changeProject} enabled={tier1Enabled('wrapReport', __DEV__, tier1Test)} onPickup={lineId => {
+        const current = latestProject.current;
+        if (!current || pendingWrites > 0) return;
+        if (!pickupLineIds(cleanReview(current)).includes(lineId)) {
+          setMessage('This producer flag needs a pickup that capture does not yet support. The flag remains for review.');
+          return;
+        }
+        setNativePlaying(false); player.pause();
+        void changeProject({ ...current, pickupRequest: { lineIds: [lineId], requestedAt: Date.now() } }).then(() => {
+          router.push({ pathname: '/camera', params: { mode: 'script', script: current.script ?? '', pickupProjectId: current.id } });
+        }).catch(() => setMessage('Pickup request could not be saved.'));
+      }} onConfirmAction={(id, confirmed) => {
         const current = latestProject.current;
         if (!current) return;
         void changeProject({ ...current, scriptLines: projectScriptLines(current).map(line => ({ ...line, actionCues: line.actionCues.map(cue => cue.id === id ? { ...cue, resolved: confirmed } : cue) })) }).catch(() => setMessage('Action confirmation could not be saved.'));
@@ -322,10 +344,10 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
       {!!persistenceError && <Text accessibilityRole="alert" className="text-red-300 py-3">{persistenceError}</Text>}
       {project && valid && !persistenceError && pendingWrites === 0 && (exportProject ? <>
         <Text className="text-neutral-300 text-xs mt-3">{previewOriginal ? 'Export original video without captions' : previewTrim ? 'Export the manual trim with captions' : project.cuts || project.reviewSegments?.length ? 'Export prepared cuts with captions' : 'Export the manual trim with captions'}</Text>
-        <ExportControls project={exportProject} start={previewOriginal ? 0 : start} end={previewOriginal ? duration : limit} onMessage={setMessage} />
+        <ExportControls framingEnabled={framingAllowed && !previewOriginal && !previewTrim} project={exportProject} start={previewOriginal ? 0 : start} end={previewOriginal ? duration : limit} onMessage={setMessage} />
       </> : <Text className="text-amber-200 text-xs mt-3">{takePreview ? 'Previewing a take. Return to the clean cut, original, or manual trim to export.' : updatesWaiting ? 'Pause playback to apply updated cuts before exporting.' : 'Prepare selected takes below and review every cut before exporting this clean preview. To export the original or manual trim, switch to that preview first.'}</Text>)}
     </ScrollView>
-  </SafeAreaView>;
+  </KeyboardAvoidingView></SafeAreaView>;
 }
 
 function MissingMediaReview({ project, onChange }: { project: Project; onChange: (next: Project) => Promise<void> }) {

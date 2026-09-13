@@ -40,6 +40,7 @@ export interface Clip {
 }
 
 export interface Project {
+  framing?: { enabled: boolean; suggestions: import('./t1-framing').FramingSuggestion[] };
   tier1Evidence?: import('./t1-contracts').Tier1Evidence;
   wrapAcknowledgement?: import('./t1-contracts').WrapAcknowledgement;
   schemaVersion?: number;
@@ -53,7 +54,7 @@ export interface Project {
   scriptLines?: ScriptLine[];
   takes?: (TakeEvidence & { recordedAt?: number; eligibleLineIds?: string[] })[];
   recordings?: { id: string; mediaUri: string; duration: number; createdAt: number; evidenceStatus?: 'pending' | 'complete' }[];
-  reviewSegments?: { uri: string; t0: number; t1: number; takeId?: string; captions?: { t0: number; t1: number; text: string }[] }[];
+  reviewSegments?: { uri: string; t0: number; t1: number; takeId?: string; crop?: import('./t1-framing').NativeFramingCrop; captions?: { t0: number; t1: number; text: string }[] }[];
   unavailableTakeIds?: string[];
   pickupRequest?: { lineIds: string[]; requestedAt: number };
   reviewDecisions?: ReviewDecision[];

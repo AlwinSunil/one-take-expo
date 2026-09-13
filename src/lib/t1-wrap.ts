@@ -1,5 +1,6 @@
 import type { Project } from './session';
 import { projectReview, projectScriptLines } from './project-workflow.ts';
+import { canReviewFootage, resolveReviewFootage, takeFootage } from './t1-review.ts';
 import type {
   EvidenceStatus,
   FootageReference,
@@ -342,8 +343,16 @@ function buildFlags(
   return flags;
 }
 
+function mediaUriAvailable(project: Project, uri: string | null | undefined): boolean {
+  if (typeof uri !== 'string' || uri.trim().length === 0) return false;
+  if (project.availableMediaUris !== undefined) return project.availableMediaUris.includes(uri);
+  return uri === project.videoUri && project.mediaMissing === false;
+}
+
 function projectMediaAvailable(project: Project): boolean {
-  return typeof project.videoUri === 'string' && project.videoUri.trim().length > 0 && project.mediaMissing === false;
+  if (mediaUriAvailable(project, project.videoUri)) return true;
+  return (project.recordings ?? []).some(recording => mediaUriAvailable(project, recording.mediaUri)
+    && recording.evidenceStatus !== 'pending');
 }
 
 function contextValue(value: unknown): { state: string; value?: string | number | boolean | null } {
@@ -354,6 +363,11 @@ function contextValue(value: unknown): { state: string; value?: string | number 
     return { state: 'value', value };
   }
   return { state: typeof value };
+}
+
+function contextArray(values: readonly unknown[] | undefined): { state: string; value?: unknown[] } {
+  if (values === undefined) return { state: 'missing' };
+  return { state: 'array', value: values.slice() };
 }
 
 /**
@@ -378,6 +392,20 @@ export function createWrapContextKey(
     sourceUri: contextValue(project.videoUri),
     duration: contextValue(project.duration),
     mediaMissing: contextValue(project.mediaMissing),
+    recordings: project.recordings === undefined
+      ? { state: 'missing' }
+      : {
+        state: 'array',
+        value: project.recordings.map(recording => ({
+          id: contextValue(recording.id),
+          mediaUri: contextValue(recording.mediaUri),
+          duration: contextValue(recording.duration),
+          createdAt: contextValue(recording.createdAt),
+          evidenceStatus: contextValue(recording.evidenceStatus),
+        })),
+      },
+    availableMediaUris: contextArray(project.availableMediaUris),
+    unavailableTakeIds: contextArray(project.unavailableTakeIds),
     spokenLines,
     actions,
   })}`;
@@ -425,6 +453,7 @@ export function buildWrapReport(project: Project): WrapReport {
     reasons.push(reason);
     reasonsByTake.set(reason.takeId, reasons);
   }
+  const reviewTakesById = new Map((baseReview?.takes ?? []).map(take => [take.id, take]));
   const lines: WrapLineReport[] = (baseReview?.lines ?? scriptLines.map(line => ({
     id: line.id,
     spokenText: line.spokenText,
@@ -454,16 +483,22 @@ export function buildWrapReport(project: Project): WrapReport {
         && candidate.t0 === footage.t0 && candidate.t1 === footage.t1) === index)
       .map(footage => ({
         ...footage,
-        playable: mediaAvailable
-          && footage.recordingId === projectId
-          && typeof project.duration === 'number'
-          && Number.isFinite(project.duration)
-          && project.duration > 0
-          && footage.t1 <= project.duration,
+        playable: resolveReviewFootage(project, footage) !== null,
       }));
-    const coverage: WrapCoverageStatus = !mediaAvailable && line.status === 'covered'
-      ? 'pending'
-      : line.status;
+    const missingMediaTakeIds = [...new Set([
+      ...line.missingMediaTakeIds,
+      ...takeIds.filter(takeId => {
+        const take = reviewTakesById.get(takeId);
+        return !!take && !canReviewFootage(project, takeFootage(project, take));
+      }),
+    ])];
+    let coverage: WrapCoverageStatus = line.status;
+    if (line.status === 'covered') {
+      const selectedTake = line.selectedTakeId ? reviewTakesById.get(line.selectedTakeId) : undefined;
+      coverage = selectedTake && canReviewFootage(project, takeFootage(project, selectedTake))
+        ? 'covered'
+        : 'unavailable';
+    }
     return {
       id: line.id,
       spokenText: line.spokenText,
@@ -471,7 +506,7 @@ export function buildWrapReport(project: Project): WrapReport {
       mustSay: { required: mustSay?.required ?? null, status: mustSayStatus },
       takeCount: takeIds.length,
       takeIds,
-      missingMediaTakeIds: line.missingMediaTakeIds.slice(),
+      missingMediaTakeIds,
       matchedSegmentIds: line.matchedSegmentIds.slice(),
       evidence: evidenceLinks,
       reasons,

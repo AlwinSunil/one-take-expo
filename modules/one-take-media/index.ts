@@ -13,7 +13,27 @@ export type MediaCaption = MediaCut & {
   text: string;
 };
 
-export type MediaSourceSegment = { uri: string; t0: number; t1: number; captions?: MediaCaption[]; takeId?: string };
+/** Media3 centered normalized device coordinates for one source segment. */
+export type NativeFramingCrop = {
+  /** Left edge, in [-1, 1]. */
+  left: number;
+  /** Right edge, in [-1, 1] and greater than left. */
+  right: number;
+  /** Bottom edge, in [-1, 1]. */
+  bottom: number;
+  /** Top edge, in [-1, 1] and greater than bottom. */
+  top: number;
+};
+
+export type MediaSourceSegment = {
+  uri: string;
+  t0: number;
+  t1: number;
+  captions?: MediaCaption[];
+  takeId?: string;
+  /** Optional validated crop. Omit to preserve the original frame. */
+  crop?: NativeFramingCrop;
+};
 
 export type MediaExportRequest = {
   id: string;
@@ -43,6 +63,8 @@ export type MediaExport = {
 export type MediaInfo = { duration: number; width: number; height: number };
 
 export declare class OneTakeMediaModule extends NativeModule {
+  /** True only in native builds that apply segment crops to preview and export. */
+  readonly supportsFraming?: boolean;
   /** Encoded duration in seconds and display-oriented dimensions; absent on older builds. */
   getMediaInfo?: (uri: string) => Promise<MediaInfo>;
   startExport(request: MediaExportRequest): Promise<{ id: string }>;

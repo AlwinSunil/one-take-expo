@@ -152,6 +152,9 @@ test('changing wording invalidates an existing Wrap anyway acknowledgement', () 
 test('changing source identity or action semantics invalidates a prior acknowledgement', () => {
   const mutations = [
     (input) => { input.videoUri = 'file:///replacement.mp4'; },
+    (input) => { input.recordings = [{ id: 'pickup-1', mediaUri: 'file:///pickup.mp4', duration: 7, createdAt: 2 }]; },
+    (input) => { input.availableMediaUris = ['file:///replacement.mp4']; },
+    (input) => { input.unavailableTakeIds = ['take:segment-2']; },
     (input) => { input.scriptLines[1].actionCues[0].text = 'Show the back label'; },
     (input) => { input.scriptLines[1].actionCues[0].required = false; },
     (input) => { input.scriptLines[1].actionCues[0].id = 'action-required-replaced'; },
@@ -167,6 +170,62 @@ test('changing source identity or action semantics invalidates a prior acknowled
     assert.equal(report.wrapAllowed, false);
     assert.ok(report.remainingFlags.includes('acknowledgement:stale'));
   }
+});
+
+test('multi-source evidence links resolve pickup footage while an unavailable primary stays unplayable', () => {
+  const input = project({
+    mediaMissing: true,
+    recordings: [{ id: 'pickup-1', mediaUri: 'file:///pickup.mp4', duration: 7, createdAt: 2, evidenceStatus: 'complete' }],
+    availableMediaUris: ['file:///pickup.mp4'],
+    takes: [{
+      id: 'pickup-take-2',
+      t0: 4.1,
+      t1: 6.6,
+      mediaUri: 'file:///pickup.mp4',
+      playable: true,
+      quality: 'clean',
+      inFrame: false,
+      transcriptSegmentIds: ['segment-2'],
+      eligibleLineIds: ['line-2'],
+    }],
+  });
+  input.tier1Evidence.mustSay[0].evidence = [{ recordingId: 'wrap-fixture', t0: 1.2, t1: 3.8 }];
+  input.tier1Evidence.mustSay[1].evidence = [{ recordingId: 'pickup-1', t0: 4.1, t1: 6.6 }];
+
+  const report = buildWrapReport(input);
+  const line1 = report.lines.find(line => line.id === 'line-1');
+  const line2 = report.lines.find(line => line.id === 'line-2');
+  assert.equal(report.mediaAvailable, true);
+  assert.notEqual(line1.coverage, 'covered');
+  assert.equal(line1.evidence[0].playable, false);
+  assert.equal(line2.coverage, 'covered');
+  assert.equal(line2.evidence[0].playable, true);
+  assert.equal(report.qualifiedAllClear, false);
+});
+
+test('pending pickup evidence cannot appear playable or covered', () => {
+  const input = project({
+    recordings: [{ id: 'pickup-1', mediaUri: 'file:///pickup.mp4', duration: 7, createdAt: 2, evidenceStatus: 'pending' }],
+    availableMediaUris: ['file:///pickup.mp4'],
+    takes: [{
+      id: 'pickup-take-2',
+      t0: 4.1,
+      t1: 6.6,
+      mediaUri: 'file:///pickup.mp4',
+      playable: true,
+      quality: 'clean',
+      inFrame: false,
+      transcriptSegmentIds: ['segment-2'],
+      eligibleLineIds: ['line-2'],
+    }],
+  });
+  input.tier1Evidence.mustSay[1].evidence = [{ recordingId: 'pickup-1', t0: 4.1, t1: 6.6 }];
+  input.tier1Evidence.status = 'pending';
+
+  const report = buildWrapReport(input);
+  assert.notEqual(report.lines.find(line => line.id === 'line-2').coverage, 'covered');
+  assert.equal(report.lines.find(line => line.id === 'line-2').evidence[0].playable, false);
+  assert.equal(report.qualifiedAllClear, false);
 });
 
 test('legacy acknowledgements without context are retained as stale flags', () => {

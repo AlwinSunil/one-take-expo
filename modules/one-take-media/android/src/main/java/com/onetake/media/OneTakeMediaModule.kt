@@ -29,6 +29,11 @@ class OneTakeMediaModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("OneTakeMedia")
 
+    // Older APKs may accept the shared request shape but cannot apply a crop.
+    // Expose an explicit capability so the review/export lane can fail loudly
+    // instead of silently rendering the original frame.
+    Constant("supportsFraming") { true }
+
     View(MediaCutPreviewView::class) {
       Events("onState")
       Prop("request") { view: MediaCutPreviewView, value: String -> view.setSegments(value) }
