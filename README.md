@@ -91,3 +91,5 @@ Join our community of developers creating universal apps.
 ### Development sample sessions
 
 Debug builds expose **Sample sessions · Dev** on Home, with seven in-memory examples and device-run handoff, storage and coaching checks. Samples never enter Projects; the separate storage checks create and clean up dedicated fixture projects. **Playback & export research · Dev** runs the native media experiment. See [setup and expected states](docs/development/sample-sessions.md), [research status](docs/development/milestone-0-status.md) and the [Milestone 1 handoff](docs/development/milestone-1-handoff.md).
+
+The [V1 product specification and T1.5 gap map](docs/product-v1-t1.5.md) compares the current implementation with the planned recording, important-point pickup and clip-editing flow. Follow [the shared T1.5 tracker](https://github.com/AlwinSunil/one-take-expo/issues/62) and [validation checklist](docs/validation/T1.5.md) for the remaining work; these documents do not claim the new features are implemented.
