@@ -224,6 +224,9 @@ internal class MediaExportRunner(
     private val hiddenSettings = StaticOverlaySettings.Builder()
       .setAlphaScale(0f)
       .build()
+    // Media3 can reconfigure this overlay between clips and retain the previous
+    // bitmap during frame upload. Let GC reclaim replaced bitmaps instead of
+    // recycling storage that may still be referenced by its renderer.
     // BitmapOverlay requires a non-empty bitmap even when no caption is active.
     private val blankBitmap = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888)
     private val measurePaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -244,7 +247,6 @@ internal class MediaExportRunner(
       maxTextHeight = (videoSize.height * MAX_TEXT_HEIGHT_FRACTION).toInt().coerceAtLeast(1)
       textPadding = (videoSize.width * TEXT_PADDING_FRACTION).toInt()
         .coerceIn(MIN_TEXT_PADDING, MAX_TEXT_PADDING)
-      cachedCaptionBitmap?.recycle()
       cachedCaptionBitmap = null
       cachedCaptionIndex = -1
     }
@@ -253,7 +255,6 @@ internal class MediaExportRunner(
       val index = captionIndexAt(presentationTimeUs)
       if (index < 0) return blankBitmap
       if (cachedCaptionIndex != index) {
-        cachedCaptionBitmap?.recycle()
         cachedCaptionBitmap = renderCaption(captions[index].text)
         cachedCaptionIndex = index
       }
@@ -264,9 +265,8 @@ internal class MediaExportRunner(
       if (captionIndexAt(presentationTimeUs) < 0) hiddenSettings else activeSettings
 
     override fun release() {
-      cachedCaptionBitmap?.recycle()
       cachedCaptionBitmap = null
-      blankBitmap.recycle()
+      cachedCaptionIndex = -1
       super.release()
     }
 
