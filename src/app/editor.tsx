@@ -305,6 +305,11 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
   }
 
   function previewTranscriptFiller(mark: TranscriptTimelineMark) {
+    if (peek || updatesWaiting) {
+      player.pause(); setNativePlaying(false);
+      setMessage('Return to the current edit and preview this filler again.');
+      return;
+    }
     const currentProject = latestProject.current;
     if (!currentProject) {
       setMessage('The project is still loading. Try this filler again.');

@@ -10,6 +10,9 @@ Play the selected range before the Delete filler option becomes available.
 Adjusting either boundary requires another preview.
 Deletion removes that occurrence from the clean sequence and export, while retaining the original recording.
 Undo restores the previous cut selection until another timeline edit changes it.
+For an already edited video, remove fillers from Edited to preserve the existing cuts.
+Removal changes the video ranges, not the saved transcript wording.
+A caption spanning the removed range may still contain the filler word; caption corrections remain separate.
 Clean previews map markers through the selected source segments, so removed speech has no marker in the output timeline.
 Positions are proportional estimates within transcript segments because transcription does not supply exact word alignment.
 Markers do not automatically delete audio.
