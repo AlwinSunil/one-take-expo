@@ -17,28 +17,38 @@ test('framing advice follows the main face instead of a smaller bystander', () =
 
 import { advanceVisualAdvice, emptyVisualAdvice } from '../src/features/vision/live-advice.ts';
 const bright = { ...frame, sessionId: 'one', lensFacing: 'front', exposure: { mean: 0.8, clipped: 0.3, dark: 0 } };
-test('advice requires sustained evidence, holds across threshold jitter, and clears after recovery', () => {
+test('hints wait two seconds and remain readable for at least four and a half seconds', () => {
  let state = advanceVisualAdvice(emptyVisualAdvice(), bright, true, 1000);
- state = advanceVisualAdvice(state, bright, true, 2399);
+ state = advanceVisualAdvice(state, bright, true, 2999);
  assert.equal(state.current, null);
- state = advanceVisualAdvice(state, bright, true, 2400);
- assert.equal(state.current, 'bright');
- state = advanceVisualAdvice(state, { ...bright, exposure: { mean: 0.7, clipped: 0.14, dark: 0 } }, true, 2500);
+ state = advanceVisualAdvice(state, bright, true, 3000);
  assert.equal(state.current, 'bright');
  const recovered = { ...bright, exposure: frame.exposure };
- state = advanceVisualAdvice(state, recovered, true, 2600);
+ state = advanceVisualAdvice(state, recovered, true, 3100);
+ state = advanceVisualAdvice(state, recovered, true, 7499);
  assert.equal(state.current, 'bright');
- state = advanceVisualAdvice(state, recovered, true, 3300);
+ state = advanceVisualAdvice(state, recovered, true, 7500);
  assert.equal(state.current, null);
 });
-test('a single bad frame, stale stream, disabled coach, and new camera session cannot retain advice', () => {
+test('a different warning cannot interrupt the current hint before its reading time', () => {
+ let state = advanceVisualAdvice(emptyVisualAdvice(), bright, true, 0);
+ state = advanceVisualAdvice(state, bright, true, 2000);
+ const dark = { ...bright, exposure: { mean: 0.1, clipped: 0, dark: 0.9 } };
+ state = advanceVisualAdvice(state, dark, true, 2100);
+ state = advanceVisualAdvice(state, dark, true, 4100);
+ assert.equal(state.current, 'bright');
+ state = advanceVisualAdvice(state, dark, true, 6500);
+ assert.equal(state.current, 'dark');
+});
+test('brief tracking jitter holds advice, but stale streams and changed cameras clear it', () => {
  const candidate = advanceVisualAdvice(emptyVisualAdvice(), bright, true, 0);
- assert.equal(advanceVisualAdvice(candidate, { ...bright, exposure: frame.exposure }, true, 1500).current, null);
- const shown = advanceVisualAdvice(candidate, bright, true, 1500);
+ assert.equal(advanceVisualAdvice(candidate, { ...bright, exposure: frame.exposure }, true, 2500).current, null);
+ const shown = advanceVisualAdvice(candidate, bright, true, 2500);
  assert.equal(shown.current, 'bright');
- assert.equal(advanceVisualAdvice(shown, bright, false, 1600).current, null);
- assert.equal(advanceVisualAdvice(shown, { ...bright, status: 'stale' }, true, 1600).current, null);
- assert.equal(advanceVisualAdvice(shown, { ...bright, sessionId: 'two' }, true, 1600).current, null);
+ assert.equal(advanceVisualAdvice(shown, { ...bright, faceStable: false }, true, 2600).current, 'bright');
+ assert.equal(advanceVisualAdvice(shown, bright, false, 2600).current, null);
+ assert.equal(advanceVisualAdvice(shown, { ...bright, status: 'stale' }, true, 2600).current, null);
+ assert.equal(advanceVisualAdvice(shown, { ...bright, sessionId: 'two' }, true, 2600).current, null);
 });
 test('invalid exposure measurements cannot generate a lighting warning', () => {
  assert.equal(visualAdvice({ ...frame, exposure: { mean: NaN, clipped: 0.9, dark: 0 } }), null);
@@ -46,10 +56,15 @@ test('invalid exposure measurements cannot generate a lighting warning', () => {
 });
 
 test('release suggestions show current measured checks instead of a build restriction', () => {
-  assert.match(visualSuggestionSummary(frame, null), /No lighting or framing issues/);
-  assert.match(visualSuggestionSummary({ ...frame, exposure: { mean: 0.8, clipped: 0.3, dark: 0 } }, null), /Harsh light/);
+  assert.match(visualSuggestionSummary(frame, null), /Watching lighting and framing/);
+  assert.match(visualSuggestionSummary({ ...frame, exposure: { mean: 0.8, clipped: 0.3, dark: 0 } }, null), /Watching lighting and framing/);
   assert.match(visualSuggestionSummary({ ...frame, exposure: undefined }, null), /Still measuring lighting/);
   assert.match(visualSuggestionSummary({ ...frame, exposure: { mean: 2, clipped: 0, dark: 0 } }, null), /Still measuring lighting/);
   assert.match(visualSuggestionSummary({ ...frame, status: 'pending' }, 'Old hint'), /Checking/);
   assert.match(visualSuggestionSummary({ ...frame, status: 'unavailable' }, 'Old hint'), /Reopen the camera/);
+});
+
+test('the panel displays only the settled suggestion, not a new raw-frame warning', () => {
+ assert.equal(visualSuggestionSummary(bright, 'Take a moment to adjust the light.'), 'Take a moment to adjust the light.');
+ assert.doesNotMatch(visualSuggestionSummary(bright, null), /Harsh/);
 });
