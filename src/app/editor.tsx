@@ -229,7 +229,8 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
     if (useNative && !nativeStarted.current && !isPlaying) { nativeStarted.current = true; setNativePlaying(true); }
   }, [useNative, isPlaying]);
   const valid = Number.isFinite(duration) && duration > 0;
-  const fillerSegments = peek || previewSource === 'clean' ? playingSegments : valid ? [{ uri, t0: 0, t1: duration }] : [];
+  const fillerSegments = useMemo(() => peek ? [peek] : previewSource === 'clean' ? activeSegments : valid ? [{ uri, t0: 0, t1: duration }] : [],
+    [peek, previewSource, activeSegments, valid, uri, duration]);
   const fillerMarks = useMemo(() => project ? fillerTimelineMarks(project, fillerSegments) : [], [project, fillerSegments]);
   const fillerDuration = fillerSegments.reduce((sum, segment) => sum + segment.t1 - segment.t0, 0);
   function previewTranscriptFiller(mark: TranscriptTimelineMark) {
