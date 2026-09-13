@@ -1,0 +1,48 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { createTimelineSaveCoordinator } from '../src/features/timeline/save-coordinator.ts';
+test('failed owner write retains draft, retries identical operation and never reports saved early', async () => {
+  const writes=[];
+  let fail=true;
+  const save=createTimelineSaveCoordinator({revision:0},async(value,id)=>{ writes.push({value,id}); if(fail) throw Error('Disk full'); },()=> 'operation:1');
+  const draft={revision:1};
+  save.stage(draft);
+  assert.equal(save.read().status,'dirty');
+  const attempt=save.save();
+  assert.equal(save.read().status,'saving');
+  assert.equal(save.save(),attempt);
+  await assert.rejects(attempt,/Disk full/);
+  assert.equal(save.read().status,'error');
+  assert.equal(save.read().value,draft);
+  fail=false;
+  await save.save();
+  assert.equal(save.read().status,'saved');
+  assert.deepEqual(writes[0],writes[1]);
+});
+test('edits during save remain dirty until the latest owner write completes', async () => {
+  const writes=[];
+  let release;
+  const wait=new Promise(resolve=>{release=resolve;});
+  let id=0;
+  const save=createTimelineSaveCoordinator(0,async(value,operationId)=>{writes.push([value,operationId]);if(value===1)await wait;},()=>`operation:${++id}`);
+  save.stage(1);
+  const saving=save.save();
+  await Promise.resolve();
+  save.stage(2);
+  release();
+  await saving;
+  assert.deepEqual(writes,[[1,'operation:1'],[2,'operation:2']]);
+  assert.deepEqual(save.read(),{value:2,status:'saved',error:null});
+});
+test('new draft after uncertain failure first retries original id then saves the new revision', async () => {
+  let id=0, fail=true;
+  const writes=[];
+  const save=createTimelineSaveCoordinator(0,async(value,operationId)=>{writes.push([value,operationId]);if(fail)throw Error('Write result unknown');},()=>`operation:${++id}`);
+  save.stage(1);
+  await assert.rejects(save.save());
+  save.stage(2);
+  fail=false;
+  await save.save();
+  assert.deepEqual(writes,[[1,'operation:1'],[1,'operation:1'],[2,'operation:2']]);
+  assert.equal(save.read().status,'saved');
+});
