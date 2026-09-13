@@ -9,8 +9,11 @@ import { buildExportPlan, freezeExportPlan, ExportPlanError, type ExportPlan } f
 const ACTIVE_STATUSES = new Set<MediaExport['status']>(['queued', 'running']);
 const EXPORT_POLL_MS = 600;
 
-export function ExportControls({ project, start, end, onMessage, framingEnabled = false, timelinePlan, burnIntoExport = true }: {
+export function ExportControls({ project, start, end, onMessage, framingEnabled = false, timelinePlan, burnIntoExport = true, compact = false, label = 'Export video', onReviewCuts }: {
   project: Project;
+  compact?: boolean;
+  onReviewCuts?: () => void;
+  label?: string;
   /** undefined keeps legacy export; null explicitly blocks an invalid/empty timeline. */
   timelinePlan?: ExportPlan | null;
   burnIntoExport?: boolean;
@@ -221,7 +224,7 @@ export function ExportControls({ project, start, end, onMessage, framingEnabled 
       await media.startExport({ id, sourceUri: plan.sourceUri, cuts: plan.cuts, captions: plan.captions, segments: plan.segments, timelineRevision: plan.timelineRevision });
       finishStart();
       if (deleted || !mounted.current || jobId.current !== id) return;
-      announce('Export queued. You can leave this screen while it runs.');
+      announce(compact ? '' : 'Export queued. You can leave this screen while it runs.');
       busyRef.current = false;
       setBusy(false);
       await refresh(id);
@@ -302,7 +305,8 @@ export function ExportControls({ project, start, end, onMessage, framingEnabled 
             : status === 'cancelled' ? 'Export cancelled'
               : selectedBurn ? 'Create a captioned copy' : 'Create a copy without captions';
 
-  return <View className="border-t border-neutral-800 mt-4 pt-1">
+  return <View className={compact ? 'pt-1' : 'border-t border-neutral-800 mt-4 pt-1'}>
+    {!compact && <>
     <View className="py-3 flex-row items-baseline gap-2">
       <Text accessibilityRole="header" className="text-white text-base font-semibold flex-1">Export</Text>
       {active ? <ActivityIndicator color="#fbbf24" /> : <Text className="text-neutral-400 text-xs">{statusText}</Text>}
@@ -314,16 +318,20 @@ export function ExportControls({ project, start, end, onMessage, framingEnabled 
     {job?.timelineRevision !== undefined && <Text className="text-neutral-400 text-xs mb-1">Export job uses timeline revision {job.timelineRevision}.</Text>}
     <Text className="text-neutral-500 text-xs mb-3">Portrait MP4 · 720×1280 SDR · {selectedBurn ? 'Captions burned in (when available)' : 'No captions burned in'}.</Text>
     {selectedBurn && project.refinement?.status === 'running' && !active && <Text className="text-amber-200 text-xs mt-2">Saved-audio caption recheck is running. Export can wait or use current captions.</Text>}
-    <View className="mt-3">
-      <Pressable
+    </>}
+    {compact && (loading || canRetry) && <Text accessibilityLiveRegion="polite" className="text-neutral-400 text-xs py-2">{statusText}</Text>}
+    <View className={compact ? '' : 'mt-3'}>
+      {compact && cutsNeedReview && onReviewCuts ? <Pressable accessibilityRole="button" onPress={onReviewCuts} className="items-center rounded-xl bg-white py-3.5 active:opacity-80">
+        <Text className="text-black text-sm font-semibold">Review cuts</Text>
+      </Pressable> : <Pressable
         accessibilityRole="button"
-        accessibilityLabel={canRetry ? 'Retry video export' : 'Export video'}
+        accessibilityLabel={canRetry ? 'Retry video export' : label}
         disabled={loading || busy || active || timelinePlan === null || selection.duration <= 0 || (timelinePlan === undefined && !project.videoUri && !project.reviewSegments?.length) || cutsNeedReview}
         onPress={requestExport}
         className="items-center rounded-xl bg-white py-3.5 active:opacity-80 disabled:opacity-40"
       >
-        <Text className="text-black text-sm font-semibold">{canRetry ? 'Retry export' : 'Export video'}</Text>
-      </Pressable>
+        <Text className="text-black text-sm font-semibold">{active ? `Exporting ${Math.round(job?.progress ?? 0)}%` : canRetry ? 'Retry export' : label}</Text>
+      </Pressable>}
       <View className="gap-2 mt-2">
       {active && <Pressable accessibilityRole="button" accessibilityLabel="Cancel video export" disabled={busy} onPress={() => { void cancel(); }} className="items-center rounded-xl bg-neutral-800 py-3.5 active:opacity-70 disabled:opacity-40">
         <Text className="text-white text-sm font-semibold">Cancel export</Text>

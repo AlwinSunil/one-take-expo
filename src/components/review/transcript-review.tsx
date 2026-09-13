@@ -11,7 +11,8 @@ import { excludeInterval } from '@/lib/review-cuts';
 import { listProjects, mergePickupProject } from '@/lib/store';
 import { restoreDecision, selectTake } from '@/lib/transcript-workflow';
 
-export function TranscriptReview({ project, onChange, onSeek, onPreviewTake, onPreviewRecording, duration }: {
+export function TranscriptReview({ project, onChange, onSeek, onPreviewTake, onPreviewRecording, duration, embedded = false }: {
+  embedded?: boolean;
   project: Project; onChange: (p: Project) => Promise<void>; onSeek: (t: number) => void; onPreviewTake?: (takeId: string) => void; onPreviewRecording?: (uri: string, duration: number) => void; duration?: number;
 }) {
   const [pickupChoices, setPickupChoices] = useState<Project[]>([]);
@@ -19,6 +20,8 @@ export function TranscriptReview({ project, onChange, onSeek, onPreviewTake, onP
   const [expanded, setExpanded] = useState(true);
   const [progress, setProgress] = useState<number | null>(null);
   const [message, setMessage] = useState('');
+  const [showTools, setShowTools] = useState(false);
+  const [openCut, setOpenCut] = useState<number | null>(null);
   const [showHistory, setShowHistory] = useState(false);
   const [showCaptions, setShowCaptions] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -148,49 +151,60 @@ export function TranscriptReview({ project, onChange, onSeek, onPreviewTake, onP
   }
 
   return <View className="border-t border-neutral-800 mt-4 pt-1">
-    <Pressable accessibilityRole="button" accessibilityState={{ expanded }} onPress={() => setExpanded(v => !v)} className="py-3 flex-row items-baseline gap-2">
+    {!embedded && <Pressable accessibilityRole="button" accessibilityState={{ expanded }} onPress={() => setExpanded(v => !v)} className="py-3 flex-row items-baseline gap-2">
       <Text className="text-white text-base font-semibold flex-1">
-        Fix & choose{isScript && totalLines > 0 ? ` · ${covered}/${totalLines}` : ''}
+        Takes & captions{isScript && totalLines > 0 ? ` · ${covered}/${totalLines}` : ''}
       </Text>
       <Text className="text-neutral-400 text-sm">{expanded ? 'Hide' : 'Show'}</Text>
-    </Pressable>
+    </Pressable>}
     {!!pickupIds.length && !expanded && <Text className="text-amber-200 text-xs mb-2">{pickupIds.length} lines need pickup.</Text>}
     {expanded && <View pointerEvents={importing ? 'none' : 'auto'}>
-      {!!project.recoveryMessage && <Text className="text-amber-200 text-xs mb-2">{project.recoveryMessage}</Text>}
-      <View className="flex-row gap-2 mb-2">
-        {rechecking ? <Pressable accessibilityRole="button" onPress={async () => {
-          const id = refinementId.current;
-          refinementId.current = null; setProgress(null);
-          if (id) await captions?.cancelRefinement(id);
-          await change({ ...latest.current, refinement: { status: 'cancelled', model: 'Moonshine Tiny Streaming' } });
-        }} className="flex-1 items-center rounded-xl bg-neutral-800 py-3 active:opacity-70">
-          <Text className="text-white text-xs font-semibold">Cancel · {Math.round((progress ?? 0) * 100)}%</Text>
-        </Pressable> : <Pressable accessibilityRole="button" disabled={multiSource || !captions || project.mediaMissing}
-          onPress={() => refine()} className="flex-1 items-center rounded-xl bg-neutral-800 py-3 active:opacity-70 disabled:opacity-40">
-          <Text className="text-white text-xs font-semibold">Recheck audio</Text>
-        </Pressable>}
-        <Pressable accessibilityRole="button" onPress={() => setShowHistory(v => !v)}
-          className="items-center rounded-xl bg-neutral-900 border border-neutral-800 px-4 py-3 active:opacity-70">
-          <Text className="text-neutral-300 text-xs">History</Text>
+      {(project.reviewSegments ?? []).map((segment, index) => <View key={`${segment.takeId}:${index}`} className="py-1">
+        <Pressable className="py-2" onPress={() => segment.takeId && onPreviewTake?.(segment.takeId)}>
+          <Text className="text-white text-xs">Cut {index + 1} · {segment.t0.toFixed(2)}–{segment.t1.toFixed(2)}s · tap to peek</Text>
         </Pressable>
-      </View>
-      {__DEV__ && <Pressable disabled={multiSource || !captions || project.mediaMissing || rechecking}
-        onPress={() => refine('small')} className="mb-2 disabled:opacity-40">
-        <Text className="text-neutral-500 text-xs">Compare Small · experimental</Text>
-      </Pressable>}
-      {showHistory && <View className="mb-2 rounded-xl bg-neutral-950 border border-neutral-800 p-3">
-        {project.refinementCandidate?.length ? <Text className="text-neutral-400 text-xs mb-2">
-          Latest recognition: {project.refinementCandidate.map(s => s.text).join(' ').slice(0, 220)}
-          {project.refinementCandidate.map(s => s.text).join(' ').length > 220 ? '…' : ''}
-        </Text> : null}
-        {rawTranscript.length > 0 && <Text className="text-neutral-500 text-xs mb-2">Raw transcript kept ({rawTranscript.length} segments).</Text>}
-        {project.rawTranscript && !multiSource && <Pressable onPress={() => change({ ...latest.current, transcript: latest.current.rawTranscript!, rawTranscript: latest.current.transcript, reviewDecisions: latest.current.previousReviewDecisions, previousReviewDecisions: latest.current.reviewDecisions, cutsReviewed: false })} className="py-2">
-          <Text className="text-white text-xs">Restore previous transcript</Text>
-        </Pressable>}
-        {!project.rawTranscript && !project.refinementCandidate?.length && <Text className="text-neutral-500 text-xs">No earlier versions yet. Rechecks that change the transcript appear here.</Text>}
+      </View>)}
+      {(project.cuts ?? []).map((cut, index) => <View key={index} className="mt-2 rounded-xl bg-neutral-900 p-3">
+        <View className="flex-row items-center justify-between">
+          <Pressable accessibilityRole="button" accessibilityLabel={`Listen to cut ${index + 1}`} className="py-3 flex-1" onPress={() => onSeek(cut.t0)}><Text className="text-white text-xs font-semibold">Cut {index + 1} · {cut.t0.toFixed(1)}–{cut.t1.toFixed(1)}s</Text></Pressable>
+          <Pressable accessibilityRole="button" accessibilityState={{ expanded: openCut === index }} accessibilityLabel={`Adjust cut ${index + 1}`} className="p-3" onPress={() => setOpenCut(openCut === index ? null : index)}><Text className="text-neutral-400 text-xs">{openCut === index ? 'Done' : 'Adjust'}</Text></Pressable>
+        </View>
+        {(!embedded || openCut === index) && <View className="flex-row gap-2">
+          {(['t0', 't1'] as const).map(boundary => <View key={boundary} className="flex-1 flex-row items-center rounded-lg bg-neutral-800">
+            <Pressable accessibilityLabel={`Cut ${index + 1} ${boundary} minus half second`} className="px-3 py-3" onPress={() => {
+              const next = { ...cut, [boundary]: Math.max(0, cut[boundary] - 0.5) };
+              if (next.t1 <= next.t0) { setMessage('End must stay after start.'); return; }
+              void change({ ...latest.current, cutsReviewed: false, cuts: latest.current.cuts?.map((c, i) => i === index ? next : c) });
+            }}><Text className="text-white text-sm">−</Text></Pressable>
+            <TextInput keyboardType="decimal-pad" accessibilityLabel={`Cut ${index + 1} ${boundary === 't0' ? 'start' : 'end'} seconds`}
+              defaultValue={cut[boundary].toFixed(2)} className="flex-1 text-white text-sm text-center"
+              onEndEditing={e => {
+                const value = Number(e.nativeEvent.text);
+                const next = { ...cut, [boundary]: value };
+                const exceedsDuration = sourceDuration !== undefined && (next.t0 > sourceDuration || next.t1 > sourceDuration);
+                if (!Number.isFinite(value) || next.t0 < 0 || next.t1 <= next.t0 || exceedsDuration) {
+                  setMessage('Enter valid start/end seconds inside the recording.'); return;
+                }
+                void change({ ...latest.current, cutsReviewed: false, cuts: latest.current.cuts?.map((c, i) => i === index ? next : c) });
+              }} />
+            <Pressable accessibilityLabel={`Cut ${index + 1} ${boundary} plus half second`} className="px-3 py-3" onPress={() => {
+              const next = { ...cut, [boundary]: cut[boundary] + 0.5 };
+              if (sourceDuration !== undefined && next[boundary] > sourceDuration) { setMessage('Past the end of the recording.'); return; }
+              if (next.t1 <= next.t0) { setMessage('End must stay after start.'); return; }
+              void change({ ...latest.current, cutsReviewed: false, cuts: latest.current.cuts?.map((c, i) => i === index ? next : c) });
+            }}><Text className="text-white text-sm">+</Text></Pressable>
+          </View>)}
+        </View>}
+      </View>)}
+      {(!!project.cuts?.length || !!project.reviewSegments?.length) && <View className="flex-row gap-2 mt-2">
+        <Pressable accessibilityRole="button" className={`flex-1 items-center rounded-xl py-3 active:opacity-70 ${project.cutsReviewed ? 'bg-neutral-800' : 'bg-white'}`} onPress={() => change({ ...latest.current, cutsReviewed: true })}>
+          <Text className={`text-xs font-semibold ${project.cutsReviewed ? 'text-neutral-300' : 'text-black'}`}>{project.cutsReviewed ? '✓ Cuts accepted' : 'Accept all cuts'}</Text>
+        </Pressable>
+        <Pressable accessibilityRole="button" className="items-center rounded-xl bg-neutral-900 border border-neutral-800 px-4 py-3 active:opacity-70" onPress={() => change({ ...latest.current, cuts: undefined, reviewSegments: undefined, cutsReviewed: false })}>
+          <Text className="text-neutral-300 text-xs">Clear</Text>
+        </Pressable>
       </View>}
-      {multiSource && <Text className="text-amber-200 text-xs mb-2">Multiple recordings: recheck and rollback are off. Edit captions or attach a pickup.</Text>}
-      {!project.transcript.length && <Text className="text-neutral-300 text-sm mb-2">No transcript saved. Recheck the recording or keep the original.</Text>}
+      {!!project.recoveryMessage && <Text className="text-amber-200 text-xs mb-2">{project.recoveryMessage}</Text>}
 
       {project.recordings?.filter(recording => recording.mediaUri !== project.videoUri).map(recording => <View key={recording.id} className="mb-2 rounded-xl bg-neutral-900 px-3 py-2">
         <Text className="text-amber-200 text-xs">{recording.evidenceStatus === 'pending' ? 'Pickup saved, recognition unfinished — not counted yet.' : 'Pickup original preserved.'}</Text>
@@ -201,10 +215,10 @@ export function TranscriptReview({ project, onChange, onSeek, onPreviewTake, onP
 
       {(pickupIds.length > 0 || project.pickupRequest) && <View className="mb-2 rounded-xl bg-neutral-900 border border-neutral-800 p-3">
         <Text className="text-white text-sm font-semibold">
-          {pickupIds.length ? `${pickupIds.length} lines need pickup` : 'Pickup list saved'}
+          {pickupIds.length ? `${pickupIds.length} ${pickupIds.length === 1 ? 'line to retake' : 'lines to retake'}` : 'Pickup list saved'}
         </Text>
         <View className="flex-row gap-2 mt-2">
-          {!!pickupIds.length && <Pressable accessibilityRole="button" className="flex-1 items-center rounded-xl bg-neutral-800 py-3 active:opacity-70" onPress={() => change({ ...latest.current,
+          {!embedded && !!pickupIds.length && <Pressable accessibilityRole="button" className="flex-1 items-center rounded-xl bg-neutral-800 py-3 active:opacity-70" onPress={() => change({ ...latest.current,
             pickupRequest: { lineIds: pickupIds, requestedAt: Date.now() } })}>
             <Text className="text-white text-xs font-semibold">Save list</Text>
           </Pressable>}
@@ -212,7 +226,7 @@ export function TranscriptReview({ project, onChange, onSeek, onPreviewTake, onP
             setImporting(true);
             try { await launchProjectPickup(latest.current, change, route => router.push(route)); }
             finally { setImporting(false); }
-          }}><Text className="text-black text-xs font-semibold">Record</Text></Pressable>
+          }}><Text className="text-black text-xs font-semibold">Record missing lines</Text></Pressable>
         </View>
         {project.pickupRequest && <View className="mt-2">
           <Pressable disabled={importing || rechecking} accessibilityRole="button" className="py-2" onPress={async () => {
@@ -305,48 +319,6 @@ export function TranscriptReview({ project, onChange, onSeek, onPreviewTake, onP
         ]);
       }}><Text className="text-black text-sm font-semibold">Prepare cuts in script order</Text></Pressable>}
 
-      {(project.reviewSegments ?? []).map((segment, index) => <View key={`${segment.takeId}:${index}`} className="py-1">
-        <Pressable className="py-2" onPress={() => segment.takeId && onPreviewTake?.(segment.takeId)}>
-          <Text className="text-white text-xs">Cut {index + 1} · {segment.t0.toFixed(2)}–{segment.t1.toFixed(2)}s · tap to peek</Text>
-        </Pressable>
-      </View>)}
-      {(project.cuts ?? []).map((cut, index) => <View key={index} className="mt-2 rounded-xl bg-neutral-900 p-3">
-        <Pressable className="pb-2" onPress={() => onSeek(cut.t0)}><Text className="text-white text-xs font-semibold">Cut {index + 1} · tap to listen</Text></Pressable>
-        <View className="flex-row gap-2">
-          {(['t0', 't1'] as const).map(boundary => <View key={boundary} className="flex-1 flex-row items-center rounded-lg bg-neutral-800">
-            <Pressable accessibilityLabel={`Cut ${index + 1} ${boundary} minus half second`} className="px-3 py-3" onPress={() => {
-              const next = { ...cut, [boundary]: Math.max(0, cut[boundary] - 0.5) };
-              if (next.t1 <= next.t0) { setMessage('End must stay after start.'); return; }
-              void change({ ...latest.current, cutsReviewed: false, cuts: latest.current.cuts?.map((c, i) => i === index ? next : c) });
-            }}><Text className="text-white text-sm">−</Text></Pressable>
-            <TextInput keyboardType="decimal-pad" accessibilityLabel={`Cut ${index + 1} ${boundary === 't0' ? 'start' : 'end'} seconds`}
-              defaultValue={cut[boundary].toFixed(2)} className="flex-1 text-white text-sm text-center"
-              onEndEditing={e => {
-                const value = Number(e.nativeEvent.text);
-                const next = { ...cut, [boundary]: value };
-                const exceedsDuration = sourceDuration !== undefined && (next.t0 > sourceDuration || next.t1 > sourceDuration);
-                if (!Number.isFinite(value) || next.t0 < 0 || next.t1 <= next.t0 || exceedsDuration) {
-                  setMessage('Enter valid start/end seconds inside the recording.'); return;
-                }
-                void change({ ...latest.current, cutsReviewed: false, cuts: latest.current.cuts?.map((c, i) => i === index ? next : c) });
-              }} />
-            <Pressable accessibilityLabel={`Cut ${index + 1} ${boundary} plus half second`} className="px-3 py-3" onPress={() => {
-              const next = { ...cut, [boundary]: cut[boundary] + 0.5 };
-              if (sourceDuration !== undefined && next[boundary] > sourceDuration) { setMessage('Past the end of the recording.'); return; }
-              if (next.t1 <= next.t0) { setMessage('End must stay after start.'); return; }
-              void change({ ...latest.current, cutsReviewed: false, cuts: latest.current.cuts?.map((c, i) => i === index ? next : c) });
-            }}><Text className="text-white text-sm">+</Text></Pressable>
-          </View>)}
-        </View>
-      </View>)}
-      {(!!project.cuts?.length || !!project.reviewSegments?.length) && <View className="flex-row gap-2 mt-2">
-        <Pressable accessibilityRole="button" className={`flex-1 items-center rounded-xl py-3 active:opacity-70 ${project.cutsReviewed ? 'bg-neutral-800' : 'bg-white'}`} onPress={() => change({ ...latest.current, cutsReviewed: true })}>
-          <Text className={`text-xs font-semibold ${project.cutsReviewed ? 'text-neutral-300' : 'text-black'}`}>{project.cutsReviewed ? '✓ Cuts accepted' : 'Accept all cuts'}</Text>
-        </Pressable>
-        <Pressable accessibilityRole="button" className="items-center rounded-xl bg-neutral-900 border border-neutral-800 px-4 py-3 active:opacity-70" onPress={() => change({ ...latest.current, cuts: undefined, reviewSegments: undefined, cutsReviewed: false })}>
-          <Text className="text-neutral-300 text-xs">Clear</Text>
-        </Pressable>
-      </View>}
       {!!review.suggestions.length && <View className="mt-2">
         <Pressable onPress={() => setShowSuggestions(v => !v)} className="py-2">
           <Text className="text-neutral-400 text-xs">Cleanup suggestions ({review.suggestions.length}) · {showSuggestions ? 'hide' : 'review'}</Text>
@@ -381,6 +353,45 @@ export function TranscriptReview({ project, onChange, onSeek, onPreviewTake, onP
       }}>
         <Text className="text-neutral-400 text-xs">Undo last take choice</Text>
       </Pressable>}
+      <Pressable accessibilityRole="button" accessibilityState={{ expanded: showTools }} onPress={() => setShowTools(value => !value)} className="py-3">
+        <Text className="text-neutral-400 text-xs">{showTools ? 'Hide transcript tools' : 'Transcript tools'}</Text>
+      </Pressable>
+      {(showTools || rechecking) && <View>
+      <View className="flex-row gap-2 mb-2">
+        {rechecking ? <Pressable accessibilityRole="button" onPress={async () => {
+          const id = refinementId.current;
+          refinementId.current = null; setProgress(null);
+          if (id) await captions?.cancelRefinement(id);
+          await change({ ...latest.current, refinement: { status: 'cancelled', model: 'Moonshine Tiny Streaming' } });
+        }} className="flex-1 items-center rounded-xl bg-neutral-800 py-3 active:opacity-70">
+          <Text className="text-white text-xs font-semibold">Cancel · {Math.round((progress ?? 0) * 100)}%</Text>
+        </Pressable> : <Pressable accessibilityRole="button" disabled={multiSource || !captions || project.mediaMissing}
+          onPress={() => refine()} className="flex-1 items-center rounded-xl bg-neutral-800 py-3 active:opacity-70 disabled:opacity-40">
+          <Text className="text-white text-xs font-semibold">Recheck audio</Text>
+        </Pressable>}
+        <Pressable accessibilityRole="button" onPress={() => setShowHistory(v => !v)}
+          className="items-center rounded-xl bg-neutral-900 border border-neutral-800 px-4 py-3 active:opacity-70">
+          <Text className="text-neutral-300 text-xs">History</Text>
+        </Pressable>
+      </View>
+      {__DEV__ && <Pressable disabled={multiSource || !captions || project.mediaMissing || rechecking}
+        onPress={() => refine('small')} className="mb-2 disabled:opacity-40">
+        <Text className="text-neutral-500 text-xs">Compare Small · experimental</Text>
+      </Pressable>}
+      {showHistory && <View className="mb-2 rounded-xl bg-neutral-950 border border-neutral-800 p-3">
+        {project.refinementCandidate?.length ? <Text className="text-neutral-400 text-xs mb-2">
+          Latest recognition: {project.refinementCandidate.map(s => s.text).join(' ').slice(0, 220)}
+          {project.refinementCandidate.map(s => s.text).join(' ').length > 220 ? '…' : ''}
+        </Text> : null}
+        {rawTranscript.length > 0 && <Text className="text-neutral-500 text-xs mb-2">Raw transcript kept ({rawTranscript.length} segments).</Text>}
+        {project.rawTranscript && !multiSource && <Pressable onPress={() => change({ ...latest.current, transcript: latest.current.rawTranscript!, rawTranscript: latest.current.transcript, reviewDecisions: latest.current.previousReviewDecisions, previousReviewDecisions: latest.current.reviewDecisions, cutsReviewed: false })} className="py-2">
+          <Text className="text-white text-xs">Restore previous transcript</Text>
+        </Pressable>}
+        {!project.rawTranscript && !project.refinementCandidate?.length && <Text className="text-neutral-500 text-xs">No earlier versions yet. Rechecks that change the transcript appear here.</Text>}
+      </View>}
+      {multiSource && <Text className="text-amber-200 text-xs mb-2">Multiple recordings: recheck and rollback are off. Edit captions or attach a pickup.</Text>}
+      {!project.transcript.length && <Text className="text-neutral-300 text-sm mb-2">No transcript saved. Recheck the recording or keep the original.</Text>}
+      </View>}
       {importing && <Text className="text-neutral-300 text-xs py-2">Attaching pickup…</Text>}
       {!!message && <Text accessibilityRole="alert" className="text-neutral-200 text-xs py-2">{message}</Text>}
     </View>}
