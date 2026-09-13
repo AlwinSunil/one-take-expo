@@ -46,5 +46,13 @@ The implementation passed 630 JavaScript tests, TypeScript checking, and 18 Andr
 The arm64 debug APK builds successfully.
 APK inspection verifies the pinned Uhm model, model notices, and exactly one unchanged ONNX Runtime library alongside the existing Moonshine models.
 The release asset merge contains no Uhm weights.
-Device inference, playback, cancellation, and reopen validation remain pending because the connected iQOO disconnected before installation.
+The iQOO I2501 running Android 16 completed local inference on 4.78-second and 30-second synthetic clips in 3.29 and 6.53 seconds respectively.
+The 30-second case exercised two windows and contiguous source coverage without duplicate events.
+Context playback, cancellation followed by retry, and dismissal persistence after reopening were checked through the app UI.
+An initial device failure exposed an unsupported FP16 GELU fusion in ORT's extended optimizations.
+The bridge uses `ORT_ENABLE_BASIC` to retain the original primitive operations; the model bytes and runtime are unchanged.
+The test also fixed context playback showing zero duration when the project had no clean sequence.
+A process memory snapshot during the short run was approximately 954 MiB PSS, including the debug app; this is not an isolated model peak measurement.
+Five-minute performance and low-memory devices remain unvalidated.
+See `android-acoustic-fillers-smoke.json` for the measured smoke results.
 The headers in `modules/one-take-captions/android/src/main/cpp/onnxruntime` are from ONNX Runtime 1.28.0 and retain its MIT license.

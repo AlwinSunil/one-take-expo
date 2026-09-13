@@ -251,7 +251,9 @@ std::vector<FrameRow> run_model(
   SessionOptionsGuard options(api, options_raw, release_session_options);
   check_status(api, api->SetIntraOpNumThreads(options.get(), 1));
   check_status(api, api->SetInterOpNumThreads(options.get(), 1));
-  check_status(api, api->SetSessionGraphOptimizationLevel(options.get(), ORT_ENABLE_ALL));
+  // Extended GELU fusion creates an FP16 com.microsoft.Gelu kernel that the
+  // Android CPU provider cannot execute. Keep the model's primitive operators.
+  check_status(api, api->SetSessionGraphOptimizationLevel(options.get(), ORT_ENABLE_BASIC));
 
   OrtSession* session_raw = nullptr;
   check_status(api, api->CreateSessionFromArray(

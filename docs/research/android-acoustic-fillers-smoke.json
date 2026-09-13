@@ -1,0 +1,38 @@
+{
+  "kind": "synthetic-device-smoke",
+  "device": "iQOO I2501",
+  "androidVersion": 16,
+  "runtime": "onnxruntime-1.28.0-CPUExecutionProvider",
+  "graphOptimization": "ORT_ENABLE_BASIC",
+  "modelSha256": "c266faf7db4cdced6f18aa9119ff2800a20707d7159be645d487ec191a9d79ff",
+  "syntheticAudio": "macOS Samantha TTS, encoded into a solid-color MP4; longer case padded with silence",
+  "runs": [
+    {
+      "durationSeconds": 4.78,
+      "windowCount": 1,
+      "processingSeconds": 3.294923228,
+      "eventCount": 2
+    },
+    {
+      "durationSeconds": 30,
+      "windowCount": 2,
+      "processingSeconds": 6.530662446,
+      "eventCount": 2
+    }
+  ],
+  "checks": {
+    "contextPlaybackObserved": true,
+    "contextPlaybackUi": "0:01 of 0:03 with Pause available",
+    "dismissalSurvivedReopen": true,
+    "cancellationObserved": true,
+    "retryCompleted": true,
+    "cutMutation": false,
+    "originalFilesPreserved": true
+  },
+  "memory": {
+    "observedProcessPssKiB": 976783,
+    "note": "One process memory snapshot during the short run, not an isolated model peak measurement."
+  },
+  "humanAccuracyValidated": false,
+  "fiveMinutePerformanceValidated": false
+}

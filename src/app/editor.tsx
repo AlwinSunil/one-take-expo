@@ -289,7 +289,7 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
 
   const covered = review?.lines.filter(line => line.spokenText.trim() && line.selectedTakeId).length ?? 0;
   const totalLines = review?.lines.filter(line => line.spokenText.trim()).length ?? 0;
-  const outputDuration = previewSource === 'original'
+  const outputDuration = peek ? Math.max(0, peek.t1 - peek.t0) : previewSource === 'original'
     ? (valid ? duration : 0)
     : previewSource === 'trim'
       ? (valid ? Math.max(0, limit - start) : 0)
@@ -302,7 +302,7 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
         : 0;
   const statusLine = project?.mode === 'script' && review
     ? `${covered}/${totalLines} lines · ${time(outputDuration)} output${updatesWaiting && playing ? ' · applies on pause' : ''}`
-    : `${time(previewSource === 'clean' && !activeCleanReady ? 0 : useNative ? nativePosition : currentTime)} · ${time(outputDuration)} output`;
+    : `${time(previewSource === 'clean' && !peek && !activeCleanReady ? 0 : useNative ? nativePosition : currentTime)} · ${time(outputDuration)} output`;
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', state => { if (state !== 'active') { player.pause(); setNativePlaying(false); } });
