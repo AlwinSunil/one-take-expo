@@ -1,0 +1,8 @@
+Android build availability evidence
+Run date: 2026-09-13
+
+Command: EXPO_NO_DOTENV=1 ./android/gradlew :app:assembleDebug --no-daemon
+Exit code: 1
+Result: Build stopped before Gradle configuration because the host has no Java runtime.
+Reported error: The operation couldn’t be completed. Unable to locate a Java Runtime. Please visit http://www.java.com for information on installing Java.
+No device or emulator mutation occurred.

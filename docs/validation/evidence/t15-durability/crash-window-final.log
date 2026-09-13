@@ -1,0 +1,31 @@
+(node:5416) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/src/lib/t15-persistence.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ initializing a legacy project seeds additive foundation and preserves legacy fields (4.214792ms)
+✔ creator commit uses an atomic revision CAS, idempotent operation IDs, and keeps sources immutable (2.383209ms)
+✔ large caption commits retain complete script evidence in bounded audit chunks (3.344084ms)
+✔ history moved out of the active window remains addressable from the evidence archive (1.404875ms)
+✔ checkpoint pages are bounded, idempotent, mismatch-safe, and fully recoverable (9.087958ms)
+✔ the foundation and evidence survive reopening the same SQLite database (6.820917ms)
+✔ analysis enqueue/start/finish is idempotent and a compatible result awaits creator review (1.416375ms)
+✔ late results remain historical after an edit, and cancelled jobs keep late evidence without reopening (1.463417ms)
+✔ startup recovery invalidates process leases and retry creates a new captured attempt (1.079791ms)
+✔ missing durable source blocks analysis through the source assertion hook (1.132708ms)
+✔ a failed metadata update rolls back the operation and retains the last durable project and evidence (1.38625ms)
+✔ a tombstoned project cannot be recreated by a late row or checkpoint (0.380583ms)
+✔ analysis cannot become ready with missing or cross-source evidence references (0.819542ms)
+✔ an archive marker cannot point to missing command history (0.399375ms)
+(node:5417) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/src/lib/store.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ real store durability harness covers capture, journals, concurrent pickup/edit, and deletion (15.90425ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 15
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 133.800625

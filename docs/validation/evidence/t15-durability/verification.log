@@ -1,0 +1,35 @@
+Tier 1.5 verification evidence
+Run date: 2026-09-13
+Worktree: /Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation
+
+Command: npm test
+Exit code: 0
+Result: 452 tests passed, 0 failed.
+Node emitted MODULE_TYPELESS_PACKAGE_JSON warnings only.
+
+Command: npm run typecheck -- --pretty false
+Exit code: 0
+Result: TypeScript typecheck passed.
+
+Command: npm run test:samples
+Exit code: 0
+Result: 19/19 checks passed.
+
+Command: npm run samples
+Exit code: 0
+Result: Sample replay completed and emitted the expected replay JSON output.
+
+Command: npm run coverage:report
+Exit code: 0
+Result: 2 scenarios and 16 synthetic fixture rows passed; predicted/expected covered 11/11; needed 5/5; precision 1.000; recall 1.000.
+The report states that the held-out set contains 10 rows, with 0 consented human rows, so it is ineligible for a design-accuracy claim.
+
+Command: python3 tests/speech-evaluation.test.py
+Exit code: 0
+Result: 12 tests ran and passed (OK).
+
+Command: python3 tests/t1-speech-evaluation.test.py
+Exit code: 0
+Result: 11 tests ran and passed (OK).
+
+Device/build safety: no physical device was connected or mutated during these checks.

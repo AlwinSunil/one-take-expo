@@ -1,0 +1,86 @@
+{
+  "project": {
+    "id": "fixture-project",
+    "mode": "script",
+    "script": "A. B. C.",
+    "videoUri": "file:///fixture-original.mp4",
+    "duration": 4,
+    "createdAt": 1700000000000,
+    "clips": [],
+    "reviewSegments": [
+      { "uri": "file:///fixture-original.mp4", "t0": 0, "t1": 2, "takeId": "take:A" },
+      { "uri": "file:///fixture-pickup.mp4", "t0": 0, "t1": 2, "takeId": "take:B" },
+      { "uri": "file:///fixture-original.mp4", "t0": 2, "t1": 4, "takeId": "take:C" }
+    ],
+    "transcript": [
+      { "id": "segment:A", "t0": 0, "t1": 2, "text": "A", "isFinal": true },
+      { "id": "segment:C", "t0": 2, "t1": 4, "text": "C", "isFinal": true }
+    ],
+    "recordings": [
+      { "id": "fixture-project:original", "mediaUri": "file:///fixture-original.mp4", "duration": 4, "createdAt": 1700000000000 },
+      { "id": "source:pickup", "mediaUri": "file:///fixture-pickup.mp4", "duration": 2, "createdAt": 1700000001000 }
+    ],
+    "takes": [
+      { "id": "take:A", "t0": 0, "t1": 2, "mediaUri": "file:///fixture-original.mp4", "playable": true, "quality": "clean", "inFrame": true, "transcriptSegmentIds": ["segment:A"] },
+      { "id": "take:C", "t0": 2, "t1": 4, "mediaUri": "file:///fixture-original.mp4", "playable": true, "quality": "clean", "inFrame": true, "transcriptSegmentIds": ["segment:C"] },
+      { "id": "take:B", "t0": 0, "t1": 2, "mediaUri": "file:///fixture-pickup.mp4", "playable": true, "quality": "clean", "inFrame": true, "transcriptSegmentIds": [] }
+    ]
+  },
+  "expected": {
+    "version": 1,
+    "projectId": "fixture-project",
+    "rootSourceId": "fixture-project",
+    "originalAlias": "fixture-project:original",
+    "pickupSourceId": "source:pickup",
+    "clipOrder": ["clip:A", "clip:B", "clip:C"],
+    "outputDurationSeconds": 6,
+    "excludedOutputDurationSeconds": 4,
+    "allExcludedOutputDurationSeconds": 0
+  },
+  "timeline": {
+    "revision": 0,
+    "clips": [
+      { "id": "clip:A", "sourceId": "fixture-project", "t0": 0, "t1": 2, "spanIds": [], "pointIds": [], "utteranceIds": [], "included": true, "reasonIds": [], "takeId": "take:A" },
+      { "id": "clip:B", "sourceId": "source:pickup", "t0": 0, "t1": 2, "spanIds": [], "pointIds": [], "utteranceIds": [], "included": true, "reasonIds": [], "takeId": "take:B" },
+      { "id": "clip:C", "sourceId": "fixture-project", "t0": 2, "t1": 4, "spanIds": [], "pointIds": [], "utteranceIds": [], "included": true, "reasonIds": [], "takeId": "take:C" }
+    ]
+  },
+  "jobRequest": {
+    "id": "job:analysis:1",
+    "projectId": "fixture-project",
+    "sourceId": "fixture-project",
+    "attempt": 1,
+    "idempotencyKey": "fixture-project:analysis:1",
+    "base": {
+      "projectRevision": 0,
+      "scriptRevision": 0,
+      "timelineRevision": 0,
+      "captionRevision": 0,
+      "transcriptRevision": { "fixture-project": 0, "source:pickup": 0 }
+    },
+    "producer": "fixture-analysis",
+    "producerVersion": "1"
+  },
+  "jobResult": {
+    "id": "result:analysis:1",
+    "jobId": "job:analysis:1",
+    "attempt": 1,
+    "projectId": "fixture-project",
+    "sourceId": "fixture-project",
+    "base": {
+      "projectRevision": 0,
+      "scriptRevision": 0,
+      "timelineRevision": 0,
+      "captionRevision": 0,
+      "transcriptRevision": { "fixture-project": 0, "source:pickup": 0 }
+    },
+    "status": "complete",
+    "observationIds": ["observation:fixture:1"],
+    "proposalIds": ["proposal:fixture:1"],
+    "reasonIds": ["reason:fixture:1"],
+    "payload": {
+      "page": { "id": "page:fixture:1", "ordinal": 0, "total": 1 },
+      "processor": "unknown"
+    }
+  }
+}

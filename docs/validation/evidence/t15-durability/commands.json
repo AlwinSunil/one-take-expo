@@ -1,0 +1,65 @@
+{
+  "worktree": "/Users/sabari/.t3/worktrees/one-take-expo/t15-durable-foundation",
+  "commands": [
+    {
+      "name": "tests",
+      "command": "npm test",
+      "exitCode": 1,
+      "log": "docs/validation/evidence/t15-durability/tests.log"
+    },
+    {
+      "name": "typecheck",
+      "command": "npm run typecheck -- --pretty false",
+      "exitCode": 0,
+      "log": "docs/validation/evidence/t15-durability/typecheck.log"
+    },
+    {
+      "name": "samples",
+      "command": "npm run test:samples",
+      "exitCode": 0,
+      "log": "docs/validation/evidence/t15-durability/samples.log"
+    },
+    {
+      "name": "caption-replay",
+      "command": "npm run samples",
+      "exitCode": 0,
+      "log": "docs/validation/evidence/t15-durability/caption-replay.log"
+    },
+    {
+      "name": "coverage",
+      "command": "npm run coverage:report",
+      "exitCode": 0,
+      "log": "docs/validation/evidence/t15-durability/coverage.log"
+    },
+    {
+      "name": "speech-evaluation",
+      "command": "python3 tests/speech-evaluation.test.py",
+      "exitCode": 0,
+      "log": "docs/validation/evidence/t15-durability/speech-evaluation.log"
+    },
+    {
+      "name": "t1-evaluation",
+      "command": "python3 tests/t1-speech-evaluation.test.py",
+      "exitCode": 0,
+      "log": "docs/validation/evidence/t15-durability/t1-evaluation.log"
+    },
+    {
+      "name": "expo-export",
+      "command": "EXPO_NO_DOTENV=1 npx expo export --platform android --output-dir /tmp/t15-android-export --clear",
+      "exitCode": 0,
+      "log": "docs/validation/evidence/t15-durability/export-raw.log"
+    },
+    {
+      "name": "prepare-moonshine",
+      "command": "python3 tools/prepare_moonshine.py --native-dir /tmp/t1-moonshine-native/arm64-v8a --with-small",
+      "exitCode": 0,
+      "log": "docs/validation/evidence/t15-durability/prepare-moonshine.log"
+    },
+    {
+      "name": "native-build",
+      "command": "JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home' ANDROID_HOME='/Users/sabari/Library/Android/sdk' EXPO_NO_DOTENV=1 ./android/gradlew -p android :app:assembleDebug :one-take-captions:testDebugUnitTest :one-take-media:testDebugUnitTest -PreactNativeArchitectures=arm64-v8a --console=plain",
+      "exitCode": 0,
+      "log": "docs/validation/evidence/t15-durability/native-build.log"
+    }
+  ]
+}

@@ -40,6 +40,8 @@ export interface Clip {
 }
 
 export interface Project {
+  /** Additive durable T1.5 state; legacy projects retain their existing edit until opted in. */
+  v15?: import('./t15-schema').DurableFoundation;
   /** Raw versioned producer envelope. Never derive take identities during reopen. */
   speechControl?: import('./t1-speech-provider').T1SpeechProviderEnvelope;
   cleanupReview?: import('./t1-cleanup-review').T1CleanupReviewState;
@@ -58,7 +60,7 @@ export interface Project {
   captionRevision?: number;
   scriptLines?: ScriptLine[];
   takes?: (TakeEvidence & { recordedAt?: number; eligibleLineIds?: string[] })[];
-  recordings?: { id: string; mediaUri: string; duration: number; createdAt: number; evidenceStatus?: 'pending' | 'complete' }[];
+  recordings?: { id: string; mediaUri: string; duration: number; createdAt: number; evidenceStatus?: 'pending' | 'complete'; checkpointPayload?: string; completionPayload?: string }[];
   reviewSegments?: { uri: string; t0: number; t1: number; takeId?: string; crop?: import('./t1-framing').NativeFramingCrop; captions?: { t0: number; t1: number; text: string }[] }[];
   unavailableTakeIds?: string[];
   pickupRequest?: { lineIds: string[]; requestedAt: number };
