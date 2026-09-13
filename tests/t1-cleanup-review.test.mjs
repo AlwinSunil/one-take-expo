@@ -255,7 +255,38 @@ test('reset preserves an independently changed prepared sequence', () => {
     reviewSegments: [...accepted.project.reviewSegments, { uri: 'file:///take-a.mp4', t0: 5, t1: 5.5, takeId: 'take-a' }],
   };
   const reset = resetCleanupReview(independentlyChanged);
-  assert.equal(reset, independentlyChanged);
-  assert.ok(reset.cleanupReview);
+  assert.equal(reset.cleanupReview, undefined);
   assert.deepEqual(reset.reviewSegments, independentlyChanged.reviewSegments);
+});
+
+
+test('stale speech revision reset restores an unchanged applied sequence and clears state', () => {
+ const original = project(); const suggestion = suggestionOf(original);
+ const accepted = applyCleanupReviewDecision(original, suggestion.id, 'accept', {recordingId:suggestion.recordingId,fingerprint:suggestion.fingerprint}).project;
+ const reset = resetCleanupReview({...accepted,speechControl:{...accepted.speechControl,revision:'new'}});
+ assert.equal(reset.cleanupReview,undefined);
+ assert.deepEqual(reset.reviewSegments,original.reviewSegments);
+});
+
+test('malformed persisted cleanup state fails closed and can be cleared', () => {
+ const value = project();
+ value.cleanupReview = {version:1, projectId:value.id, speechRevision:value.speechControl.revision, baseReviewSegments:null};
+ const report = buildCleanupReview(value,true);
+ assert.equal(report.stateCurrent,false);
+ assert.equal(report.items[0].canAccept,false);
+ const reset = resetCleanupReview(value);
+ assert.equal(reset.cleanupReview,undefined);
+ assert.deepEqual(reset.reviewSegments,value.reviewSegments);
+});
+
+test('duplicate suggestion IDs require recording-scoped dismiss and undo', () => {
+ const value=project(); const first=suggestionOf(value);
+ const second={...first,recordingId:'recording-b',fingerprint:'second-fingerprint'};
+ value.speechControl.capture.recordings.push({recordingId:'recording-b',mediaUri:'file:///b.mp4',duration:5,mediaAvailable:true});
+ value.speechControl.cleanup.push({recordingId:'recording-b',plan:{...value.speechControl.cleanup[0].plan,suggestions:[second]}});
+ assert.equal(applyCleanupReviewDecision(value,first.id,'dismiss').ok,false);
+ const result=applyCleanupReviewDecision(value,second.id,'dismiss',{recordingId:'recording-b',fingerprint:second.fingerprint});
+ assert.equal(result.ok,true);
+ assert.equal(result.project.cleanupReview.decisions[0].recordingId,'recording-b');
+ assert.equal(result.project.cleanupReview.decisions[0].fingerprint,'second-fingerprint');
 });

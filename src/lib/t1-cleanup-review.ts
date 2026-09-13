@@ -137,6 +137,52 @@ function copySegments(segments: readonly CleanupReviewSegment[]): CleanupReviewS
   return segments.map(copySegment);
 }
 
+function isReviewSegment(value: unknown): value is CleanupReviewSegment {
+  if (!value || typeof value !== 'object') return false;
+  const segment = value as { uri?: unknown; t0?: unknown; t1?: unknown; captions?: unknown };
+  return typeof segment.uri === 'string'
+    && segment.uri.length > 0
+    && typeof segment.t0 === 'number'
+    && Number.isFinite(segment.t0)
+    && segment.t0 >= 0
+    && typeof segment.t1 === 'number'
+    && Number.isFinite(segment.t1)
+    && segment.t1 > segment.t0
+    && (segment.captions === undefined
+      || (Array.isArray(segment.captions)
+        && segment.captions.every(caption => !!caption && typeof caption === 'object')));
+}
+
+function isReviewSegmentArray(value: unknown): value is readonly CleanupReviewSegment[] {
+  return Array.isArray(value) && value.every(isReviewSegment);
+}
+
+function isCleanupReviewDecision(value: unknown): value is T1CleanupReviewDecision {
+  if (!value || typeof value !== 'object') return false;
+  const decision = value as Partial<T1CleanupReviewDecision>;
+  return typeof decision.id === 'string'
+    && typeof decision.suggestionId === 'string'
+    && typeof decision.recordingId === 'string'
+    && (decision.action === 'accept' || decision.action === 'dismiss')
+    && typeof decision.fingerprint === 'string';
+}
+
+function isCleanupReviewState(value: unknown): value is T1CleanupReviewState {
+  if (!value || typeof value !== 'object') return false;
+  const state = value as Partial<T1CleanupReviewState>;
+  return state.version === T1_CLEANUP_REVIEW_VERSION
+    && typeof state.projectId === 'string'
+    && typeof state.speechRevision === 'string'
+    && isReviewSegmentArray(state.baseReviewSegments)
+    && typeof state.appliedReviewSegmentsFingerprint === 'string'
+    && Array.isArray(state.identities)
+    && state.identities.every(identity => !!identity
+      && typeof identity.recordingId === 'string'
+      && (typeof identity.mediaUri === 'string' || identity.mediaUri === null))
+    && Array.isArray(state.decisions)
+    && state.decisions.every(isCleanupReviewDecision);
+}
+
 function speechEnvelope(project: CleanupReviewProject): NonNullable<Project['speechControl']> | undefined {
   return project.speechControl;
 }
@@ -184,10 +230,9 @@ function findEntry(
   suggestionId: string,
   recordingId?: string,
 ): SuggestionEntry | undefined {
-  return suggestionEntries(project).find(entry => entry.suggestion.id === suggestionId
-    && (recordingId === undefined
-      || entry.snapshot.recordingId === recordingId
-      || entry.suggestion.recordingId === recordingId));
+  const matches = suggestionEntries(project).filter(entry => entry.suggestion.id === suggestionId
+    && (recordingId === undefined || entry.snapshot.recordingId === recordingId));
+  return matches.length === 1 ? matches[0] : undefined;
 }
 
 function captureRecordings(project: CleanupReviewProject): readonly CaptureRecording[] {
@@ -220,10 +265,11 @@ function currentMediaUri(project: CleanupReviewProject, recordingId: string): st
 
 function preparedSegments(project: CleanupReviewProject): readonly CleanupReviewSegment[] {
   const state = project.cleanupReview;
-  if (state && state.projectId === project.id && state.speechRevision === project.speechControl?.revision) {
+  if (state && state.projectId === project.id && state.speechRevision === project.speechControl?.revision
+    && isReviewSegmentArray(state.baseReviewSegments)) {
     return state.baseReviewSegments;
   }
-  return Array.isArray(project.reviewSegments) ? project.reviewSegments : [];
+  return isReviewSegmentArray(project.reviewSegments) ? project.reviewSegments : [];
 }
 
 function intervalContained(
@@ -250,6 +296,14 @@ function reviewSegmentsFingerprint(segments: readonly CleanupReviewSegment[]): s
   return JSON.stringify(segments);
 }
 
+function sequenceMatchesState(project: CleanupReviewProject, state: T1CleanupReviewState): boolean {
+  try {
+    return reviewSegmentsFingerprint(project.reviewSegments ?? []) === state.appliedReviewSegmentsFingerprint;
+  } catch {
+    return false;
+  }
+}
+
 function hasVerifiedRemovalProof(suggestion: CleanupSuggestion): boolean {
   const verifiedBoundary = (boundary: CleanupSuggestion['startBoundary'] | undefined) => !!boundary
     && boundary.verified === true
@@ -269,13 +323,10 @@ function hasVerifiedRemovalProof(suggestion: CleanupSuggestion): boolean {
 function stateIsCurrent(project: CleanupReviewProject): boolean {
   const state = project.cleanupReview;
   return state === undefined
-    || (state.version === T1_CLEANUP_REVIEW_VERSION
+    || (isCleanupReviewState(state)
       && state.projectId === project.id
       && state.speechRevision === project.speechControl?.revision
-      && Array.isArray(state.baseReviewSegments)
-      && typeof state.appliedReviewSegmentsFingerprint === 'string'
-      && Array.isArray(state.decisions)
-      && reviewSegmentsFingerprint(project.reviewSegments ?? []) === state.appliedReviewSegmentsFingerprint);
+      && sequenceMatchesState(project, state));
 }
 
 function stateDecision(
@@ -283,7 +334,8 @@ function stateDecision(
   suggestion: CleanupSuggestion,
   recordingId: string,
 ): T1CleanupReviewDecision | undefined {
-  return state?.decisions.find(decision => decision.suggestionId === suggestion.id
+  return state?.decisions.find(decision => isCleanupReviewDecision(decision)
+    && decision.suggestionId === suggestion.id
     && decision.recordingId === recordingId);
 }
 
@@ -587,13 +639,11 @@ export function applyCleanupReviewDecision(
 export function resetCleanupReview(project: CleanupReviewProject): CleanupReviewProject {
   const state = project.cleanupReview;
   if (!state) return project;
-  // A separate review edit may have changed the sequence since this state was
-  // applied.  Preserve that edit and the cleanup state rather than clobbering
-  // it with the older base sequence.
-  if (!stateIsCurrent(project)) return project;
+  const canRestore = isCleanupReviewState(state) && state.projectId === project.id
+    && sequenceMatchesState(project, state);
   return {
     ...project,
-    reviewSegments: copySegments(state.baseReviewSegments),
+    ...(canRestore ? { reviewSegments: copySegments(state.baseReviewSegments) } : {}),
     cutsReviewed: false,
     cleanupReview: undefined,
   };

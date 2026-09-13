@@ -233,6 +233,6 @@ The gated editor and recovery review consume `speechControl.cleanup` through `T1
 A removal requires current script/project evidence, available source media, verified independent-silence or manual-review boundaries and an interval contained in exactly one existing prepared segment.
 Recognition-only boundaries and mid-sentence default marks stay review-only.
 Accept/reset clears `cutsReviewed`; originals and raw transcripts stay intact.
-Reset refuses to overwrite a sequence changed independently since the cleanup decision.
+Reset clears stale cleanup state without overwriting a sequence changed independently since the cleanup decision.
 Capture must publish actual cleanup plans with source-local seconds and immutable recording/fingerprint provenance.
 This consumer has deterministic behavior tests, with device listening and splice quality still pending.

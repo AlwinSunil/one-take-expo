@@ -43,13 +43,11 @@ export function T1CleanupReview({
 
   if (!enabled) return null;
 
-  async function choose(itemId: string, action: 'accept' | 'dismiss') {
+  async function choose(itemId: string, recordingId: string, action: 'accept' | 'dismiss') {
     if (disabled || busyId) return;
-    const item = report.items.find(candidate => candidate.id === itemId);
+    const item = report.items.find(candidate => candidate.id === itemId && candidate.recordingId === recordingId);
     if (!item) return;
-    const confirmation = action === 'accept'
-      ? { recordingId: item.recordingId, fingerprint: item.suggestion.fingerprint }
-      : undefined;
+    const confirmation = { recordingId: item.recordingId, fingerprint: item.suggestion.fingerprint };
     setBusyId(itemId);
     setMessage('');
     try {
@@ -127,7 +125,7 @@ export function T1CleanupReview({
           accessibilityLabel="Accept reversible cleanup removal"
           accessibilityState={{ disabled: disabled || !!busyId }}
           disabled={disabled || !!busyId}
-          onPress={() => { void choose(item.id, 'accept'); }}
+          onPress={() => { void choose(item.id, item.recordingId, 'accept'); }}
           className="px-3 py-3 rounded-lg bg-amber-700 disabled:opacity-40">
           <Text className="text-white text-xs">Accept reversible removal</Text>
         </Pressable>}
@@ -136,7 +134,7 @@ export function T1CleanupReview({
           accessibilityLabel="Keep cleanup mark"
           accessibilityState={{ disabled: disabled || !!busyId }}
           disabled={disabled || !!busyId}
-          onPress={() => { void choose(item.id, 'dismiss'); }}
+          onPress={() => { void choose(item.id, item.recordingId, 'dismiss'); }}
           className="px-3 py-3 rounded-lg border border-neutral-700 disabled:opacity-40">
           <Text className="text-neutral-300 text-xs">Keep marked</Text>
         </Pressable>}
@@ -145,7 +143,7 @@ export function T1CleanupReview({
           accessibilityLabel="Undo cleanup removal"
           accessibilityState={{ disabled: disabled || !!busyId }}
           disabled={disabled || !!busyId}
-          onPress={() => { void choose(item.id, 'dismiss'); }}
+          onPress={() => { void choose(item.id, item.recordingId, 'dismiss'); }}
           className="px-3 py-3 rounded-lg border border-neutral-700 disabled:opacity-40">
           <Text className="text-neutral-300 text-xs">Undo removal</Text>
         </Pressable>}
