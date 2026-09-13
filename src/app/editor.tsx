@@ -332,7 +332,7 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
     fillerReturnSource.current = previewSource;
     beginFillerPlayback(session);
   }
-  const nativeRequest = useMemo(() => JSON.stringify({ id: fillerPreview ? `filler-preview:${fillerPreview.token}` : 'preview', sourceUri: playingSegments[0]?.uri ?? uri, cuts: [], captions: [], segments: playingSegments }), [fillerPreview, playingSegments, uri]);
+  const nativeRequest = useMemo(() => JSON.stringify({ id: fillerPreview ? `filler-preview-${fillerPreview.token}` : 'preview', sourceUri: playingSegments[0]?.uri ?? uri, cuts: [], captions: [], segments: playingSegments }), [fillerPreview, playingSegments, uri]);
   useEffect(() => { if (useNative) player.pause(); else setNativePlaying(false); }, [useNative, player]);
   const previewCuts = !useNative && !peek && previewSource === 'clean' && activeCleanReady ? activeLegacyCuts : undefined;
   const autoStarted = useRef(false);
@@ -578,6 +578,8 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
         if (state.error) {
           if (fillerPreview?.status === 'playing' && fillerPlaybackToken.current === fillerPreview.token) {
             setFillerPreview(previous => previous && previous.token === fillerPreview.token ? { ...previous, status: 'error', error: state.error } : previous);
+            setNativePlaying(false);
+            return;
           }
           setNativeError(state.error); setNativePlaying(false); clearPeek(); setPreviewSource('clean');
           setFailedMediaUris(previous => [...new Set([...previous, ...playingSegments.map(segment => segment.uri)])]);
