@@ -398,6 +398,11 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
     const session = fillerPreview;
     const current = latestProject.current;
     if (!session || session.status !== 'completed' || !current) return;
+    if (session.returnSource !== 'clean' && (current.reviewSegments !== undefined || current.cuts !== undefined)) {
+      setFillerPreview(previous => previous ? { ...previous, status: 'error',
+        error: 'This video already has edits. Open Edited and preview the filler there to keep your other cuts.' } : previous);
+      return;
+    }
     if (JSON.stringify(timelineFields(current)) !== JSON.stringify(session.timelineBefore)) {
       closeFillerPreview();
       setMessage('This filler is based on an older timeline. Reopen the preview before deleting it.');
