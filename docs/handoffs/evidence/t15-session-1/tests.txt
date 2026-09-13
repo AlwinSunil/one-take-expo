@@ -1,0 +1,545 @@
+
+> one-take@1.0.0 test
+> node --experimental-strip-types --test tests/*.test.mjs
+
+(node:28453) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/src/lib/live-caption-state.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ synthetic caption replay is deterministic and preserves utterance timing (5.618666ms)
+✔ every recorded session is present, synthetic and self-consistent (0.178166ms)
+✔ replaying a recorded session twice produces byte-identical merged output (0.269708ms)
+✔ late or duplicated stale events cannot change the replayed transcript (0.213666ms)
+✔ the noisy recording exercises stale events from another session and an older revision (0.423417ms)
+✔ quiet and noisy reads produce final utterances with timing (0.138959ms)
+✔ an empty recording never produces a final segment with text (0.083292ms)
+✔ the loading and delayed states of a read are visible through the status reducer (0.196292ms)
+✔ a failed model stays unavailable with its reason after the session stops (0.259334ms)
+✔ an interrupted take keeps its recognized utterance and recovers on the next start (0.161875ms)
+✔ recorded timing events replay to the same separated durations (0.49175ms)
+(node:28454) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/src/lib/caption-status-store.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ a store starts idle and reports no retry path (0.837458ms)
+✔ publishing the same status keeps the snapshot and does not notify (0.145292ms)
+✔ a changed reason or timing report replaces the snapshot (0.06825ms)
+✔ an unsubscribed listener stops hearing about changes (0.097041ms)
+✔ resetting returns the store to the idle status (0.055292ms)
+(node:28455) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/src/lib/caption-timing.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ the three stage durations are reported separately (10.305875ms)
+✔ an incomplete utterance reports only the durations it can measure (0.091542ms)
+✔ finalization is delayed only above the threshold (0.08775ms)
+✔ coverage processing is delayed only above the threshold (0.0675ms)
+✔ a slow pause detection alone is not a delayed state (0.568542ms)
+✔ the reported state follows the most recent utterance (0.071167ms)
+✔ each completed utterance produces one caption-timing log line (0.084083ms)
+✔ a repeated stage keeps the first timestamp and the same state object (0.052375ms)
+✔ timing events that move backwards are rejected (0.278042ms)
+✔ malformed timing events are rejected (0.148792ms)
+✔ an utterance with no pause source still logs a line with n/a stages (0.079208ms)
+✔ each caption-timing line is logged exactly once when utterances complete out of order (0.114125ms)
+✔ stage timestamps share the audio-stream clock (0.069042ms)
+✔ only a listening session is relabelled as delayed by timing (0.060167ms)
+✔ coverage produces a new timing line without pause detection (0.108208ms)
+(node:28456) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/src/features/capture/capture-controls.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ native volume and camera keys map to capture commands without claiming a remote (0.31675ms)
+✔ commands are ignored while capture is inactive and after it ends (0.347417ms)
+✔ one native key event is emitted once, while distinct presses remain usable (0.061875ms)
+✔ a queued event from a previous take cannot affect the next take (0.06325ms)
+(node:28457) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/src/features/capture/coverage.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:28457) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/modules/one-take-media/timeline.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/modules/one-take-media/package.json.
+✔ recording-time coverage stays pending until a real saved URI exists (5.108667ms)
+✔ a final transcript and playable URI feed the shared coverage engine (1.561666ms)
+✔ missing media, provisional speech, and scratched takes never claim coverage (0.434875ms)
+✔ required action cues remain a separate manual wrap gate (0.188625ms)
+(node:28458) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/src/features/capture/project-handoff.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:28458) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/modules/one-take-media/timeline.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/modules/one-take-media/package.json.
+✔ pickup script reconstructs persisted identities and cues independently of accepted draft (6.897292ms)
+✔ capture coverage honors explicit choices and pickup eligibility (0.715959ms)
+✔ audio start offset is removed and truncated boundary captions remain provisional (0.106417ms)
+✔ launch waits for durable request and never navigates after failed persistence (0.138541ms)
+(node:28459) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/src/features/capture/reliability.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ permission guidance distinguishes loading, requestable, and settings recovery (1.887041ms)
+✔ storage preflight blocks exhaustion, warns before recording becomes risky, and tolerates unknown values (0.224292ms)
+✔ capture failures become actionable for busy camera, storage, permission, and interruption paths (0.517833ms)
+✔ rapid stop requests are idempotent and preserve the first reason (0.213708ms)
+(node:28460) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/src/lib/project-workflow.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:28460) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/modules/one-take-media/timeline.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/modules/one-take-media/package.json.
+✔ latest clean attempts play in script order, excluding scratched and pending (2.976583ms)
+✔ one breath take stays whole and appears once (0.389667ms)
+✔ manual selection wins over latest attempt (0.717917ms)
+✔ missing, pending and no-speech recordings never claim a clean cut (1.213291ms)
+✔ out-of-range and foreign media are reported instead of played (3.740875ms)
+✔ conflicting whole-take choices require review instead of repeating a line (0.141584ms)
+✔ multiple recordings do not pretend source-relative times establish recency (0.091083ms)
+✔ pickup source timestamps stay local while recording recency chooses replacement (0.605375ms)
+✔ prepared multi-source selections preserve whole takes and reject duration overrun (0.118833ms)
+✔ pickup matching an unrequested line cannot replace its existing take (0.46075ms)
+✔ pickup eligibility never hides repeated words inside a whole take (0.246417ms)
+✔ unclear caption temporarily gates explicit whole-take coverage and restores original quality on unmark (0.191917ms)
+✔ listening annotation invalidates accepted exports without mutating recorded evidence (0.0665ms)
+(node:28461) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/src/features/coach/policy.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ chooses the highest-priority measured cue with actionable copy (1.6975ms)
+✔ requires the proposed stable issue and fresh-frame windows (0.717042ms)
+✔ shows all-good only after every requested cue is explicitly clear and stable (0.195ms)
+✔ keeps unsupported lighting and background analysis honest (0.21175ms)
+✔ shows a measured cue when a later requested cue is unavailable (0.196209ms)
+✔ never accepts an uncalibrated issue as a real automatic cue (0.189084ms)
+✔ requires face detector confidence at the researched floor (0.128375ms)
+✔ waits for a real between-lines signal and quiet speech while recording (0.145041ms)
+✔ requires a creator intent and suppresses face advice for product intent (0.311167ms)
+✔ uses an explicitly selected subject for subject intent (0.293167ms)
+✔ intentional look disables automatic advice without making a quality claim (0.077583ms)
+✔ mutes a dismissed cue for the take and promotes the next measured cue (0.06175ms)
+✔ enforces the cooldown between distinct prompts (0.057125ms)
+✔ keeps the shown cue stable while cooling down and gates a different cue (0.061083ms)
+✔ resets take-local dismissals synchronously when the take key changes (0.080541ms)
+✔ represents pending and unavailable vision without blocking the shot (0.050458ms)
+(node:28462) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/src/development/coverage/scenarios.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ scenario clean replays twice with identical coverage and cut order (1.953708ms)
+✔ scenario flub-reread replays twice with identical coverage and cut order (0.451542ms)
+✔ scenario pending-timer replays twice with identical coverage and cut order (0.22175ms)
+✔ scenario out-of-order replays twice with identical coverage and cut order (0.642125ms)
+✔ scenario missing-file replays twice with identical coverage and cut order (0.703375ms)
+✔ scenario two-lines-one-breath replays twice with identical coverage and cut order (0.266792ms)
+✔ scenario off-frame-vs-in-frame replays twice with identical coverage and cut order (0.394334ms)
+✔ scenario scratched-take replays twice with identical coverage and cut order (0.459333ms)
+✔ scenario script-edit-after-coverage replays twice with identical coverage and cut order (0.937834ms)
+✔ scenario required-action replays twice with identical coverage and cut order (0.487167ms)
+✔ every selected cut plays in script order, never in recording order (0.306916ms)
+✔ a pending line stays pending however far the clock advances past the analysis timeout (0.378125ms)
+✔ a bad reread never erases an earlier clean take and never lands on the wrong line (0.292917ms)
+✔ an off-frame or unobserved take loses to an otherwise suitable in-frame take taken later (0.161167ms)
+✔ scratched takes are excluded from coverage and retained in history (0.388458ms)
+✔ a take whose file disappears after recording moves its line back to needed (0.167375ms)
+✔ editing, deleting and adding script lines updates coverage without discarding takes (0.22025ms)
+✔ an unresolved required action cue blocks safe to wrap even when every line is covered (0.172334ms)
+✔ a clean read covers every line and keeps one cut per take (0.174917ms)
+✔ two lines read in one breath share a single unbroken cut (0.113375ms)
+(node:28463) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/src/lib/coverage-updates.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ the coverage ledger keeps every take of a line, including the rejected attempts (1.551ms)
+✔ editing a covered line resets it to needed and retains its take history (0.261291ms)
+✔ deleting a line retires it with its takes instead of destroying the evidence (0.2205ms)
+✔ added lines start as needed and never inherit another line take (0.296208ms)
+✔ a reorder keeps every line id and its coverage, and a mismatched reorder is rejected (0.176208ms)
+✔ a take whose media disappears moves its line to needed with reason media-missing (0.191916ms)
+✔ missing media falls back to a remaining eligible take instead of losing the line (0.112625ms)
+✔ two lines read in one breath stay one cut, and cuts follow script order not recording order (0.128ms)
+✔ a media loss never re-covers a line the creator just edited (0.157ms)
+✔ a media loss never replaces an explicit take choice or promotes a pending line (0.274291ms)
+✔ a later off-frame retake never displaces an earlier in-frame clean take (0.102459ms)
+✔ a take covering non-adjacent lines is played once, at its first script position (0.864666ms)
+(node:28464) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/src/lib/caption-timeline.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:28464) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/modules/one-take-media/timeline.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/modules/one-take-media/package.json.
+✔ uses the selected trim, preserves corrected display text, and filters draft captions (1.755125ms)
+✔ explicit project cuts override the current trim and retain their output order (0.316ms)
+✔ unreviewed project cuts cannot be sent to native export (0.48425ms)
+✔ saved-audio timing is exportable without an estimated-timing warning (0.127083ms)
+✔ a blank manual correction intentionally omits that caption (0.11525ms)
+✔ caption gaps are retained while overlapping intervals are partitioned into cues (0.108792ms)
+✔ caption partitioning skips drafts and blanks and keeps active text stable (0.083958ms)
+✔ caption partitioning rejects invalid source times without clamping them (0.110125ms)
+✔ nonfinite ranges and missing source media fail before an export request can start (0.114167ms)
+✔ empty explicit cuts mean the complete source, as defined by the native export contract (0.079708ms)
+✔ action directions and standalone scratch commands never become captions (0.076209ms)
+✔ reviewed multi-source segments preserve source-local captions and selection order (0.121042ms)
+✔ legacy export excludes overlapping pickup captions using recording and take ownership (0.081792ms)
+(node:28465) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/src/features/vision/framing.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ development fixture replay is deterministic and every expected state validates (51.079625ms)
+✔ framing defaults remain disabled and return an explicit original-frame fallback (0.311083ms)
+✔ talking-head and moving-vlog crops use one temporal union with bounded zoom (0.243833ms)
+✔ product-demo crop preserves the selected product and every relevant hand (0.170834ms)
+✔ multiple subjects are preserved when possible and fall back when the union is unsafe (0.148ms)
+✔ missing, off-frame, uncertain, discontinuous and product-without-hands inputs fall back safely (0.205333ms)
+✔ the selected interval is half-open and requires coverage through its temporal boundary (0.2575ms)
+✔ track identity and immutable request changes invalidate stale framing results (0.544792ms)
+✔ validators enforce provenance, max zoom, crop shape and explicit fallback semantics (0.475916ms)
+✔ target-aspect conversion remains an original-frame fallback until validated (0.165791ms)
+✔ tracks cannot be reinterpreted in another orientation or source geometry (0.133208ms)
+✔ explicitly selected hands override a negative relevance suggestion (0.132209ms)
+✔ malformed object requests produce complete diagnostic fallbacks without invented usable identity (0.355167ms)
+✔ malformed JSON crop dimensions are rejected without coercion exceptions (0.2215ms)
+(node:28466) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/src/lib/live-caption-state.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ a previous recording cannot overwrite the new recording captions (0.862625ms)
+✔ partial revisions replace text and older revisions cannot undo final output (0.150417ms)
+✔ a new utterance can follow a completed utterance within the same recording (0.09075ms)
+✔ starting another recording clears prior text and sequence (0.580708ms)
+✔ a missing model asset is a distinct recoverable reason (0.356417ms)
+✔ a hash mismatch is reported as a corrupt model, not a missing one (0.190417ms)
+✔ an unclassified preparation failure is an initialization failure (0.194792ms)
+✔ an unsupported device is not offered as a retry (0.147917ms)
+✔ audio focus loss and route changes are interruptions rather than unavailability (0.256875ms)
+✔ a native reason wins over message guessing and an unknown one falls back to the message (0.195709ms)
+✔ a new session starts preparing and carries no earlier failure (0.136375ms)
+✔ a failed preparation reports the reason and stays visible through stop (0.168834ms)
+✔ an interruption clears once recognition is listening again (0.094458ms)
+✔ a stale session or an unknown status cannot change the reported state (0.058791ms)
+✔ segment revisions merge by id in source time order (0.187917ms)
+✔ replaying a session ignores stale sequences and other sessions (0.132375ms)
+✔ an audio format failure is retryable and does not blame the device (0.120208ms)
+✔ the native status decides the interrupted split even with no reason or message (0.089292ms)
+✔ a retry keeps the utterances recognized before the failure (0.380833ms)
+✔ retry offsets stay fixed across revisions and accumulate across attempts (0.199125ms)
+(node:28467) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/modules/one-take-media/timeline.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/modules/one-take-media/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ maps source captions onto ordered non-adjacent output cuts (18.430542ms)
+✔ rejects overlapping source cuts but preserves explicit output order (0.320292ms)
+✔ does not invent captions in removed gaps and rejects ambiguous caption overlap (4.25375ms)
+(node:28468) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/src/lib/project-data.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:28468) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/modules/one-take-media/timeline.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/modules/one-take-media/package.json.
+✔ pickup preserves legacy original, captions and trim while namespacing collisions (1.270667ms)
+✔ replaying a committed pickup is idempotent (0.086625ms)
+✔ pickup rejects foreign source, invalid intervals and dangling evidence (0.191042ms)
+✔ pickup retains earlier manual decisions and required action state (0.119209ms)
+✔ corrupt recording or review source metadata is rejected without dropping originals (0.089959ms)
+✔ an older editor snapshot cannot overwrite a concurrently attached pickup (0.13825ms)
+✔ a pickup can only replace requested lines while its whole take remains intact (100.5885ms)
+✔ a raw checkpoint survives while the same recording gains final evidence exactly once (26.3745ms)
+✔ finalizing a checkpoint preserves later recordings and survives an older editor save (0.459042ms)
+✔ checkpoint preserves the requested subset and finalization clears only its own recovery warning (0.303333ms)
+(node:28469) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/src/lib/project-data.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ legacy projects retain original media and trim and gain stable caption identity (0.990458ms)
+✔ interrupted refinement preserves manual captions and becomes recoverable (0.1225ms)
+✔ invalid metadata fails clearly and invalid timing cannot enter caption export (0.524667ms)
+✔ malformed action cues reject project metadata while valid cues remain safe for review (25.595375ms)
+✔ persisted take boundaries and action status survive normalization (0.390041ms)
+✔ malformed persisted takes cannot supply coverage (0.138333ms)
+✔ temporary missing media does not permanently change take playability (0.138583ms)
+✔ durable copy preserves explicit capture interruption but clears stale successful-save errors (0.218584ms)
+(node:28470) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/src/lib/project-deletion.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ native path aliases have one identity for shared-file protection (0.408083ms)
+✔ encoded traversal cannot turn a private-file association into database deletion (0.119583ms)
+✔ failed cancellation still waits for all remaining writers to settle (1.848959ms)
+(node:28471) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/src/lib/project-workflow.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ cross-job segmentation cannot overwrite a manually corrected interval (1.232167ms)
+✔ a review annotation retains the entire current timeline and current decisions (0.161792ms)
+✔ an empty refinement keeps usable captions and stores the empty candidate (0.098167ms)
+✔ a valid unannotated refinement replaces the current timeline and preserves history (0.158583ms)
+✔ malformed refinement payloads are rejected before project state changes (0.881625ms)
+(node:28472) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/src/lib/retake-prompts.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ a needed verdict inside the pause budget asks for the line again (1.528834ms)
+✔ a verdict that misses the 1200 ms budget batches the line for after the take (0.174ms)
+✔ a verdict that lands after the next line started never interrupts mid-line (0.119625ms)
+✔ an in-budget verdict is still held back while the creator is speaking (0.109625ms)
+✔ a delayed engine forces batched mode even when the timing would fit (0.118167ms)
+✔ covered and pending lines never produce a prompt (0.070542ms)
+✔ an again prompt stops showing once its hold window has passed (0.092167ms)
+✔ the most recent eligible pause wins when two verdicts are live (0.109ms)
+✔ every prompter sample session produces its documented decision (0.612292ms)
+✔ the action sample keeps cues out of the spoken lines and unresolved until confirmed (0.249ms)
+✔ the long-line sample keeps one long spoken line the prompter must truncate (0.103708ms)
+✔ the timing evaluator reports prompts shown before the next line (0.396917ms)
+✔ the timing evaluator fails the target at 17 of 20 and refuses small samples (0.147708ms)
+✔ a delayed engine reports batched mode and never meets the live target (0.194958ms)
+✔ covered line ends are counted separately from the ones needing a prompt (0.075791ms)
+✔ a line end with no verdict at all is reported as missed (0.099542ms)
+✔ the evaluator reports the sample sessions without claiming device evidence (0.115583ms)
+✔ an unconfirmed line waits quietly during the take and is only listed after it (0.212125ms)
+✔ the deferred count never names a line or asks for a retake mid-take (0.108375ms)
+✔ a needed verdict landing as recording stops is listed, never asked for again (0.057083ms)
+✔ prompt numbers are the line numbers the strip shows, not array positions (0.064416ms)
+✔ a verdict that predates its own line end is never promptable (0.043709ms)
+✔ coverage cells carry a label and a shape, never colour alone (0.04275ms)
+✔ the coverage summary counts every status in words (0.049833ms)
+✔ action cue labels say what to do and whether it is still open (0.04225ms)
+✔ the current line never renders below 16 sp however small or scaled the screen is (0.039791ms)
+✔ large system text shows fewer lines rather than clipping them (0.034666ms)
+✔ the strip keeps the current line visible and reports what it hid (0.045792ms)
+✔ strip capacity shrinks on narrow screens and at large text (0.032166ms)
+(node:28473) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/src/lib/review-cuts.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ removing a reviewed interval preserves remaining cut order and source timestamps (0.565625ms)
+(node:28474) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/src/lib/review-export-selection.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ automatic cuts require preparation before export (0.314333ms)
+✔ manual trim and original exports override prepared cuts without changing project (0.975ms)
+(node:28475) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/src/lib/review-source.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ source-local overlapping timestamps do not mix captions in raw/manual preview (0.618042ms)
+✔ legacy take references disambiguate source and unknown recording ids stay excluded (0.078209ms)
+✔ source-aware refinement guard permits legacy recording and blocks merged projects (0.063333ms)
+(node:28476) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/src/lib/script-lines.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ pasted text splits the same way the camera prompter chunks it (24.303792ms)
+✔ editing one line keeps the ids and the order of the untouched lines (0.222083ms)
+✔ inserting a line keeps existing ids and mints one new id (0.113959ms)
+✔ deleting a line keeps the deleted line in history and reports the intent (0.130541ms)
+✔ reordering keeps every line id and reports the previous order (0.1315ms)
+✔ spoken word count excludes action cue text and read time uses 150 words per minute (0.109625ms)
+✔ read time formats minutes and zero padded seconds (0.045084ms)
+✔ an inline bracket becomes an action cue and leaves the spoken words intact (0.0605ms)
+✔ a standalone bracketed line is an action-only line (0.062042ms)
+✔ multiple brackets in one line become separate cues with distinct ids (0.085125ms)
+✔ an unclosed bracket stays spoken text and is flagged ambiguous (0.089375ms)
+✔ nested and empty brackets never lose content (0.065334ms)
+✔ an ambiguous bracket can be corrected to an action cue (0.112166ms)
+✔ an ambiguous bracket can be marked actually spoken (0.043458ms)
+✔ an actions only script asks for a spoken line (0.046833ms)
+✔ cues are optional until the creator marks them required (0.091708ms)
+✔ required cue done and skipped statuses are manual and never inferred (0.053ms)
+✔ cue required and status survive an edit to another line (0.050416ms)
+✔ a saved draft restores text, line ids, order and cue statuses (0.212083ms)
+✔ the raw draft text wins when the stored structure is missing or unreadable (0.072833ms)
+✔ a stale stored structure never overrides the raw draft text (0.0515ms)
+✔ five thousand words parse in under 100 ms (2.193375ms)
+✔ re-parsing a long script after one edit stays under 100 ms and keeps ids (6.843917ms)
+✔ the text handed to the camera route always chunks back into the same lines (0.155041ms)
+✔ correcting an unclosed bracket that ends a sentence leaves one clean line (0.084542ms)
+✔ a question or exclamation around an unclosed bracket survives the correction (0.051667ms)
+✔ typing and retyping a line never manufactures deleted history (0.065792ms)
+✔ clearing the whole script keeps no deleted history until a line is deleted on purpose (0.032416ms)
+✔ a failing structure read still restores the creator text (0.11925ms)
+✔ a stale stored counter never mints a duplicate line id (0.06025ms)
+(node:28477) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/src/features/speech-control/cleanup.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ cleanup replay records long silence but preserves deliberate pauses and original segments (1.1025ms)
+✔ only explicit independent boundary records can prepare a silence removal (0.122125ms)
+✔ cleanup rejects empty observation ids and recording identities outside the input scope (0.263125ms)
+✔ restart and suitable repeat candidates use concrete transcript evidence but never claim safe ASR boundaries (0.19375ms)
+✔ cleanup never compares separate recording identities or chooses an uncertain later repeat (0.097125ms)
+✔ uncertainty, mumble and mid-sentence filler stay review marks without invented removals (0.140875ms)
+✔ unknown sentence placement keeps filler and mumble marks review-only (0.093833ms)
+✔ explicitly verified filler boundaries still require a reversible creator decision (0.152459ms)
+✔ recording identity is carried into decisions so an old accept cannot remove a new recording (0.078875ms)
+✔ a changed interval cannot inherit an old accept even when the suggestion id is reused (0.124083ms)
+✔ changed mark evidence invalidates an old accept fingerprint (0.0755ms)
+✔ same suggestion ids from different recordings keep separate decisions (0.075041ms)
+✔ cleanup plan is deterministic and carries prior decisions while retaining all observations (0.085667ms)
+(node:28478) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/src/features/speech-control/live-transcript.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ replay keeps provisional text, accepts final text, and suppresses stale events (0.58625ms)
+✔ delayed, unavailable, and no-speech states remain honest and separate from coverage (0.156666ms)
+✔ large text and long sessions stay bounded for the live surface (21.226ms)
+✔ reducer bounds megabyte event and segment text while preserving truncation metadata (0.397792ms)
+✔ final segment state stays final if a later provisional update arrives (0.174584ms)
+✔ a new provisional utterance clears the global final label while the prior final remains sticky (0.162834ms)
+✔ an unavailable recognizer remains unavailable after the native stop event (0.123125ms)
+✔ a final stop with partial text is labeled incomplete, and no text is not claimed as no speech (0.11ms)
+✔ large unbounded segment props are projected from the latest bounded slice (2.018667ms)
+(node:28479) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/src/features/speech-control/must-say.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ safe normalization removes surface punctuation but does not alias or paraphrase wording (1.312041ms)
+✔ only raw final speech can satisfy a must-say requirement (0.212834ms)
+✔ a provisional exact read stays pending until final recognition arrives (0.240208ms)
+✔ surrounding words are accepted only when capture explicitly links a multi-line utterance (0.110208ms)
+✔ a line edit and revert cannot reuse evidence captured for an older revision (0.161083ms)
+✔ an exact final phrase without playable clean media stays unresolved (0.069292ms)
+✔ final wording without an explicit take identity stays unresolved (0.069875ms)
+✔ a later clean take can satisfy the line after an earlier scratched matching take (0.0695ms)
+✔ metadata follows stable line ids, archives deleted lines, and invalidates changed wording (0.119625ms)
+✔ serialization round trips metadata and malformed present data fails closed (0.283708ms)
+✔ toggle labels expose optional, pending, covered and unavailable states (0.052959ms)
+✔ stale raw evidence is not relabeled with the current requirement revision (0.058917ms)
+✔ merged script document ids carry must-say intent through edits, reorder and serialized reopen (61.564292ms)
+✔ current provisional speech stays pending beside an old matching final read (0.114417ms)
+(node:28480) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/src/features/speech-control/take-decisions.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ command fixtures accept only a final standalone command and protect literal dialogue (5.010666ms)
+✔ a take has an allocated durable identity and retains raw transcript evidence separately from reasons (2.591ms)
+✔ reason evidence explains a restart and keeps uncertain speech honest (0.32275ms)
+✔ voice scratch targets the take active at command time even when its event arrives after a newer take (0.6785ms)
+✔ manual and voice scratch produce the same reversible take outcome while history remains append-only (0.382625ms)
+✔ a restore can only undo an earlier scratch event and cannot cancel a later event (0.181458ms)
+✔ replaying an event or applying an event from another source/session is idempotent and cannot scratch a take (0.152625ms)
+✔ the same voice segment cannot create a second scratch and cannot fall back to an earlier good take (0.331791ms)
+✔ a final exact phrase without explicit standalone context stays ambiguous (0.129ms)
+✔ a one-breath multi-line read is checked as one utterance and ordinary try-again dialogue is not a restart flag (0.296667ms)
+✔ script action cues stay out of spoken reason matching, and inferred restarts stay uncertain (0.286083ms)
+✔ provisional, uncertain, noisy, short, ordinary cut, and scripted scratch phrases never make voice scratch events (0.193542ms)
+(node:28481) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/src/features/speech-analysis/alignment.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ the English matcher accepts contractions, a generic paraphrase, and the approved One Take example (2.375792ms)
+✔ meaning-bearing changes never become a normal match (0.217875ms)
+✔ numeric lexemes stay protected without splitting decimals or formatted values (0.090542ms)
+✔ incomplete ideas are partial and absent speech is unknown (0.105583ms)
+✔ a follower commits only a final revision and ignores duplicates and stale sequences (1.811917ms)
+✔ a caption update with one shared sequence can advance every stable final segment once (0.507167ms)
+✔ one final utterance can advance across adjacent lines without splitting its evidence (0.297625ms)
+✔ repeated similar lines stay ambiguous, while an unambiguous later line records skipped ids (0.637042ms)
+✔ manual movement creates a barrier that invalidates buffered recognition (0.212417ms)
+✔ source time keeps a delayed older segment from advancing a later line (0.219ms)
+✔ a nearby unambiguous reread reacquires its line without creating a second advance (0.373084ms)
+✔ a changed final revision is retained as paused history and cannot advance twice (0.222958ms)
+✔ delayed and unavailable recognition hold the reader until listening resumes explicitly (0.231458ms)
+✔ pickup mode follows requested stable ids and does not mark unrelated lines skipped (0.131167ms)
+✔ manual previous, reanchor, lifecycle status, and reset preserve separate reading state (1.262583ms)
+✔ the object follower exposes the same deterministic reducer and toggle lifecycle (0.50275ms)
+✔ manual navigation without a clock holds delayed speech until an explicit timed reanchor (15.225875ms)
+✔ temporal role reversal, possessive changes and new meaning-bearing modifiers are not paraphrases (0.148625ms)
+(node:28482) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/src/features/speech-analysis/final-analysis.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ a related whole utterance retains unique adjacent content even when its confidence is weaker (4.998916ms)
+✔ overlapping observations from distinct take identities cannot produce an unsafe exclusion (2.790958ms)
+✔ full transcript survives the live UI segment cap and all source gaps remain retained (289.920667ms)
+✔ default async checkpoints let an event-loop cancellation run (2.091792ms)
+✔ explicit revision chains are arrival-order independent and cycles are rejected (0.566958ms)
+✔ a newer provisional revision cannot borrow a previous final verdict (0.266667ms)
+(node:28483) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/src/features/speech-analysis/final-analysis.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ no speech is unavailable, preserves the source range, and has no recommendation (1.498708ms)
+✔ partial-to-final revisions remain in the complete transcript history but classify from the final snapshot (21.722959ms)
+✔ a later final revision with changed facts cannot be rescued by an earlier matching snapshot (0.275042ms)
+✔ a strong earlier complete take outranks a weak later repeat and only proposes safe whole-utterance exclusion (0.491291ms)
+✔ changed numbers, names, and negation cannot become complete semantic matches (1.82725ms)
+✔ deliberate repeats stay retained and recognition-only boundaries never authorize exclusion (0.848916ms)
+✔ missing source duration keeps analysis pending and withholds a partial range proposal (0.204167ms)
+✔ gaze, delivery, and silence stay unknown when not collected (0.19225ms)
+✔ assisted mode treats restarts, ellipses, and trailing incomplete ideas as partial (5.75825ms)
+✔ cancel and stale checks stop the async producer between phases (0.253708ms)
+✔ scope validation rejects stale transcript revisions without relabeling the result (0.173708ms)
+✔ malformed, duplicate, foreign, and ambiguous scoped evidence is rejected (0.198417ms)
+(node:28484) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/src/lib/script-lines.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ extractive baseline quotes actual spoken lines and keeps cues separate (0.468708ms)
+✔ creator edit, importance and removal survive re-analysis and stale revisions remain pending (0.175834ms)
+✔ missing B request preserves original project/line/point and unresolved action identities (1.920417ms)
+✔ partial, uncertain, pending and unavailable never establish coverage (0.651041ms)
+✔ pickup B supplies insertion slot for A,B,C without modifying prior footage (0.21125ms)
+✔ reverse order pickups sort by script, adjacent points share one whole range (0.30225ms)
+✔ stale jobs, edited targets, missing media and unsafe shared utterances require resolution (0.20525ms)
+✔ one occurrence of repeated similar points cannot cover both original slots (0.14925ms)
+✔ changed names, facts and negation remain missing, not important-point coverage (8.824167ms)
+✔ pickup B containing already-good C cannot silently duplicate shared audio (0.203083ms)
+✔ conflicting utterance revisions cannot reuse an earlier matching text (0.078917ms)
+✔ a same-id observation in another source cannot borrow point coverage (0.0505ms)
+✔ manual subspan survives re-analysis at the same script revision (0.050458ms)
+✔ overlapping distinct pickup utterances require boundary resolution (0.056458ms)
+✔ stale transcript evidence and script context cannot suppress or misdirect pickups (0.302375ms)
+(node:28485) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/src/features/coach/tier1-policy.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ Tier 1 coaching is disabled by default (10.99125ms)
+✔ maps Tier 1 shot intent to the existing Tier 0 coach vocabulary (0.087167ms)
+✔ requires explicit intent and keeps intentional looks quiet (0.086ms)
+✔ required work and speech silence intentional-look status during a take (0.070708ms)
+✔ coverage and required actions outrank optional coaching (0.05325ms)
+✔ does not treat missing or stale priority as permission to coach while recording (0.058333ms)
+✔ keeps optional coaching quiet while recording speech or waiting for a line break (0.14825ms)
+✔ suppresses stale or cross-take transcript signals (0.05975ms)
+✔ delegates only the mapped intent and preserves the transcript seam (0.059ms)
+✔ manual setup tips cover framing, background and lighting without automatic evidence (0.291292ms)
+✔ development fixtures route by intent while remaining manual-only (0.120083ms)
+✔ manual tips are shown one at a time and dismissal is scoped to intent (0.068125ms)
+✔ invalid clocks and missing speech evidence fail closed while setup remains available (0.057667ms)
+✔ malformed enable and recording booleans cannot bypass coaching gates (0.041416ms)
+(node:28486) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/src/lib/transcript-workflow.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ manual caption edits survive a later refinement while the stable segment id and raw text remain (0.777708ms)
+✔ script matching uses whole normalized token sequences for numbers and common brand forms (0.466667ms)
+✔ one final utterance can cover consecutive script lines as one media take (0.426ms)
+✔ script edits preserve explicit line ids and do not delete historical takes (0.153792ms)
+✔ coverage distinguishes needed, pending and covered and retains an earlier clean take after a bad reread (0.316792ms)
+✔ a take linked to mixed final and provisional utterances stays pending only for the provisional line (0.115417ms)
+✔ missing media and scratched takes never establish playable coverage (0.106458ms)
+✔ an in-frame clean take wins over an otherwise suitable off-frame take (0.095917ms)
+✔ required action cues remain separate from speech and block safe-to-wrap until manually resolved (0.128667ms)
+✔ cue-only script lines do not create an ambiguous spoken match (0.084709ms)
+✔ silence and repeated-attempt suggestions are review-only and retain original transcript segments (0.119417ms)
+✔ take selection is explicit, reversible and rejects unavailable media (0.198833ms)
+(node:28487) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/src/features/vision/state.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ accepts a current-session frame and exposes stable face presence (0.410083ms)
+✔ ignores late frames from a previous session or lens (0.176291ms)
+✔ stale frames clear face presence and become unavailable to consumers (0.085375ms)
+✔ preserves the explicit unavailable reason when NPU execution is blocked (0.047334ms)
+ℹ tests 378
+ℹ suites 0
+ℹ pass 378
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1008.767333

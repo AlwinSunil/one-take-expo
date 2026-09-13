@@ -1,0 +1,199 @@
+{
+  "provenance": {
+    "origin": "synthetic",
+    "referenceAuthor": "agent-authored diagnostic labels",
+    "humanRows": 0,
+    "sttExecuted": false,
+    "modelAdded": false,
+    "eligibleForHumanAcceptance": false
+  },
+  "matching": {
+    "cases": 12,
+    "expectedMatches": 5,
+    "falseMatches": 0,
+    "missedMatches": 1,
+    "rows": [
+      {
+        "script": "The guide will show the result.",
+        "spoken": "The guide will demonstrate the outcome.",
+        "expectedMatch": true,
+        "actual": {
+          "verdict": "matched",
+          "score": 1,
+          "reason": "Ordered script content is supported with only generic wording variation."
+        }
+      },
+      {
+        "script": "We start the camera.",
+        "spoken": "We begin the camera.",
+        "expectedMatch": true,
+        "actual": {
+          "verdict": "matched",
+          "score": 1,
+          "reason": "Ordered script content is supported with only generic wording variation."
+        }
+      },
+      {
+        "script": "We keep the original video.",
+        "spoken": "We preserve the original video.",
+        "expectedMatch": true,
+        "actual": {
+          "verdict": "matched",
+          "score": 1,
+          "reason": "Ordered script content is supported with only generic wording variation."
+        }
+      },
+      {
+        "script": "Save the clip on your device.",
+        "spoken": "Store the clip locally.",
+        "expectedMatch": true,
+        "actual": {
+          "verdict": "matched",
+          "score": 1,
+          "reason": "Ordered script content is supported with only generic wording variation."
+        }
+      },
+      {
+        "script": "You can review the recording before sharing it.",
+        "spoken": "Before you share, you can check the recording.",
+        "expectedMatch": true,
+        "actual": {
+          "verdict": "mismatch",
+          "score": 0.46666666666666673,
+          "reason": "Speech overlaps the script but changes or omits too much meaning to advance."
+        }
+      },
+      {
+        "script": "Alice saves twelve videos.",
+        "spoken": "Bob saves twelve videos.",
+        "expectedMatch": false,
+        "actual": {
+          "verdict": "mismatch",
+          "score": 0.5,
+          "reason": "A meaning-bearing name differs from the script."
+        }
+      },
+      {
+        "script": "We keep audio and video.",
+        "spoken": "We keep audio or video.",
+        "expectedMatch": false,
+        "actual": {
+          "verdict": "mismatch",
+          "score": 0.38333333333333336,
+          "reason": "A meaning-bearing fact differs from the script."
+        }
+      },
+      {
+        "script": "We will upload the video.",
+        "spoken": "We might upload the video.",
+        "expectedMatch": false,
+        "actual": {
+          "verdict": "mismatch",
+          "score": 0.3012987012987013,
+          "reason": "A meaning-bearing fact differs from the script."
+        }
+      },
+      {
+        "script": "We do not upload recordings.",
+        "spoken": "We upload recordings.",
+        "expectedMatch": false,
+        "actual": {
+          "verdict": "mismatch",
+          "score": 0.42857142857142855,
+          "reason": "Negation changed, so this cannot be treated as the same line."
+        }
+      },
+      {
+        "script": "We record in 4K.",
+        "spoken": "We record in 1080p.",
+        "expectedMatch": false,
+        "actual": {
+          "verdict": "mismatch",
+          "score": 0.19333333333333333,
+          "reason": "A meaning-bearing number differs from the script."
+        }
+      },
+      {
+        "script": "The clip lasts 1.5 seconds.",
+        "spoken": "The clip lasts 15 seconds.",
+        "expectedMatch": false,
+        "actual": {
+          "verdict": "mismatch",
+          "score": 0.3012987012987013,
+          "reason": "A meaning-bearing number differs from the script."
+        }
+      },
+      {
+        "script": "I pay you.",
+        "spoken": "You pay me.",
+        "expectedMatch": false,
+        "actual": {
+          "verdict": "mismatch",
+          "score": 0.19333333333333333,
+          "reason": "Speech overlaps the script but changes or omits too much meaning to advance."
+        }
+      }
+    ]
+  },
+  "extraction": {
+    "cases": 8,
+    "falseImportant": 3,
+    "missedImportant": 0,
+    "rows": [
+      {
+        "text": "Welcome to this video.",
+        "expectedImportant": false,
+        "suggestedImportant": true,
+        "reason": "A complete spoken script line; review whether this idea matters."
+      },
+      {
+        "text": "The recording stays on your device.",
+        "expectedImportant": true,
+        "suggestedImportant": true,
+        "reason": "A complete spoken script line; review whether this idea matters."
+      },
+      {
+        "text": "Thank you for watching.",
+        "expectedImportant": false,
+        "suggestedImportant": true,
+        "reason": "A complete spoken script line; review whether this idea matters."
+      },
+      {
+        "text": "The price is twelve dollars.",
+        "expectedImportant": true,
+        "suggestedImportant": true,
+        "reason": "A complete spoken script line; review whether this idea matters."
+      },
+      {
+        "text": "Shipping is not included.",
+        "expectedImportant": true,
+        "suggestedImportant": true,
+        "reason": "A complete spoken script line; review whether this idea matters."
+      },
+      {
+        "text": "Hello!",
+        "expectedImportant": false,
+        "suggestedImportant": false,
+        "reason": "A short or unfinished line; select manually if important."
+      },
+      {
+        "text": "We preserve the original recording.",
+        "expectedImportant": true,
+        "suggestedImportant": true,
+        "reason": "A complete spoken script line; review whether this idea matters."
+      },
+      {
+        "text": "See you next time.",
+        "expectedImportant": false,
+        "suggestedImportant": true,
+        "reason": "A complete spoken script line; review whether this idea matters."
+      }
+    ]
+  },
+  "limits": [
+    "Small synthetic diagnostic only.",
+    "Extractive baseline overselects complete lines; creator review remains required.",
+    "Reordered and unlisted paraphrases may remain unresolved.",
+    "Real-read matching and line-end-to-visible-advance latency are unmeasured."
+  ]
+}

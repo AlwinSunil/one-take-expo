@@ -1,0 +1,1055 @@
+{
+  "provenance": {
+    "origin": "synthetic",
+    "humanAccepted": false,
+    "boundaryFlags": "simulated manual-review input, not a real listening result",
+    "timelineApplied": false
+  },
+  "scenarios": [
+    {
+      "id": "fixture:missing-b",
+      "originalScope": {
+        "projectId": "fixture:project",
+        "sourceId": "fixture:original",
+        "scriptRevision": "script:1",
+        "editRevision": "edit:1",
+        "transcriptRevision": "transcript:original:1"
+      },
+      "pickupScope": {
+        "projectId": "fixture:project",
+        "sourceId": "fixture:pickup",
+        "scriptRevision": "script:1",
+        "editRevision": "edit:1",
+        "transcriptRevision": "transcript:pickup:1"
+      },
+      "points": [
+        {
+          "id": "point:line-1",
+          "revision": 1,
+          "span": {
+            "id": "line-1:spoken",
+            "lineId": "line-1",
+            "scriptRevision": "script:1",
+            "start": 0,
+            "end": 27,
+            "text": "We record the introduction.",
+            "order": 0
+          },
+          "text": "We record the introduction.",
+          "reason": "A complete spoken script line; review whether this idea matters.",
+          "importance": "important",
+          "origin": "baseline",
+          "creatorEdited": false,
+          "removed": false,
+          "state": "available"
+        },
+        {
+          "id": "point:line-2",
+          "revision": 1,
+          "span": {
+            "id": "line-2:spoken",
+            "lineId": "line-2",
+            "scriptRevision": "script:1",
+            "start": 0,
+            "end": 22,
+            "text": "We explain the camera.",
+            "order": 1
+          },
+          "text": "We explain the camera.",
+          "reason": "A complete spoken script line; review whether this idea matters.",
+          "importance": "important",
+          "origin": "baseline",
+          "creatorEdited": false,
+          "removed": false,
+          "state": "available"
+        },
+        {
+          "id": "point:line-3",
+          "revision": 1,
+          "span": {
+            "id": "line-3:spoken",
+            "lineId": "line-3",
+            "scriptRevision": "script:1",
+            "start": 0,
+            "end": 18,
+            "text": "We save the video.",
+            "order": 2
+          },
+          "text": "We save the video.",
+          "reason": "A complete spoken script line; review whether this idea matters.",
+          "importance": "important",
+          "origin": "baseline",
+          "creatorEdited": false,
+          "removed": false,
+          "state": "available"
+        }
+      ],
+      "originals": [
+        {
+          "id": "a",
+          "text": "We record the introduction.",
+          "t0": 0,
+          "t1": 2,
+          "sourceId": "fixture:original",
+          "takeId": "fixture:original:take",
+          "isFinal": true,
+          "provenance": "manual-review",
+          "uncertaintySeconds": null,
+          "verifiedBoundary": true
+        },
+        {
+          "id": "c",
+          "text": "We save the video.",
+          "t0": 3,
+          "t1": 5,
+          "sourceId": "fixture:original",
+          "takeId": "fixture:original:take",
+          "isFinal": true,
+          "provenance": "manual-review",
+          "uncertaintySeconds": null,
+          "verifiedBoundary": true
+        }
+      ],
+      "originalMatches": [
+        {
+          "scope": {
+            "projectId": "fixture:project",
+            "sourceId": "fixture:original",
+            "scriptRevision": "script:1",
+            "editRevision": "edit:1",
+            "transcriptRevision": "transcript:original:1"
+          },
+          "pointId": "point:line-1",
+          "pointRevision": 1,
+          "scriptRevision": "script:1",
+          "observationIds": [
+            "a"
+          ],
+          "state": "available",
+          "verdict": "covered",
+          "reason": "Final speech matches the captured idea; this is not a must-say or action verdict."
+        },
+        {
+          "scope": {
+            "projectId": "fixture:project",
+            "sourceId": "fixture:original",
+            "scriptRevision": "script:1",
+            "editRevision": "edit:1",
+            "transcriptRevision": "transcript:original:1"
+          },
+          "pointId": "point:line-2",
+          "pointRevision": 1,
+          "scriptRevision": "script:1",
+          "observationIds": [
+            "a"
+          ],
+          "state": "available",
+          "verdict": "partial",
+          "reason": "Only partial or uncertain evidence supports this point."
+        },
+        {
+          "scope": {
+            "projectId": "fixture:project",
+            "sourceId": "fixture:original",
+            "scriptRevision": "script:1",
+            "editRevision": "edit:1",
+            "transcriptRevision": "transcript:original:1"
+          },
+          "pointId": "point:line-3",
+          "pointRevision": 1,
+          "scriptRevision": "script:1",
+          "observationIds": [
+            "c"
+          ],
+          "state": "available",
+          "verdict": "covered",
+          "reason": "Final speech matches the captured idea; this is not a must-say or action verdict."
+        }
+      ],
+      "request": {
+        "id": "fixture:missing-b",
+        "scope": {
+          "projectId": "fixture:project",
+          "sourceId": "fixture:original",
+          "scriptRevision": "script:1",
+          "editRevision": "edit:1",
+          "transcriptRevision": "transcript:original:1"
+        },
+        "pointIds": [
+          "point:line-2"
+        ],
+        "lineIds": [
+          "line-2"
+        ],
+        "points": [
+          {
+            "id": "point:line-2",
+            "revision": 1,
+            "span": {
+              "id": "line-2:spoken",
+              "lineId": "line-2",
+              "scriptRevision": "script:1",
+              "start": 0,
+              "end": 22,
+              "text": "We explain the camera.",
+              "order": 1
+            },
+            "text": "We explain the camera.",
+            "reason": "A complete spoken script line; review whether this idea matters.",
+            "importance": "important",
+            "origin": "baseline",
+            "creatorEdited": false,
+            "removed": false,
+            "state": "available"
+          }
+        ],
+        "context": [
+          {
+            "id": "line-1:spoken",
+            "lineId": "line-1",
+            "scriptRevision": "script:1",
+            "start": 0,
+            "end": 27,
+            "text": "We record the introduction.",
+            "order": 0
+          },
+          {
+            "id": "line-2:spoken",
+            "lineId": "line-2",
+            "scriptRevision": "script:1",
+            "start": 0,
+            "end": 22,
+            "text": "We explain the camera.",
+            "order": 1
+          },
+          {
+            "id": "line-3:spoken",
+            "lineId": "line-3",
+            "scriptRevision": "script:1",
+            "start": 0,
+            "end": 18,
+            "text": "We save the video.",
+            "order": 2
+          }
+        ],
+        "unresolvedActionIds": []
+      },
+      "pickups": [
+        {
+          "id": "b",
+          "text": "We explain the camera.",
+          "t0": 0,
+          "t1": 2,
+          "sourceId": "fixture:pickup",
+          "takeId": "fixture:pickup:take",
+          "isFinal": true,
+          "provenance": "manual-review",
+          "uncertaintySeconds": null,
+          "verifiedBoundary": true
+        }
+      ],
+      "pickupMatches": [
+        {
+          "scope": {
+            "projectId": "fixture:project",
+            "sourceId": "fixture:pickup",
+            "scriptRevision": "script:1",
+            "editRevision": "edit:1",
+            "transcriptRevision": "transcript:pickup:1"
+          },
+          "pointId": "point:line-1",
+          "pointRevision": 1,
+          "scriptRevision": "script:1",
+          "observationIds": [
+            "b"
+          ],
+          "state": "available",
+          "verdict": "partial",
+          "reason": "Only partial or uncertain evidence supports this point."
+        },
+        {
+          "scope": {
+            "projectId": "fixture:project",
+            "sourceId": "fixture:pickup",
+            "scriptRevision": "script:1",
+            "editRevision": "edit:1",
+            "transcriptRevision": "transcript:pickup:1"
+          },
+          "pointId": "point:line-2",
+          "pointRevision": 1,
+          "scriptRevision": "script:1",
+          "observationIds": [
+            "b"
+          ],
+          "state": "available",
+          "verdict": "covered",
+          "reason": "Final speech matches the captured idea; this is not a must-say or action verdict."
+        },
+        {
+          "scope": {
+            "projectId": "fixture:project",
+            "sourceId": "fixture:pickup",
+            "scriptRevision": "script:1",
+            "editRevision": "edit:1",
+            "transcriptRevision": "transcript:pickup:1"
+          },
+          "pointId": "point:line-3",
+          "pointRevision": 1,
+          "scriptRevision": "script:1",
+          "observationIds": [
+            "b"
+          ],
+          "state": "available",
+          "verdict": "partial",
+          "reason": "Only partial or uncertain evidence supports this point."
+        }
+      ],
+      "intent": {
+        "requestId": "fixture:missing-b",
+        "scope": {
+          "projectId": "fixture:project",
+          "sourceId": "fixture:original",
+          "scriptRevision": "script:1",
+          "editRevision": "edit:1",
+          "transcriptRevision": "transcript:original:1"
+        },
+        "state": "available",
+        "conflicts": [],
+        "insertions": [
+          {
+            "id": "fixture:missing-b:b",
+            "sourceId": "fixture:pickup",
+            "takeId": "fixture:pickup:take",
+            "observationId": "b",
+            "pointIds": [
+              "point:line-2"
+            ],
+            "lineIds": [
+              "line-2"
+            ],
+            "scriptOrder": 1,
+            "t0": 0,
+            "t1": 2,
+            "provenance": "manual-review",
+            "uncertaintySeconds": null,
+            "verifiedBoundary": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "fixture:reverse-bc",
+      "originalScope": {
+        "projectId": "fixture:project",
+        "sourceId": "fixture:original",
+        "scriptRevision": "script:1",
+        "editRevision": "edit:1",
+        "transcriptRevision": "transcript:original:1"
+      },
+      "pickupScope": {
+        "projectId": "fixture:project",
+        "sourceId": "fixture:pickup",
+        "scriptRevision": "script:1",
+        "editRevision": "edit:1",
+        "transcriptRevision": "transcript:pickup:1"
+      },
+      "points": [
+        {
+          "id": "point:line-1",
+          "revision": 1,
+          "span": {
+            "id": "line-1:spoken",
+            "lineId": "line-1",
+            "scriptRevision": "script:1",
+            "start": 0,
+            "end": 27,
+            "text": "We record the introduction.",
+            "order": 0
+          },
+          "text": "We record the introduction.",
+          "reason": "A complete spoken script line; review whether this idea matters.",
+          "importance": "important",
+          "origin": "baseline",
+          "creatorEdited": false,
+          "removed": false,
+          "state": "available"
+        },
+        {
+          "id": "point:line-2",
+          "revision": 1,
+          "span": {
+            "id": "line-2:spoken",
+            "lineId": "line-2",
+            "scriptRevision": "script:1",
+            "start": 0,
+            "end": 22,
+            "text": "We explain the camera.",
+            "order": 1
+          },
+          "text": "We explain the camera.",
+          "reason": "A complete spoken script line; review whether this idea matters.",
+          "importance": "important",
+          "origin": "baseline",
+          "creatorEdited": false,
+          "removed": false,
+          "state": "available"
+        },
+        {
+          "id": "point:line-3",
+          "revision": 1,
+          "span": {
+            "id": "line-3:spoken",
+            "lineId": "line-3",
+            "scriptRevision": "script:1",
+            "start": 0,
+            "end": 18,
+            "text": "We save the video.",
+            "order": 2
+          },
+          "text": "We save the video.",
+          "reason": "A complete spoken script line; review whether this idea matters.",
+          "importance": "important",
+          "origin": "baseline",
+          "creatorEdited": false,
+          "removed": false,
+          "state": "available"
+        }
+      ],
+      "originals": [
+        {
+          "id": "a",
+          "text": "We record the introduction.",
+          "t0": 0,
+          "t1": 2,
+          "sourceId": "fixture:original",
+          "takeId": "fixture:original:take",
+          "isFinal": true,
+          "provenance": "manual-review",
+          "uncertaintySeconds": null,
+          "verifiedBoundary": true
+        }
+      ],
+      "originalMatches": [
+        {
+          "scope": {
+            "projectId": "fixture:project",
+            "sourceId": "fixture:original",
+            "scriptRevision": "script:1",
+            "editRevision": "edit:1",
+            "transcriptRevision": "transcript:original:1"
+          },
+          "pointId": "point:line-1",
+          "pointRevision": 1,
+          "scriptRevision": "script:1",
+          "observationIds": [
+            "a"
+          ],
+          "state": "available",
+          "verdict": "covered",
+          "reason": "Final speech matches the captured idea; this is not a must-say or action verdict."
+        },
+        {
+          "scope": {
+            "projectId": "fixture:project",
+            "sourceId": "fixture:original",
+            "scriptRevision": "script:1",
+            "editRevision": "edit:1",
+            "transcriptRevision": "transcript:original:1"
+          },
+          "pointId": "point:line-2",
+          "pointRevision": 1,
+          "scriptRevision": "script:1",
+          "observationIds": [
+            "a"
+          ],
+          "state": "available",
+          "verdict": "partial",
+          "reason": "Only partial or uncertain evidence supports this point."
+        },
+        {
+          "scope": {
+            "projectId": "fixture:project",
+            "sourceId": "fixture:original",
+            "scriptRevision": "script:1",
+            "editRevision": "edit:1",
+            "transcriptRevision": "transcript:original:1"
+          },
+          "pointId": "point:line-3",
+          "pointRevision": 1,
+          "scriptRevision": "script:1",
+          "observationIds": [
+            "a"
+          ],
+          "state": "available",
+          "verdict": "partial",
+          "reason": "Only partial or uncertain evidence supports this point."
+        }
+      ],
+      "request": {
+        "id": "fixture:reverse-bc",
+        "scope": {
+          "projectId": "fixture:project",
+          "sourceId": "fixture:original",
+          "scriptRevision": "script:1",
+          "editRevision": "edit:1",
+          "transcriptRevision": "transcript:original:1"
+        },
+        "pointIds": [
+          "point:line-2",
+          "point:line-3"
+        ],
+        "lineIds": [
+          "line-2",
+          "line-3"
+        ],
+        "points": [
+          {
+            "id": "point:line-2",
+            "revision": 1,
+            "span": {
+              "id": "line-2:spoken",
+              "lineId": "line-2",
+              "scriptRevision": "script:1",
+              "start": 0,
+              "end": 22,
+              "text": "We explain the camera.",
+              "order": 1
+            },
+            "text": "We explain the camera.",
+            "reason": "A complete spoken script line; review whether this idea matters.",
+            "importance": "important",
+            "origin": "baseline",
+            "creatorEdited": false,
+            "removed": false,
+            "state": "available"
+          },
+          {
+            "id": "point:line-3",
+            "revision": 1,
+            "span": {
+              "id": "line-3:spoken",
+              "lineId": "line-3",
+              "scriptRevision": "script:1",
+              "start": 0,
+              "end": 18,
+              "text": "We save the video.",
+              "order": 2
+            },
+            "text": "We save the video.",
+            "reason": "A complete spoken script line; review whether this idea matters.",
+            "importance": "important",
+            "origin": "baseline",
+            "creatorEdited": false,
+            "removed": false,
+            "state": "available"
+          }
+        ],
+        "context": [
+          {
+            "id": "line-1:spoken",
+            "lineId": "line-1",
+            "scriptRevision": "script:1",
+            "start": 0,
+            "end": 27,
+            "text": "We record the introduction.",
+            "order": 0
+          },
+          {
+            "id": "line-2:spoken",
+            "lineId": "line-2",
+            "scriptRevision": "script:1",
+            "start": 0,
+            "end": 22,
+            "text": "We explain the camera.",
+            "order": 1
+          },
+          {
+            "id": "line-3:spoken",
+            "lineId": "line-3",
+            "scriptRevision": "script:1",
+            "start": 0,
+            "end": 18,
+            "text": "We save the video.",
+            "order": 2
+          }
+        ],
+        "unresolvedActionIds": []
+      },
+      "pickups": [
+        {
+          "id": "c",
+          "text": "We save the video.",
+          "t0": 0,
+          "t1": 2,
+          "sourceId": "fixture:pickup",
+          "takeId": "fixture:pickup:take",
+          "isFinal": true,
+          "provenance": "manual-review",
+          "uncertaintySeconds": null,
+          "verifiedBoundary": true
+        },
+        {
+          "id": "b",
+          "text": "We explain the camera.",
+          "t0": 3,
+          "t1": 5,
+          "sourceId": "fixture:pickup",
+          "takeId": "fixture:pickup:take",
+          "isFinal": true,
+          "provenance": "manual-review",
+          "uncertaintySeconds": null,
+          "verifiedBoundary": true
+        }
+      ],
+      "pickupMatches": [
+        {
+          "scope": {
+            "projectId": "fixture:project",
+            "sourceId": "fixture:pickup",
+            "scriptRevision": "script:1",
+            "editRevision": "edit:1",
+            "transcriptRevision": "transcript:pickup:1"
+          },
+          "pointId": "point:line-1",
+          "pointRevision": 1,
+          "scriptRevision": "script:1",
+          "observationIds": [
+            "c"
+          ],
+          "state": "available",
+          "verdict": "partial",
+          "reason": "Only partial or uncertain evidence supports this point."
+        },
+        {
+          "scope": {
+            "projectId": "fixture:project",
+            "sourceId": "fixture:pickup",
+            "scriptRevision": "script:1",
+            "editRevision": "edit:1",
+            "transcriptRevision": "transcript:pickup:1"
+          },
+          "pointId": "point:line-2",
+          "pointRevision": 1,
+          "scriptRevision": "script:1",
+          "observationIds": [
+            "b"
+          ],
+          "state": "available",
+          "verdict": "covered",
+          "reason": "Final speech matches the captured idea; this is not a must-say or action verdict."
+        },
+        {
+          "scope": {
+            "projectId": "fixture:project",
+            "sourceId": "fixture:pickup",
+            "scriptRevision": "script:1",
+            "editRevision": "edit:1",
+            "transcriptRevision": "transcript:pickup:1"
+          },
+          "pointId": "point:line-3",
+          "pointRevision": 1,
+          "scriptRevision": "script:1",
+          "observationIds": [
+            "c"
+          ],
+          "state": "available",
+          "verdict": "covered",
+          "reason": "Final speech matches the captured idea; this is not a must-say or action verdict."
+        }
+      ],
+      "intent": {
+        "requestId": "fixture:reverse-bc",
+        "scope": {
+          "projectId": "fixture:project",
+          "sourceId": "fixture:original",
+          "scriptRevision": "script:1",
+          "editRevision": "edit:1",
+          "transcriptRevision": "transcript:original:1"
+        },
+        "state": "available",
+        "conflicts": [],
+        "insertions": [
+          {
+            "id": "fixture:reverse-bc:b",
+            "sourceId": "fixture:pickup",
+            "takeId": "fixture:pickup:take",
+            "observationId": "b",
+            "pointIds": [
+              "point:line-2"
+            ],
+            "lineIds": [
+              "line-2"
+            ],
+            "scriptOrder": 1,
+            "t0": 3,
+            "t1": 5,
+            "provenance": "manual-review",
+            "uncertaintySeconds": null,
+            "verifiedBoundary": true
+          },
+          {
+            "id": "fixture:reverse-bc:c",
+            "sourceId": "fixture:pickup",
+            "takeId": "fixture:pickup:take",
+            "observationId": "c",
+            "pointIds": [
+              "point:line-3"
+            ],
+            "lineIds": [
+              "line-3"
+            ],
+            "scriptOrder": 2,
+            "t0": 0,
+            "t1": 2,
+            "provenance": "manual-review",
+            "uncertaintySeconds": null,
+            "verifiedBoundary": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "fixture:whole-bc",
+      "originalScope": {
+        "projectId": "fixture:project",
+        "sourceId": "fixture:original",
+        "scriptRevision": "script:1",
+        "editRevision": "edit:1",
+        "transcriptRevision": "transcript:original:1"
+      },
+      "pickupScope": {
+        "projectId": "fixture:project",
+        "sourceId": "fixture:pickup",
+        "scriptRevision": "script:1",
+        "editRevision": "edit:1",
+        "transcriptRevision": "transcript:pickup:1"
+      },
+      "points": [
+        {
+          "id": "point:line-1",
+          "revision": 1,
+          "span": {
+            "id": "line-1:spoken",
+            "lineId": "line-1",
+            "scriptRevision": "script:1",
+            "start": 0,
+            "end": 27,
+            "text": "We record the introduction.",
+            "order": 0
+          },
+          "text": "We record the introduction.",
+          "reason": "A complete spoken script line; review whether this idea matters.",
+          "importance": "important",
+          "origin": "baseline",
+          "creatorEdited": false,
+          "removed": false,
+          "state": "available"
+        },
+        {
+          "id": "point:line-2",
+          "revision": 1,
+          "span": {
+            "id": "line-2:spoken",
+            "lineId": "line-2",
+            "scriptRevision": "script:1",
+            "start": 0,
+            "end": 22,
+            "text": "We explain the camera.",
+            "order": 1
+          },
+          "text": "We explain the camera.",
+          "reason": "A complete spoken script line; review whether this idea matters.",
+          "importance": "important",
+          "origin": "baseline",
+          "creatorEdited": false,
+          "removed": false,
+          "state": "available"
+        },
+        {
+          "id": "point:line-3",
+          "revision": 1,
+          "span": {
+            "id": "line-3:spoken",
+            "lineId": "line-3",
+            "scriptRevision": "script:1",
+            "start": 0,
+            "end": 18,
+            "text": "We save the video.",
+            "order": 2
+          },
+          "text": "We save the video.",
+          "reason": "A complete spoken script line; review whether this idea matters.",
+          "importance": "important",
+          "origin": "baseline",
+          "creatorEdited": false,
+          "removed": false,
+          "state": "available"
+        }
+      ],
+      "originals": [
+        {
+          "id": "a",
+          "text": "We record the introduction.",
+          "t0": 0,
+          "t1": 2,
+          "sourceId": "fixture:original",
+          "takeId": "fixture:original:take",
+          "isFinal": true,
+          "provenance": "manual-review",
+          "uncertaintySeconds": null,
+          "verifiedBoundary": true
+        }
+      ],
+      "originalMatches": [
+        {
+          "scope": {
+            "projectId": "fixture:project",
+            "sourceId": "fixture:original",
+            "scriptRevision": "script:1",
+            "editRevision": "edit:1",
+            "transcriptRevision": "transcript:original:1"
+          },
+          "pointId": "point:line-1",
+          "pointRevision": 1,
+          "scriptRevision": "script:1",
+          "observationIds": [
+            "a"
+          ],
+          "state": "available",
+          "verdict": "covered",
+          "reason": "Final speech matches the captured idea; this is not a must-say or action verdict."
+        },
+        {
+          "scope": {
+            "projectId": "fixture:project",
+            "sourceId": "fixture:original",
+            "scriptRevision": "script:1",
+            "editRevision": "edit:1",
+            "transcriptRevision": "transcript:original:1"
+          },
+          "pointId": "point:line-2",
+          "pointRevision": 1,
+          "scriptRevision": "script:1",
+          "observationIds": [
+            "a"
+          ],
+          "state": "available",
+          "verdict": "partial",
+          "reason": "Only partial or uncertain evidence supports this point."
+        },
+        {
+          "scope": {
+            "projectId": "fixture:project",
+            "sourceId": "fixture:original",
+            "scriptRevision": "script:1",
+            "editRevision": "edit:1",
+            "transcriptRevision": "transcript:original:1"
+          },
+          "pointId": "point:line-3",
+          "pointRevision": 1,
+          "scriptRevision": "script:1",
+          "observationIds": [
+            "a"
+          ],
+          "state": "available",
+          "verdict": "partial",
+          "reason": "Only partial or uncertain evidence supports this point."
+        }
+      ],
+      "request": {
+        "id": "fixture:whole-bc",
+        "scope": {
+          "projectId": "fixture:project",
+          "sourceId": "fixture:original",
+          "scriptRevision": "script:1",
+          "editRevision": "edit:1",
+          "transcriptRevision": "transcript:original:1"
+        },
+        "pointIds": [
+          "point:line-2",
+          "point:line-3"
+        ],
+        "lineIds": [
+          "line-2",
+          "line-3"
+        ],
+        "points": [
+          {
+            "id": "point:line-2",
+            "revision": 1,
+            "span": {
+              "id": "line-2:spoken",
+              "lineId": "line-2",
+              "scriptRevision": "script:1",
+              "start": 0,
+              "end": 22,
+              "text": "We explain the camera.",
+              "order": 1
+            },
+            "text": "We explain the camera.",
+            "reason": "A complete spoken script line; review whether this idea matters.",
+            "importance": "important",
+            "origin": "baseline",
+            "creatorEdited": false,
+            "removed": false,
+            "state": "available"
+          },
+          {
+            "id": "point:line-3",
+            "revision": 1,
+            "span": {
+              "id": "line-3:spoken",
+              "lineId": "line-3",
+              "scriptRevision": "script:1",
+              "start": 0,
+              "end": 18,
+              "text": "We save the video.",
+              "order": 2
+            },
+            "text": "We save the video.",
+            "reason": "A complete spoken script line; review whether this idea matters.",
+            "importance": "important",
+            "origin": "baseline",
+            "creatorEdited": false,
+            "removed": false,
+            "state": "available"
+          }
+        ],
+        "context": [
+          {
+            "id": "line-1:spoken",
+            "lineId": "line-1",
+            "scriptRevision": "script:1",
+            "start": 0,
+            "end": 27,
+            "text": "We record the introduction.",
+            "order": 0
+          },
+          {
+            "id": "line-2:spoken",
+            "lineId": "line-2",
+            "scriptRevision": "script:1",
+            "start": 0,
+            "end": 22,
+            "text": "We explain the camera.",
+            "order": 1
+          },
+          {
+            "id": "line-3:spoken",
+            "lineId": "line-3",
+            "scriptRevision": "script:1",
+            "start": 0,
+            "end": 18,
+            "text": "We save the video.",
+            "order": 2
+          }
+        ],
+        "unresolvedActionIds": []
+      },
+      "pickups": [
+        {
+          "id": "bc",
+          "text": "We explain the camera. We save the video.",
+          "t0": 0,
+          "t1": 4,
+          "sourceId": "fixture:pickup",
+          "takeId": "fixture:pickup:take",
+          "isFinal": true,
+          "provenance": "manual-review",
+          "uncertaintySeconds": null,
+          "verifiedBoundary": true
+        }
+      ],
+      "pickupMatches": [
+        {
+          "scope": {
+            "projectId": "fixture:project",
+            "sourceId": "fixture:pickup",
+            "scriptRevision": "script:1",
+            "editRevision": "edit:1",
+            "transcriptRevision": "transcript:pickup:1"
+          },
+          "pointId": "point:line-1",
+          "pointRevision": 1,
+          "scriptRevision": "script:1",
+          "observationIds": [
+            "bc"
+          ],
+          "state": "available",
+          "verdict": "partial",
+          "reason": "Only partial or uncertain evidence supports this point."
+        },
+        {
+          "scope": {
+            "projectId": "fixture:project",
+            "sourceId": "fixture:pickup",
+            "scriptRevision": "script:1",
+            "editRevision": "edit:1",
+            "transcriptRevision": "transcript:pickup:1"
+          },
+          "pointId": "point:line-2",
+          "pointRevision": 1,
+          "scriptRevision": "script:1",
+          "observationIds": [
+            "bc"
+          ],
+          "state": "available",
+          "verdict": "covered",
+          "reason": "Final speech matches the captured idea; this is not a must-say or action verdict."
+        },
+        {
+          "scope": {
+            "projectId": "fixture:project",
+            "sourceId": "fixture:pickup",
+            "scriptRevision": "script:1",
+            "editRevision": "edit:1",
+            "transcriptRevision": "transcript:pickup:1"
+          },
+          "pointId": "point:line-3",
+          "pointRevision": 1,
+          "scriptRevision": "script:1",
+          "observationIds": [
+            "bc"
+          ],
+          "state": "available",
+          "verdict": "covered",
+          "reason": "Final speech matches the captured idea; this is not a must-say or action verdict."
+        }
+      ],
+      "intent": {
+        "requestId": "fixture:whole-bc",
+        "scope": {
+          "projectId": "fixture:project",
+          "sourceId": "fixture:original",
+          "scriptRevision": "script:1",
+          "editRevision": "edit:1",
+          "transcriptRevision": "transcript:original:1"
+        },
+        "state": "available",
+        "conflicts": [],
+        "insertions": [
+          {
+            "id": "fixture:whole-bc:bc",
+            "sourceId": "fixture:pickup",
+            "takeId": "fixture:pickup:take",
+            "observationId": "bc",
+            "pointIds": [
+              "point:line-2",
+              "point:line-3"
+            ],
+            "lineIds": [
+              "line-2",
+              "line-3"
+            ],
+            "scriptOrder": 1,
+            "t0": 0,
+            "t1": 4,
+            "provenance": "manual-review",
+            "uncertaintySeconds": null,
+            "verifiedBoundary": true
+          }
+        ]
+      }
+    }
+  ]
+}

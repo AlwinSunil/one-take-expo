@@ -1,0 +1,215 @@
+
+> one-take@1.0.0 samples
+> node --experimental-strip-types tools/replay-captions.mjs
+
+(node:46072) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/src/lib/caption-timing.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/sabari/.t3/worktrees/one-take-expo/t3code-b6a356e6/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[
+  {
+    "synthetic": true,
+    "source": "fixtures/captions.json",
+    "sessionId": "sample",
+    "sequence": 3,
+    "text": "This is another sentence.",
+    "isFinal": false,
+    "segments": [
+      {
+        "id": "1",
+        "t0": 0.2,
+        "t1": 2.2,
+        "text": "The camera records clearly.",
+        "isFinal": true
+      },
+      {
+        "id": "2",
+        "t0": 3.1,
+        "t1": 4,
+        "text": "This is another sentence.",
+        "isFinal": false
+      }
+    ],
+    "status": "preparing",
+    "reason": null,
+    "timing": {
+      "delayed": false,
+      "utterances": []
+    },
+    "timingLines": []
+  },
+  {
+    "synthetic": true,
+    "source": "recordings/empty-recording.json",
+    "sessionId": "empty-recording",
+    "sequence": -1,
+    "text": "",
+    "isFinal": false,
+    "segments": [],
+    "status": "stopped",
+    "reason": null,
+    "timing": {
+      "delayed": false,
+      "utterances": []
+    },
+    "timingLines": []
+  },
+  {
+    "synthetic": true,
+    "source": "recordings/model-missing.json",
+    "sessionId": "model-missing",
+    "sequence": -1,
+    "text": "",
+    "isFinal": false,
+    "segments": [],
+    "status": "unavailable",
+    "reason": "model-missing",
+    "timing": {
+      "delayed": false,
+      "utterances": []
+    },
+    "timingLines": []
+  },
+  {
+    "synthetic": true,
+    "source": "recordings/noisy-read.json",
+    "sessionId": "noisy-read",
+    "sequence": 5,
+    "text": "And the room is noisy.",
+    "isFinal": true,
+    "segments": [
+      {
+        "id": "n1",
+        "t0": 0.7,
+        "t1": 2.3,
+        "text": "The light is low.",
+        "isFinal": true
+      },
+      {
+        "id": "n2",
+        "t0": 5.4,
+        "t1": 7.2,
+        "text": "And the room is noisy.",
+        "isFinal": true
+      }
+    ],
+    "status": "stopped",
+    "reason": null,
+    "timing": {
+      "delayed": false,
+      "utterances": [
+        {
+          "utteranceId": "n1",
+          "pauseDetectionMs": 320,
+          "finalizationMs": 1640,
+          "coverageMs": 220,
+          "recognizedMs": 1960,
+          "complete": true,
+          "delayed": true
+        },
+        {
+          "utteranceId": "n2",
+          "pauseDetectionMs": 280,
+          "finalizationMs": 160,
+          "coverageMs": 150,
+          "recognizedMs": 440,
+          "complete": true,
+          "delayed": false
+        }
+      ]
+    },
+    "timingLines": [
+      "caption-timing: utterance=n1 pause_detection_ms=320 finalization_ms=1640 coverage_processing_ms=220 recognized_ms=1960 state=delayed",
+      "caption-timing: utterance=n2 pause_detection_ms=280 finalization_ms=160 coverage_processing_ms=150 recognized_ms=440 state=live"
+    ]
+  },
+  {
+    "synthetic": true,
+    "source": "recordings/quiet-read.json",
+    "sessionId": "quiet-read",
+    "sequence": 4,
+    "text": "And the room is quiet.",
+    "isFinal": true,
+    "segments": [
+      {
+        "id": "q1",
+        "t0": 0.6,
+        "t1": 2.1,
+        "text": "The light is low.",
+        "isFinal": true
+      },
+      {
+        "id": "q2",
+        "t0": 3,
+        "t1": 4.6,
+        "text": "And the room is quiet.",
+        "isFinal": true
+      }
+    ],
+    "status": "stopped",
+    "reason": null,
+    "timing": {
+      "delayed": false,
+      "utterances": [
+        {
+          "utteranceId": "q1",
+          "pauseDetectionMs": 240,
+          "finalizationMs": 70,
+          "coverageMs": 120,
+          "recognizedMs": 310,
+          "complete": true,
+          "delayed": false
+        },
+        {
+          "utteranceId": "q2",
+          "pauseDetectionMs": 250,
+          "finalizationMs": 80,
+          "coverageMs": 110,
+          "recognizedMs": 330,
+          "complete": true,
+          "delayed": false
+        }
+      ]
+    },
+    "timingLines": [
+      "caption-timing: utterance=q1 pause_detection_ms=240 finalization_ms=70 coverage_processing_ms=120 recognized_ms=310 state=live",
+      "caption-timing: utterance=q2 pause_detection_ms=250 finalization_ms=80 coverage_processing_ms=110 recognized_ms=330 state=live"
+    ]
+  },
+  {
+    "synthetic": true,
+    "source": "recordings/route-change-interruption.json",
+    "sessionId": "route-change-interruption",
+    "sequence": 2,
+    "text": "Reading the first line now.",
+    "isFinal": true,
+    "segments": [
+      {
+        "id": "r1",
+        "t0": 0.6,
+        "t1": 2.4,
+        "text": "Reading the first line now.",
+        "isFinal": true
+      }
+    ],
+    "status": "interrupted",
+    "reason": "audio-route-changed",
+    "timing": {
+      "delayed": false,
+      "utterances": [
+        {
+          "utteranceId": "r1",
+          "pauseDetectionMs": 80,
+          "finalizationMs": 100,
+          "coverageMs": 120,
+          "recognizedMs": 180,
+          "complete": true,
+          "delayed": false
+        }
+      ]
+    },
+    "timingLines": [
+      "caption-timing: utterance=r1 pause_detection_ms=80 finalization_ms=100 coverage_processing_ms=120 recognized_ms=180 state=live"
+    ]
+  }
+]
