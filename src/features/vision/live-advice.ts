@@ -26,12 +26,20 @@ export function visualAdvice(evidence: VisionEvidence): string | null {
   const kind = adviceKind(evidence);
   return kind ? MESSAGES[kind] : null;
 }
-export interface VisualAdviceState { current: AdviceKind | null; pending: AdviceKind | null; since: number; shownAt: number; identity: string }
-export function emptyVisualAdvice(): VisualAdviceState { return { current: null, pending: null, since: 0, shownAt: 0, identity: '' }; }
+export interface VisualAdviceState { current: AdviceKind | null; pending: AdviceKind | null; since: number; shownAt: number; lastReadyAt: number; identity: string }
+export function emptyVisualAdvice(): VisualAdviceState { return { current: null, pending: null, since: 0, shownAt: 0, lastReadyAt: 0, identity: '' }; }
 export function advanceVisualAdvice(previous: VisualAdviceState, evidence: VisionEvidence, enabled: boolean, now: number): VisualAdviceState {
-  if (!enabled || evidence.status !== 'ready' || !Number.isFinite(now)) return emptyVisualAdvice();
+  if (!enabled || !Number.isFinite(now)) return emptyVisualAdvice();
   const identity = `${evidence.sessionId}:${evidence.lensFacing}`;
-  const state = previous.identity === identity ? previous : { ...emptyVisualAdvice(), identity };
+  if (evidence.status !== 'ready') {
+    // Brief frame delays affect evidence validity, not the readability of the last displayed hint.
+    if (evidence.status === 'unavailable' && evidence.reason === 'stale-frame'
+      && previous.identity === identity && now >= previous.lastReadyAt && now - previous.lastReadyAt < 2000) {
+      return { ...previous, pending: previous.current, since: now };
+    }
+    return emptyVisualAdvice();
+  }
+  const state = { ...(previous.identity === identity ? previous : { ...emptyVisualAdvice(), identity }), lastReadyAt: now };
   const next = adviceKind(evidence, state.current);
   if (next === state.current) return { ...state, pending: next, since: now };
   if (next !== state.pending || now < state.since) return { ...state, pending: next, since: now };
@@ -56,11 +64,11 @@ export function useLiveVisualAdvice(evidence: VisionEvidence, enabled: boolean) 
 }
 
 export function visualSuggestionSummary(evidence: VisionEvidence, advice: string | null): string {
-  if (evidence.status === 'unavailable') return 'Lighting and framing checks are unavailable. Reopen the camera to retry.';
-  if (evidence.status !== 'ready') return 'Checking lighting and framing…';
-  if (advice) return advice;
-  // The panel shares the settled hint; raw frame results bypass its reading time.
-  if (!evidence.faceStable || evidence.facePresence === 'unknown') return 'Watching lighting and framing. Suggestions appear here.';
-  if (!evidence.exposure || ![evidence.exposure.mean, evidence.exposure.clipped, evidence.exposure.dark].every(value => Number.isFinite(value) && value >= 0 && value <= 1) || evidence.exposure.clipped + evidence.exposure.dark > 1.01) return 'Framing checked. Still measuring lighting…';
-  return 'Watching lighting and framing. Suggestions appear here.';
+  const waiting = 'Watching lighting and framing. Suggestions appear here.';
+  if (evidence.status === 'unavailable') {
+    if (evidence.reason === 'stale-frame') return advice ?? waiting;
+    return 'Lighting and framing checks are unavailable. Reopen the camera to retry.';
+  }
+  if (evidence.status !== 'ready') return waiting;
+  return advice ?? waiting;
 }

@@ -58,13 +58,29 @@ test('invalid exposure measurements cannot generate a lighting warning', () => {
 test('release suggestions show current measured checks instead of a build restriction', () => {
   assert.match(visualSuggestionSummary(frame, null), /Watching lighting and framing/);
   assert.match(visualSuggestionSummary({ ...frame, exposure: { mean: 0.8, clipped: 0.3, dark: 0 } }, null), /Watching lighting and framing/);
-  assert.match(visualSuggestionSummary({ ...frame, exposure: undefined }, null), /Still measuring lighting/);
-  assert.match(visualSuggestionSummary({ ...frame, exposure: { mean: 2, clipped: 0, dark: 0 } }, null), /Still measuring lighting/);
-  assert.match(visualSuggestionSummary({ ...frame, status: 'pending' }, 'Old hint'), /Checking/);
+  assert.match(visualSuggestionSummary({ ...frame, exposure: undefined }, null), /Watching lighting and framing/);
+  assert.match(visualSuggestionSummary({ ...frame, exposure: { mean: 2, clipped: 0, dark: 0 } }, null), /Watching lighting and framing/);
+  assert.match(visualSuggestionSummary({ ...frame, status: 'pending' }, 'Old hint'), /Watching lighting and framing/);
   assert.match(visualSuggestionSummary({ ...frame, status: 'unavailable' }, 'Old hint'), /Reopen the camera/);
 });
 
 test('the panel displays only the settled suggestion, not a new raw-frame warning', () => {
  assert.equal(visualSuggestionSummary(bright, 'Take a moment to adjust the light.'), 'Take a moment to adjust the light.');
  assert.doesNotMatch(visualSuggestionSummary(bright, null), /Harsh/);
+});
+
+test('short frame gaps cannot reset reading time or flash an unavailable panel', () => {
+ let state = advanceVisualAdvice(emptyVisualAdvice(), bright, true, 0);
+ state = advanceVisualAdvice(state, bright, true, 2000);
+ const stale = { status: 'unavailable', reason: 'stale-frame', sessionId: bright.sessionId, lensFacing: bright.lensFacing };
+ state = advanceVisualAdvice(state, stale, true, 2600);
+ assert.equal(state.current, 'bright');
+ assert.equal(state.shownAt, 2000);
+ assert.equal(visualSuggestionSummary(stale, 'Harsh light on your face.'), 'Harsh light on your face.');
+ assert.equal(visualSuggestionSummary(stale, null), visualSuggestionSummary(frame, null));
+ state = advanceVisualAdvice(state, bright, true, 2900);
+ assert.equal(state.shownAt, 2000);
+ assert.equal(advanceVisualAdvice(state, stale, true, 4900).current, null);
+ assert.equal(advanceVisualAdvice(state, { ...stale, sessionId: 'other' }, true, 3000).current, null);
+ assert.equal(advanceVisualAdvice(state, { ...stale, reason: 'model-error' }, true, 3000).current, null);
 });
