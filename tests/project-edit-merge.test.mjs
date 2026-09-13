@@ -27,3 +27,11 @@ test('stale row edit preserves intervening additions and removals',()=>{
  const result=mergeProjectEdit(base,current,next);
  assert.deepEqual(result.transcript.map(s=>s.id),['a','c']);assert.equal(result.transcript[0].manualCorrection,'fixed');
 });
+
+test('stale caption corrections cannot resurrect transcript rows removed by refinement', () => {
+ const current = {...base, transcript: [base.transcript[0]]};
+ const stale = {...base, transcript: [base.transcript[0], {...base.transcript[1], manualCorrection: 'late edit'}]};
+ const result = mergeProjectEdit(base, current, stale);
+ assert.deepEqual(result.transcript, current.transcript);
+ assert.equal(result.videoUri, base.videoUri);
+});

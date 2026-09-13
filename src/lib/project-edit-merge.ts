@@ -18,7 +18,13 @@ function merge(base: unknown, current: unknown, next: unknown): unknown {
   }
   if (Array.isArray(base) && Array.isArray(current) && Array.isArray(next) && keyed(base) && keyed(current) && keyed(next)) {
     // This edit owns its explicit order/removals, while unchanged rows retain current fields.
-    const rows = next.map(item => merge(base.find(row => row.id === item.id), current.find(row => row.id === item.id), item)).filter(item => item !== undefined);
+    const rows = next.map(item => {
+      const previous = base.find(row => row.id === item.id);
+      const latest = current.find(row => row.id === item.id);
+      // A callback from an older render cannot restore an identity removed since then.
+      if (previous && !latest) return undefined;
+      return merge(previous, latest, item);
+    }).filter(item => item !== undefined);
     const added = current.filter(item => !base.some(row => row.id === item.id) && !next.some(row => row.id === item.id));
     return [...rows, ...added];
   }
