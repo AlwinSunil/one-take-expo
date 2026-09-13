@@ -403,7 +403,10 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
     const session = fillerPreview;
     const current = latestProject.current;
     if (!session || session.status !== 'completed' || !current) return;
-    if (session.returnSource !== 'clean' && (current.reviewSegments !== undefined || current.cuts !== undefined)) {
+    const derivedHasCuts = activeSegments.length > 0 && !(activeSegments.length === 1
+      && activeSegments[0].uri === uri && activeSegments[0].t0 === 0
+      && Math.abs(activeSegments[0].t1 - duration) < 0.001);
+    if (session.returnSource !== 'clean' && (current.reviewSegments !== undefined || current.cuts !== undefined || derivedHasCuts)) {
       setFillerPreview(previous => previous ? { ...previous, status: 'error',
         error: 'This video already has edits. Open Edited and preview the filler there to keep your other cuts.' } : previous);
       return;
