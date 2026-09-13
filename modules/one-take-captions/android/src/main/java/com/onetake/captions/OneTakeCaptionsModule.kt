@@ -20,6 +20,7 @@ class OneTakeCaptionsModule : Module() {
   private var controller: CaptionSessionController? = null
   private val refinementLock = Mutex()
   private val refinements = ConcurrentHashMap<String, Job>()
+  private val acousticFillers = ConcurrentHashMap<String, Job>()
 
   override fun definition() = ModuleDefinition {
     Name("OneTakeCaptions")
@@ -37,6 +38,15 @@ class OneTakeCaptionsModule : Module() {
 
     AsyncFunction("start") Coroutine { sessionId: String ->
       refinements.values.toList().forEach { it.cancel(); it.join() }
+      acousticFillers.entries.toList().forEach { (jobId, job) ->
+        job.cancel()
+        runCatching {
+          if (AcousticFillerNative.ensureLoaded() == null) {
+            AcousticFillerNative.cancel(jobId)
+          }
+        }
+        job.join()
+      }
       refinementLock.withLock { requireController().start(sessionId) }
     }
 
@@ -90,6 +100,46 @@ class OneTakeCaptionsModule : Module() {
 
     AsyncFunction("cancelRefinement") { id: String -> refinements[id]?.cancel(); Unit }
 
+    AsyncFunction("acousticFillerStatus") Coroutine { ->
+      val context = appContext.reactContext?.applicationContext ?: throw Exceptions.AppContextLost()
+      val capability = AcousticFillerModel.capability(context)
+      if (capability.available) {
+        mapOf<String, Any?>("available" to true)
+      } else {
+        mapOf(
+          "available" to false,
+          "reason" to (capability.reason ?: "Acoustic filler detection is unavailable"),
+        )
+      }
+    }
+
+    AsyncFunction("analyzeAcousticFillers") Coroutine { jobId: String, sourceId: String, sourceUri: String, analysisRevision: Int ->
+      require(jobId.isNotBlank()) { "Acoustic filler jobId is required" }
+      val job = currentCoroutineContext()[Job] ?: error("Acoustic filler job unavailable")
+      check(acousticFillers.putIfAbsent(jobId, job) == null) {
+        "Acoustic filler analysis is already running: $jobId"
+      }
+      try {
+        refinementLock.withLock {
+          check(!requireController().isActive()) { "Finish recording before analyzing acoustic fillers" }
+          val context = appContext.reactContext?.applicationContext ?: throw Exceptions.AppContextLost()
+          AcousticFillerAnalyzer.analyze(context, jobId, sourceId, sourceUri, analysisRevision)
+        }
+      } finally {
+        acousticFillers.remove(jobId, job)
+      }
+    }
+
+    AsyncFunction("cancelAcousticFillers") { jobId: String ->
+      acousticFillers[jobId]?.cancel()
+      runCatching {
+        if (AcousticFillerNative.ensureLoaded() == null) {
+          AcousticFillerNative.cancel(jobId)
+        }
+      }
+      Unit
+    }
+
     OnActivityEntersBackground {
       controller?.requestStopFromLifecycle("activity_background")
     }
@@ -100,6 +150,11 @@ class OneTakeCaptionsModule : Module() {
 
     OnDestroy {
       refinements.values.forEach { it.cancel() }
+      acousticFillers.keys.toList().forEach { id ->
+        acousticFillers[id]?.cancel()
+        runCatching { AcousticFillerNative.cancel(id) }
+      }
+      acousticFillers.clear()
       controller?.close()
       controller = null
     }

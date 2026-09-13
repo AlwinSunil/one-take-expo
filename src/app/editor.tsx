@@ -23,6 +23,7 @@ import { T1WrapReport } from '@/components/review/t1-wrap-report';
 import { T1CleanupReview } from '@/components/review/t1-cleanup-review';
 import { T1CaptionEditor } from '@/components/review/t1-caption-editor';
 import { Tier1TakeReview } from '@/components/review/t1-take-review';
+import { AcousticFillerReview } from '@/components/review/acoustic-filler-review';
 import { projectScriptLines } from '@/lib/project-workflow';
 import { resolveReviewFootage } from '@/lib/t1-review';
 import { applyProjectFraming } from '@/lib/t1-framing-selection';
@@ -38,6 +39,7 @@ const time = (seconds: number) => `${Math.floor(seconds / 60)}:${Math.floor(seco
 
 type PreviewSource = 'clean' | 'trim' | 'original';
 type Peek = NonNullable<Project['reviewSegments']>[number];
+const ACOUSTIC_CONTEXT_SECONDS = 2;
 
 function TrimHandle({ value, duration, width, onChange }: {
   value: number; duration: number; width: number; onChange: (value: number) => void;
@@ -159,6 +161,7 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
     Array.isArray(initialProject?.reviewSegments) || Array.isArray(initialProject?.cuts) ? 'clean' : 'trim',
   );
   const [peek, setPeek] = useState<Peek | null>(null);
+  const [acousticPreview, setAcousticPreview] = useState<{ t0: number; t1: number } | null>(null);
   const cutIndex = useRef(0);
   const speechReview = useMemo(() => project ? projectWithSpeechEvidence(project, tier1Enabled('takeReview', __DEV__, tier1Test)) : null, [project, tier1Test]);
   const mediaProject = useMemo(() => speechReview ? projectForMediaReview(speechReview.project, status === 'error' ? [...failedMediaUris, uri] : failedMediaUris) : null, [speechReview, failedMediaUris, status, uri]);
@@ -260,14 +263,14 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
   }
 
   function switchSource(next: PreviewSource) {
-    setPeek(null); setNativePlaying(false); player.pause();
+    setPeek(null); setAcousticPreview(null); setNativePlaying(false); player.pause();
     setPreviewSource(next);
     if (next === 'trim') player.currentTime = start;
     if (next === 'original') player.currentTime = 0;
   }
 
   function clearPeek() {
-    setPeek(null); setNativePlaying(false); setNativeSeek(0);
+    setPeek(null); setAcousticPreview(null); setNativePlaying(false); setNativeSeek(0);
   }
 
   const exportMode = previewSource === 'original' ? 'original' : previewSource === 'trim' ? 'trim' : 'cut';
@@ -318,6 +321,11 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
 
   useEffect(() => {
     if (!isPlaying || useNative || peek) return;
+    if (acousticPreview && (currentTime >= acousticPreview.t1 || currentTime < acousticPreview.t0)) {
+      player.pause();
+      player.currentTime = acousticPreview.t0;
+      return;
+    }
     if (previewCuts?.length) {
       const cut = previewCuts[cutIndex.current] ?? previewCuts[0];
       if (currentTime >= cut.t1) {
@@ -328,7 +336,7 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
     } else if (currentTime >= (previewFullSource ? duration : limit) || currentTime < (previewFullSource ? 0 : start)) {
       player.pause(); player.currentTime = previewFullSource ? 0 : start;
     }
-  }, [player, isPlaying, currentTime, start, limit, duration, previewFullSource, previewCuts, useNative, peek]);
+  }, [player, isPlaying, currentTime, start, limit, duration, previewFullSource, previewCuts, useNative, peek, acousticPreview]);
 
   function seek(value: number) {
     player.pause();
@@ -341,6 +349,60 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
       return;
     }
     player.currentTime = Math.max(start, Math.min(limit, value));
+  }
+
+  function previewAcousticSource(sourceId: string, timeSeconds: number) {
+    const current = latestProject.current;
+    if (!current || !Number.isFinite(timeSeconds)) return;
+    const source = (sourceId === current.id || sourceId === `${current.id}:original`)
+      ? { uri: current.videoUri, duration: duration > 0 ? duration : current.duration }
+      : current.recordings?.find(recording => recording.id === sourceId)
+        ? (() => {
+          const recording = current.recordings!.find(item => item.id === sourceId)!;
+          return { uri: recording.mediaUri, duration: recording.duration };
+        })()
+        : null;
+    if (!source?.uri || !source.duration || !Number.isFinite(source.duration)) {
+      setMessage('This acoustic marker has no playable source. The saved result remains available.');
+      return;
+    }
+    const position = Math.max(0, Math.min(source.duration, timeSeconds));
+    const contextStart = Math.max(0, position - ACOUSTIC_CONTEXT_SECONDS);
+    const contextEnd = Math.min(source.duration, position + ACOUSTIC_CONTEXT_SECONDS);
+    if (source.uri === uri) {
+      if (current.availableMediaUris && !current.availableMediaUris.includes(source.uri)) {
+        setMessage('This acoustic marker has no playable original. The saved result remains available.');
+        return;
+      }
+      clearPeek();
+      player.pause();
+      if (NativeCutPreview) {
+        setPreviewSource('clean');
+        setPeek({ uri: source.uri, t0: contextStart, t1: contextEnd, captions: [] });
+        setNativeSeek(value => value + 1);
+        setNativePlaying(true);
+      } else {
+        setPreviewSource('original');
+        setAcousticPreview({ t0: contextStart, t1: contextEnd });
+        player.currentTime = contextStart;
+        player.play();
+      }
+      return;
+    }
+    if (!NativeCutPreview || !current.availableMediaUris?.includes(source.uri)) {
+      setMessage('Multi-source acoustic context preview needs the Android development build.');
+      return;
+    }
+    clearPeek();
+    setPreviewSource('clean');
+    setPeek({
+      uri: source.uri,
+      t0: contextStart,
+      t1: contextEnd,
+      captions: [],
+    });
+    setNativeSeek(value => value + 1);
+    setNativePlaying(true);
   }
 
   return <SafeAreaView className="flex-1 bg-black">
@@ -450,6 +512,7 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
       </View>}
       {__DEV__ && <Pressable accessibilityRole="button" className="py-3" onPress={() => setTier1Test(value => !value)}><Text className="text-amber-200">{tier1Test ? 'Disable Tier 1 development test' : 'Enable Tier 1 development test'}</Text></Pressable>}
       {!!speechReview?.error && <Text className="text-amber-200 py-3">Speech evidence unavailable: {speechReview.error}. Original media and saved metadata remain preserved.</Text>}
+      {project && reviewProject && <AcousticFillerReview project={reviewProject} onChange={changeProject} onPreviewSource={previewAcousticSource} />}
       {project && reviewProject && <T1CleanupReview project={reviewProject} onChange={changeProject} enabled={tier1Enabled('takeReview', __DEV__, tier1Test) && !speechReview?.error} disabled={pendingWrites > 0} onPreviewFootage={range => {
         const source = resolveReviewFootage(reviewProject, range);
         if (!source || !NativeCutPreview || !reviewProject.availableMediaUris?.includes(source.uri)) { setMessage('Cleanup footage is unavailable in this build.'); return; }

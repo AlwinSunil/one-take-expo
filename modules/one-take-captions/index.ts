@@ -70,11 +70,64 @@ export type OneTakeCaptionsEvents = {
   onRefinement(event: { id: string; progress: number; status: string; quietIntervals?: { t0: number; t1: number }[] }): void;
 };
 
+export type AcousticFillerStatus =
+  | { available: true }
+  | { available: false; reason?: string };
+
+export type AcousticFillerEvent = {
+  id: string;
+  startSeconds: number;
+  endSeconds: number;
+  label: 'um' | 'uh';
+  score: number;
+  timingUncertaintySeconds: number | null;
+  timingResolutionSeconds?: number;
+};
+
+export type AcousticFillerResult = {
+  schemaVersion: 1;
+  status: 'ready' | 'unavailable';
+  sourceId: string;
+  analysisRevision: number;
+  model: { id: string; version: string };
+  actualProcessor: 'cpu' | 'gpu' | 'npu' | 'unknown';
+  durationSeconds: number;
+  events: AcousticFillerEvent[];
+  unavailableReason?: string;
+  provenance?: {
+    source?: 'fixture' | 'device' | 'host-audio';
+    runtime?: string;
+    audioSha256?: string;
+    modelSha256?: string;
+    sampleRate?: number;
+    threshold?: number;
+    timingSource?: string;
+    scoreMeaning?: string;
+    timingNote?: string;
+    boundaryStatus?: 'unverified';
+    releaseValidated?: boolean;
+  };
+  benchmark?: {
+    windowCount?: number;
+    processingSeconds?: number;
+    realTimeFactor?: number;
+    host?: string;
+  };
+};
+
 export declare class OneTakeCaptionsModule extends NativeModule<OneTakeCaptionsEvents> {
   start(sessionId: string): Promise<void>;
   stop(sessionId: string): Promise<CaptionSegment[]>;
   refine(id: string, sourceUri: string, model: 'tiny' | 'small'): Promise<CaptionSegment[]>;
   cancelRefinement(id: string): Promise<void>;
+  acousticFillerStatus(): Promise<AcousticFillerStatus>;
+  analyzeAcousticFillers(
+    jobId: string,
+    sourceId: string,
+    sourceUri: string,
+    analysisRevision: number,
+  ): Promise<AcousticFillerResult>;
+  cancelAcousticFillers(jobId: string): Promise<void>;
 }
 
 /**
