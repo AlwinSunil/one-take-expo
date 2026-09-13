@@ -81,7 +81,7 @@ test('a raw checkpoint survives while the same recording gains final evidence ex
   const pending = mergePickupRecording(project, 'checkpoint', { videoUri: input.videoUri, duration: input.duration, transcript: [], takes: [], evidenceStatus: 'pending' }, 20);
   assert.equal(pending.recordings[1].evidenceStatus, 'pending');
   assert.equal(pending.transcript.length, project.transcript.length);
-  assert.deepEqual(mergePickupRecording(pending, 'checkpoint', { ...input, evidenceStatus: 'pending' }, 21), pending);
+  assert.throws(() => mergePickupRecording(pending, 'checkpoint', { ...input, evidenceStatus: 'pending' }, 21), /cannot claim/);
   const complete = mergePickupRecording(pending, 'checkpoint', { ...input, evidenceStatus: 'complete' }, 22);
   assert.equal(complete.recordings.length, 2);
   assert.equal(complete.recordings[1].evidenceStatus, 'complete');
@@ -117,4 +117,12 @@ test('checkpoint preserves the requested subset and finalization clears only its
   assert.equal(preserveNewRecordings(complete, { ...pending, recoveryMessage: PENDING_PICKUP_MESSAGE }).recoveryMessage, undefined);
   const unrelated = mergePickupRecording({ ...pending, recoveryMessage: 'Another source is missing.' }, 'checkpoint', input, 20);
   assert.equal(unrelated.recoveryMessage, 'Another source is missing.');
+});
+
+
+test('reused pickup identity validates the complete duplicate payload', () => {
+  const merged = mergePickupRecording(project, 'p', input, 20);
+  assert.throws(() => mergePickupRecording(merged, 'p', { ...input, duration: 7 }, 30), /different/);
+  assert.throws(() => mergePickupRecording(merged, 'p', { ...input, videoUri: 'file:///foreign.mp4' }, 30), /different recording/);
+  assert.throws(() => mergePickupRecording(merged, 'p', { ...input, transcript: [{ ...input.transcript[0], text: 'Changed' }] }, 30), /different payload/);
 });

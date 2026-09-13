@@ -3,13 +3,18 @@ import { Alert, FlatList, Pressable, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { deleteProject, listProjects } from '@/lib/store';
+import { deleteProject, listProjects, listProjectAnalysisJobs, retryProjectAnalysis } from '@/lib/store';
 import type { Project } from '@/lib/session';
+import type { AnalysisJob } from '@/lib/t15-jobs';
+import { projectLifecycle } from '@/lib/t15-lifecycle';
+import { ProjectLifecycleStatus } from '@/components/ui/project-lifecycle-status';
 import { cleanReview } from '@/lib/clean-review';
 import { ProjectThumbnail } from '@/components/ui/project-thumbnail';
 
 export default function Projects() {
   const [items, setItems] = useState<Project[]>([]);
+  const [jobs, setJobs] = useState<Record<string, AnalysisJob[]>>({});
+  const [retrying, setRetrying] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [refresh, setRefresh] = useState(0);
@@ -32,7 +37,11 @@ export default function Projects() {
     let active = true;
     setError('');
     setLoading(true);
-    listProjects().then(rows => { if (active) setItems(rows); })
+    listProjects().then(async rows => {
+      if (active) setItems(rows);
+      const entries = await Promise.all(rows.filter(row => row.v15).map(async row => [row.id, await listProjectAnalysisJobs(row.id)] as const));
+      if (active) setJobs(Object.fromEntries(entries));
+    })
       .catch(() => { if (active) setError('Your projects could not be loaded. Retry to open your saved recordings.'); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
@@ -81,6 +90,21 @@ export default function Projects() {
                   </Text>
                 </View>
               </Pressable>
+              {item.v15 && <View className="px-3 py-2"><ProjectLifecycleStatus
+                state={projectLifecycle(item, jobs[item.id])}
+                retrying={retrying === item.id}
+                onOpenEditor={() => router.push({ pathname: '/editor', params: { projectId: item.id } })}
+                onRetry={() => {
+                  const retry = projectLifecycle(item, jobs[item.id]).retryJob;
+                  if (!retry) return;
+                  setRetrying(item.id);
+                  retryProjectAnalysis(item.id, retry.id, retry.attempt)
+                    .then(() => listProjectAnalysisJobs(item.id))
+                    .then(next => setJobs(current => ({ ...current, [item.id]: next })))
+                    .catch(e => setError(e instanceof Error ? e.message : 'Retry could not be queued. Your saved edit is unchanged.'))
+                    .finally(() => setRetrying(null));
+                }}
+              /></View>}
               <View className="flex-row items-center justify-between px-3 pb-2">
                 <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/editor', params: { projectId: item.id } })}>
                   <Text className="text-neutral-200 text-xs py-2">{item.mediaMissing ? 'Review text' : 'Review'}</Text>

@@ -1,8 +1,11 @@
+import { canonicalJson, validateFoundation } from './t15-schema.ts';
 import type { Project, TranscriptSeg } from './session';
 
 export function normalizeProject(value: unknown): Project {
   if (!value || typeof value !== 'object') throw new Error('Project data is unreadable.');
   const p = value as Project;
+  if (p.schemaVersion !== undefined && (!Number.isSafeInteger(p.schemaVersion) || p.schemaVersion < 1 || p.schemaVersion > 2)) throw new Error('This project needs a newer app or has an unreadable schema.');
+  if (p.v15 !== undefined) validateFoundation(p.v15, p);
   if (typeof p.id !== 'string' || !p.id || !['script', 'assisted'].includes(p.mode)) throw new Error('Project identity is invalid.');
   for (const key of ['scriptLines', 'reviewDecisions', 'rawTranscript', 'refinementCandidate', 'cuts', 'quietIntervals', 'takes', 'recordings', 'reviewSegments'] as const) {
     if (p[key] !== undefined && !Array.isArray(p[key])) throw new Error(`Project ${key} data is unreadable.`);
@@ -82,10 +85,18 @@ export interface PickupRecordingInput {
 /** Source times stay relative to each recording; only identities are namespaced. */
 export function mergePickupRecording(project: Project, recordingId: string, input: PickupRecordingInput, createdAt: number): Project {
   const existing = project.recordings?.find(recording => recording.id === recordingId);
-  if (existing && (existing.evidenceStatus !== 'pending' || input.evidenceStatus === 'pending')) return project;
   if (existing && existing.mediaUri !== input.videoUri) throw new Error('This pickup evidence belongs to a different recording.');
   if (input.evidenceStatus === 'pending' && (input.transcript.length || input.takes.length)) throw new Error('A media checkpoint cannot claim finalized caption or take evidence.');
   if (!recordingId || !Number.isFinite(input.duration) || input.duration <= 0 || !input.videoUri) throw new Error('The pickup recording is incomplete.');
+  const payload = canonicalJson({ duration: input.duration, videoUri: input.videoUri, transcript: input.transcript, takes: input.takes,
+    eligibleLineIds: input.eligibleLineIds ?? null, evidenceStatus: input.evidenceStatus ?? 'complete' });
+  if (existing && (existing.evidenceStatus !== 'pending' || input.evidenceStatus === 'pending')) {
+    const previous = input.evidenceStatus === 'pending' ? existing.checkpointPayload : existing.completionPayload;
+    if (previous !== undefined && previous !== payload) throw new Error('This pickup identity has a different payload.');
+    if (existing.duration !== input.duration) throw new Error('This pickup identity has a different duration.');
+    // Legacy rows lack receipts; they remain readable and cannot be rewritten by a duplicate.
+    return project;
+  }
   const segmentIds = new Map<string, string>();
   const transcript = input.transcript.map((segment, index) => {
     const oldId = segment.id ?? `segment:${index}`;
@@ -122,8 +133,8 @@ export function mergePickupRecording(project: Project, recordingId: string, inpu
     duration: project.duration ?? Math.max(0, ...legacyTranscript.map(segment => segment.t1), ...legacyTakes.map(take => take.t1)), createdAt: project.createdAt }] : [];
   return normalizeProject({ ...project,
     recordings: existing
-      ? project.recordings!.map(recording => recording.id === recordingId ? { ...recording, duration: input.duration, evidenceStatus: 'complete' as const } : recording)
-      : [...(project.recordings ?? primary), { id: recordingId, mediaUri: input.videoUri, duration: input.duration, createdAt, evidenceStatus: input.evidenceStatus ?? 'complete' }],
+      ? project.recordings!.map(recording => recording.id === recordingId ? { ...recording, duration: input.duration, evidenceStatus: 'complete' as const, completionPayload: payload } : recording)
+      : [...(project.recordings ?? primary), { id: recordingId, mediaUri: input.videoUri, duration: input.duration, createdAt, evidenceStatus: input.evidenceStatus ?? 'complete', ...(input.evidenceStatus === 'pending' ? { checkpointPayload: payload } : { completionPayload: payload }) }],
     transcript: [...legacyTranscript, ...transcript], takes: [...legacyTakes, ...takes],
     pickupRequest: input.evidenceStatus === 'pending' ? project.pickupRequest : undefined, cutsReviewed: false, reviewSegments: undefined,
     recoveryMessage: existing?.evidenceStatus === 'pending' && project.recoveryMessage === PENDING_PICKUP_MESSAGE ? undefined : project.recoveryMessage,
