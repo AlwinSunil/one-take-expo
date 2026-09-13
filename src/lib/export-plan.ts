@@ -1,4 +1,4 @@
-import { validateExportCaptions, validateExportCuts } from '../../modules/one-take-media/timeline.ts';
+import { mapExportCaptions, validateExportCaptions, validateExportCuts } from '../../modules/one-take-media/timeline.ts';
 
 import { applyProjectFraming } from './t1-framing-selection.ts';
 import { transcriptForSource } from './review-source.ts';
@@ -11,6 +11,7 @@ export type ExportSegment = ExportCut & { uri: string; captions?: ExportCaption[
 export type CaptionTiming = 'none' | 'saved-audio' | 'live-estimate' | 'mixed';
 
 export type ExportPlanErrorCode =
+  | 'empty-timeline'
   | 'missing-source'
   | 'invalid-trim'
   | 'invalid-cuts'
@@ -29,6 +30,8 @@ export class ExportPlanError extends Error {
 }
 
 export interface ExportPlan {
+  timelineRevision?: number;
+  burnIntoExport?: boolean;
   segments?: ExportSegment[];
   sourceUri: string;
   /** Source-relative cuts in the exact output order used by the editor. */
@@ -44,7 +47,7 @@ export interface ExportPlan {
  * Explicit project cuts take precedence over the current trim.  Otherwise the
  * editor's selected trim becomes one source-relative cut.
  */
-export function buildExportPlan(project: Project, start: number, end: number, framingEnabled = false): ExportPlan {
+export function buildExportPlan(project: Project, start: number, end: number, framingEnabled = false, burnIntoExport = true): ExportPlan {
   if (project.reviewSegments !== undefined) {
     if (!project.cutsReviewed) throw new ExportPlanError('unreviewed-cuts', 'Review and accept each cut before exporting.');
     if (!Array.isArray(project.reviewSegments) || project.reviewSegments.length === 0) throw new ExportPlanError('invalid-cuts', 'Choose at least one segment.');
@@ -52,7 +55,7 @@ export function buildExportPlan(project: Project, start: number, end: number, fr
       const sourceTranscript = transcriptForSource(project, segment.uri);
       const plan = buildExportPlan({ ...project, reviewSegments: undefined, videoUri: segment.uri, cuts: undefined,
         mediaMissing: project.availableMediaUris ? !project.availableMediaUris.includes(segment.uri) : project.mediaMissing,
-        transcript: sourceTranscript.length > 0 ? sourceTranscript : segment.captions ?? [] }, segment.t0, segment.t1);
+        transcript: sourceTranscript.length > 0 ? sourceTranscript : segment.captions ?? [] }, segment.t0, segment.t1, false, burnIntoExport);
       return { uri: segment.uri, t0: segment.t0, t1: segment.t1, captions: plan.captions, takeId: segment.takeId };
     });
     if (segments.length > 100) throw new ExportPlanError('invalid-cuts', 'Too many export segments.');
@@ -85,7 +88,7 @@ export function buildExportPlan(project: Project, start: number, end: number, fr
     throw new ExportPlanError('invalid-cuts', error instanceof Error ? error.message : 'The selected cuts are invalid.');
   }
 
-  const captionBuild = buildCaptions(transcriptForSource(project, sourceUri));
+  const captionBuild = buildCaptions(burnIntoExport ? transcriptForSource(project, sourceUri) : []);
   let captions: ExportCaption[];
   try {
     captions = validateExportCaptions(partitionCaptionTimeline(captionBuild.captions));
@@ -172,4 +175,92 @@ function cloneCuts(value: unknown, label: string): ExportCut[] {
 export function sanitizeExportCaption(text: string): string {
   const spoken = text.replace(/\[[^\]]*\]/g, '').replace(/\s+/g, ' ').trim();
   return /^scratch that[.!?,]*$/i.test(spoken) ? '' : spoken;
+}
+
+/** Structural consumer of B's published resolveTimeline output (handoff 904ccc5).
+ * This adapter never selects, excludes, orders or edits clips.
+ * Replace the structural type import only after B's implementation merges.
+ */
+export interface CaptionExportSequence {
+  revision: number;
+  segments: readonly {
+    clipId: string; sourceId: string; uri: string; t0: number; t1: number;
+    outputT0: number; outputT1: number; takeId?: string;
+  }[];
+  duration: number;
+  issues: readonly unknown[];
+}
+
+export function buildTimelineExportPlan(
+  project: Project, sequence: CaptionExportSequence, burnIntoExport: boolean, framingEnabled = false,
+): ExportPlan {
+  if (!Number.isSafeInteger(sequence.revision) || sequence.revision < 0 || sequence.issues.length) {
+    throw new ExportPlanError('invalid-cuts', 'Resolve timeline issues before exporting.');
+  }
+  if (!sequence.segments.length) {
+    throw new ExportPlanError('empty-timeline', 'Include at least one clip before exporting.');
+  }
+  if (sequence.segments.length > 100) throw new ExportPlanError('invalid-cuts', 'Too many export segments.');
+  let offset = 0;
+  const timings: CaptionTiming[] = [];
+  const segments = sequence.segments.map(segment => {
+    const recording = project.recordings?.find(source => source.id === segment.sourceId);
+    if (!recording || recording.mediaUri !== segment.uri
+      || !project.availableMediaUris?.includes(segment.uri)) {
+      throw new ExportPlanError('missing-source', 'The timeline source is unavailable.');
+    }
+    if (!Number.isFinite(segment.outputT0) || !Number.isFinite(segment.outputT1)
+      || Math.abs(segment.outputT0 - offset) > 1e-6
+      || Math.abs(segment.outputT1 - segment.outputT0 - (segment.t1 - segment.t0)) > 1e-6) {
+      throw new ExportPlanError('invalid-cuts', 'The timeline output intervals are inconsistent.');
+    }
+    // Source identity, not overlapping timestamps or fallback segment text, owns captions.
+    if (typeof recording.duration === 'number' && segment.t1 > recording.duration) {
+      throw new ExportPlanError('invalid-cuts', 'The timeline exceeds its source duration.');
+    }
+    const transcript = burnIntoExport ? transcriptForSource(project, segment.uri)
+      .filter(cue => (cue.recordingId ? cue.recordingId === segment.sourceId
+        : project.recordings?.filter(source => source.mediaUri === segment.uri).length === 1)
+        && cue.t0 < segment.t1 && cue.t1 > segment.t0) : [];
+    const plan = buildExportPlan({ ...project, videoUri: segment.uri, reviewSegments: undefined,
+      cuts: undefined, transcript, mediaMissing: false }, segment.t0, segment.t1, false, burnIntoExport);
+    timings.push(plan.captionTiming);
+    offset = segment.outputT1;
+    return applyProjectFraming({ ...project, recordings: [recording] }, [{
+      uri: segment.uri, t0: segment.t0, t1: segment.t1, takeId: segment.takeId,
+      captions: plan.captions.filter(cue => cue.t0 < segment.t1 && cue.t1 > segment.t0),
+    }], framingEnabled)[0];
+  });
+  if (!Number.isFinite(sequence.duration) || Math.abs(offset - sequence.duration) > 1e-6) {
+    throw new ExportPlanError('invalid-cuts', 'The timeline duration is inconsistent.');
+  }
+  const hasEstimatedCaptions = timings.some(timing => timing === 'live-estimate' || timing === 'mixed');
+  const hasSaved = timings.some(timing => timing === 'saved-audio' || timing === 'mixed');
+  return freezeExportPlan({ timelineRevision: sequence.revision, burnIntoExport,
+    sourceUri: segments[0].uri, cuts: [], captions: [],
+    segments,
+    captionTiming: hasEstimatedCaptions ? hasSaved ? 'mixed' : 'live-estimate' : hasSaved ? 'saved-audio' : 'none',
+    hasEstimatedCaptions });
+}
+
+/** Capture values before any confirmation dialog, await or later editor mutation. */
+export function freezeExportPlan(plan: ExportPlan): ExportPlan {
+  const clone = JSON.parse(JSON.stringify(plan)) as ExportPlan;
+  function freeze(value: object): void {
+    Object.values(value).forEach(child => { if (child && typeof child === 'object') freeze(child); });
+    Object.freeze(value);
+  }
+  freeze(clone);
+  return clone;
+}
+
+/** Editor overlay only; export burn-in never reads this display preference. */
+export function buildTimelineEditorCaptions(
+  project: Project, sequence: CaptionExportSequence, showInEditor: boolean,
+): ExportCaption[] {
+  if (!showInEditor || !sequence.segments.length || sequence.issues.length) return [];
+  const plan = buildTimelineExportPlan(project, sequence, true);
+  return plan.segments!.flatMap((segment, index) => mapExportCaptions(segment.captions ?? [], [segment])
+    .map(cue => ({ ...cue, t0: cue.t0 + sequence.segments[index].outputT0,
+      t1: cue.t1 + sequence.segments[index].outputT0 })));
 }
