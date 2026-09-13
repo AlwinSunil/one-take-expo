@@ -1,0 +1,97 @@
+{
+  "id": "wrap-fixture",
+  "mode": "script",
+  "videoUri": "file:///wrap-fixture.mp4",
+  "mediaMissing": false,
+  "duration": 8,
+  "createdAt": 1778700000000,
+  "scriptLines": [
+    {
+      "id": "line-1",
+      "spokenText": "A good take starts with a clear idea.",
+      "actionCues": []
+    },
+    {
+      "id": "line-2",
+      "spokenText": "Say it simply, and make it yours.",
+      "actionCues": [
+        {
+          "id": "action-required",
+          "text": "Show the product label",
+          "required": true,
+          "resolved": true
+        },
+        {
+          "id": "action-optional",
+          "text": "Smile at the camera",
+          "required": false,
+          "resolved": false
+        }
+      ]
+    }
+  ],
+  "transcript": [
+    {
+      "id": "segment-1",
+      "t0": 1.2,
+      "t1": 3.8,
+      "text": "A good take starts with a clear idea.",
+      "isFinal": true
+    },
+    {
+      "id": "segment-2",
+      "t0": 4.1,
+      "t1": 6.6,
+      "text": "Say it simply, and make it yours.",
+      "isFinal": true
+    }
+  ],
+  "tier1Evidence": {
+    "version": 1,
+    "projectId": "wrap-fixture",
+    "revision": "fixture-r1",
+    "provider": "fixture",
+    "status": "available",
+    "scriptSnapshot": [
+      {
+        "lineId": "line-1",
+        "spokenText": "A good take starts with a clear idea."
+      },
+      {
+        "lineId": "line-2",
+        "spokenText": "Say it simply, and make it yours."
+      }
+    ],
+    "reasons": [],
+    "mustSay": [
+      {
+        "lineId": "line-1",
+        "required": true,
+        "status": "satisfied",
+        "evidence": [
+          {
+            "recordingId": "wrap-fixture",
+            "t0": 1.2,
+            "t1": 3.8
+          }
+        ]
+      },
+      {
+        "lineId": "line-2",
+        "required": true,
+        "status": "satisfied",
+        "evidence": [
+          {
+            "recordingId": "wrap-fixture",
+            "t0": 4.1,
+            "t1": 6.6
+          }
+        ]
+      }
+    ],
+    "scratchHistory": [],
+    "cleanup": [],
+    "firstTakeStartedAt": 1778700000123,
+    "wrapRequestedAt": 1778700010456
+  }
+}

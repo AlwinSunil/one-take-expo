@@ -1,0 +1,178 @@
+{
+  "kind": "host-ffmpeg-framing-geometry",
+  "fixture": "tools/fixtures/t1-framing.json",
+  "sourceFixture": "tools/fixtures/t1-portrait.mp4",
+  "canvas": {
+    "widthPx": 360,
+    "heightPx": 640,
+    "fps": 30
+  },
+  "host": {
+    "os": "macOS-26.4.1-arm64-arm-64bit-Mach-O",
+    "python": "3.13.7",
+    "ffmpeg": "ffmpeg version 7.1 Copyright (c) 2000-2024 the FFmpeg developers",
+    "provider": "fixture",
+    "processorClaim": "host CPU only; no camera, NPU, or Media3 evidence"
+  },
+  "nativeParity": {
+    "status": "not-run",
+    "requirement": "Feed each decision's same source-local start/end and nativeCrop into both NativeCutView and Media3 export after #49 composition integration."
+  },
+  "captionOverlay": {
+    "implementation": "MediaExportRunner.TimedCaptionOverlay",
+    "placement": "lower-third",
+    "backgroundFrameAnchor": [
+      0.0,
+      -0.66
+    ],
+    "overlayFrameAnchor": [
+      0.0,
+      -1.0
+    ],
+    "constraint": "A reframed decision requires the declared captionSafeArea to be disjoint from every relevant protected region; native overlay parity remains pending."
+  },
+  "historicalEvidence": [
+    {
+      "output": "docs/validation/evidence/t1-session-3/framing/product-reframed.mp4",
+      "status": "superseded-initial-render",
+      "note": "Retained initial product crop render; device review showed the lower-third caption overlapped the synthetic hand."
+    }
+  ],
+  "planner": {
+    "implementation": "src/lib/t1-framing.ts",
+    "command": "node --experimental-strip-types --input-type=module",
+    "fixtureCasesValidated": 9,
+    "fixtureExpectationsMatched": true
+  },
+  "sources": [
+    {
+      "style": "portrait",
+      "path": "tools/fixtures/t1-portrait.mp4",
+      "durationSec": 12
+    },
+    {
+      "style": "moving",
+      "path": "docs/validation/evidence/t1-session-3/framing/moving-source.mp4",
+      "durationSec": 8
+    },
+    {
+      "style": "product",
+      "path": "docs/validation/evidence/t1-session-3/framing/product-source.mp4",
+      "durationSec": 10
+    }
+  ],
+  "fixtureCases": [
+    "portrait-ready",
+    "moving-subject-falls-back",
+    "product-keeps-product-and-hand"
+  ],
+  "renders": [
+    {
+      "source": "tools/fixtures/t1-portrait.mp4",
+      "startSec": 2,
+      "endSec": 5,
+      "normalizedCrop": {
+        "x": 0,
+        "y": 0,
+        "width": 1,
+        "height": 1
+      },
+      "pixelCrop": {
+        "x": 0,
+        "y": 0,
+        "width": 360,
+        "height": 640
+      },
+      "nativeCrop": {
+        "left": -1.0,
+        "right": 1.0,
+        "bottom": -1.0,
+        "top": 1.0
+      },
+      "output": "docs/validation/evidence/t1-session-3/framing/portrait-original.mp4",
+      "fixtureCase": "portrait-ready",
+      "plannerMode": "original",
+      "plannerFallbackReason": "manual comparison baseline"
+    },
+    {
+      "source": "tools/fixtures/t1-portrait.mp4",
+      "startSec": 2,
+      "endSec": 5,
+      "normalizedCrop": {
+        "x": 0.1,
+        "y": 0.1,
+        "width": 0.8,
+        "height": 0.8
+      },
+      "pixelCrop": {
+        "x": 36,
+        "y": 64,
+        "width": 288,
+        "height": 512
+      },
+      "nativeCrop": {
+        "left": -0.8,
+        "right": 0.8,
+        "bottom": -0.8,
+        "top": 0.8
+      },
+      "output": "docs/validation/evidence/t1-session-3/framing/portrait-reframed.mp4",
+      "fixtureCase": "portrait-ready",
+      "plannerMode": "reframed"
+    },
+    {
+      "source": "docs/validation/evidence/t1-session-3/framing/moving-source.mp4",
+      "startSec": 1,
+      "endSec": 4,
+      "normalizedCrop": {
+        "x": 0,
+        "y": 0,
+        "width": 1,
+        "height": 1
+      },
+      "pixelCrop": {
+        "x": 0,
+        "y": 0,
+        "width": 360,
+        "height": 640
+      },
+      "nativeCrop": {
+        "left": -1.0,
+        "right": 1.0,
+        "bottom": -1.0,
+        "top": 1.0
+      },
+      "output": "docs/validation/evidence/t1-session-3/framing/moving-original-fallback.mp4",
+      "fixtureCase": "moving-subject-falls-back",
+      "plannerMode": "original",
+      "plannerFallbackReason": "moving-subject"
+    },
+    {
+      "source": "docs/validation/evidence/t1-session-3/framing/product-source.mp4",
+      "startSec": 3,
+      "endSec": 7,
+      "normalizedCrop": {
+        "x": 0,
+        "y": 0,
+        "width": 1,
+        "height": 1
+      },
+      "pixelCrop": {
+        "x": 0,
+        "y": 0,
+        "width": 360,
+        "height": 640
+      },
+      "nativeCrop": {
+        "left": -1.0,
+        "right": 1.0,
+        "bottom": -1.0,
+        "top": 1.0
+      },
+      "output": "docs/validation/evidence/t1-session-3/framing/product-original-fallback.mp4",
+      "fixtureCase": "product-keeps-product-and-hand",
+      "plannerMode": "original",
+      "plannerFallbackReason": "caption-safe-area-overlaps-protected-region"
+    }
+  ]
+}

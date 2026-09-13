@@ -1,6 +1,7 @@
 package com.onetake.media
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Test
 
@@ -70,5 +71,52 @@ class MediaExportTimelineTest {
       MediaSourceSegment("file:///first.mp4", SourceCut(2.0, 3.0), listOf(SourceCaption(2.0, 3.0, "Replay"))),
     ))
     assertEquals(listOf(MappedCaption(500_000, 2_000_000, "First"), MappedCaption(2_000_000, 3_000_000, "Pickup"), MappedCaption(4_000_000, 5_000_000, "Replay")), mapped)
+  }
+
+  @Test
+  fun retainsOptionalSegmentCropAndAllowsLegacySegments() {
+    val crop = NativeFramingCrop.fromMap(
+      mapOf("left" to -0.8, "right" to 0.8, "bottom" to -0.6, "top" to 0.6),
+      "segment crop",
+    )
+    val request = MediaExportRequest(
+      id = "framing-test",
+      sourceUri = "file:///source.mp4",
+      cuts = emptyList(),
+      captions = emptyList(),
+      segments = listOf(MediaSourceSegment("file:///source.mp4", SourceCut(1.0, 4.0), emptyList(), crop)),
+    )
+
+    assertEquals(
+      NativeFramingCrop(left = -0.8, right = 0.8, bottom = -0.6, top = 0.6),
+      request.segments.single().crop,
+    )
+
+    val legacy = MediaExportRequest(
+      id = "legacy-test",
+      sourceUri = "file:///source.mp4",
+      cuts = emptyList(),
+      captions = emptyList(),
+      segments = listOf(MediaSourceSegment("file:///source.mp4", SourceCut(1.0, 4.0), emptyList())),
+    )
+    assertNull(legacy.segments.single().crop)
+  }
+
+  @Test
+  fun rejectsNonFiniteOutOfRangeAndReversedSegmentCrops() {
+    listOf(
+      mapOf("left" to Double.NaN, "right" to 0.8, "bottom" to -0.6, "top" to 0.6),
+      mapOf("left" to -1.1, "right" to 0.8, "bottom" to -0.6, "top" to 0.6),
+      mapOf("left" to -0.8, "right" to 0.8, "bottom" to -0.6, "top" to 1.1),
+      mapOf("left" to 0.8, "right" to -0.8, "bottom" to -0.6, "top" to 0.6),
+      mapOf("left" to -0.8, "right" to 0.8, "bottom" to 0.6, "top" to -0.6),
+    ).forEach { crop ->
+      assertThrows(IllegalArgumentException::class.java) {
+        NativeFramingCrop.fromMap(crop, "segment crop")
+      }
+    }
+    assertThrows(IllegalArgumentException::class.java) {
+      NativeFramingCrop.fromMap(null, "segment crop")
+    }
   }
 }

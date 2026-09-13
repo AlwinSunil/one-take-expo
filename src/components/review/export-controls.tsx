@@ -9,8 +9,9 @@ import { buildExportPlan, ExportPlanError, type ExportPlan } from '@/lib/export-
 const ACTIVE_STATUSES = new Set<MediaExport['status']>(['queued', 'running']);
 const EXPORT_POLL_MS = 600;
 
-export function ExportControls({ project, start, end, onMessage }: {
+export function ExportControls({ project, start, end, onMessage, framingEnabled = false }: {
   project: Project;
+  framingEnabled?: boolean;
   start: number;
   end: number;
   onMessage?: (text: string) => void;
@@ -121,7 +122,7 @@ export function ExportControls({ project, start, end, onMessage }: {
   function planForExport(): ExportPlan | null {
     try {
       const current = latestTrim.current;
-      return buildExportPlan(latestProject.current, current.start, current.end);
+      return buildExportPlan(latestProject.current, current.start, current.end, framingEnabled && media?.supportsFraming === true);
     } catch (error) {
       const messageText = errorMessage(error);
       if (error instanceof ExportPlanError && error.code === 'caption-overlap') {

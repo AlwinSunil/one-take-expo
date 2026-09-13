@@ -1,0 +1,364 @@
+{
+  "schemaVersion": 1,
+  "description": "Deterministic, provider-supplied framing observations. These rows are not camera or model evidence.",
+  "cases": [
+    {
+      "id": "portrait-ready",
+      "input": {
+        "sourceMediaId": "recording-portrait",
+        "enabled": true,
+        "cuts": [
+          { "sourceMediaId": "recording-portrait", "takeId": "take-1", "startSec": 2, "endSec": 5 }
+        ],
+        "suggestions": [
+          {
+            "version": 1,
+            "sourceMediaId": "recording-portrait",
+            "takeId": "take-1",
+            "analysisId": "analysis-portrait-1",
+            "sourceDurationSec": 12,
+            "interval": { "startSec": 2, "endSec": 5 },
+            "intent": "talking-head",
+            "frame": { "uprightWidthPx": 1080, "uprightHeightPx": 1920, "rotationDegrees": 0 },
+            "coverage": "complete",
+            "movement": "stable",
+            "protectedKinds": ["face"],
+            "regions": [
+              {
+                "trackId": "face-1",
+                "kind": "face",
+                "rect": { "x": 0.35, "y": 0.2, "width": 0.2, "height": 0.2 },
+                "confidence": 0.92,
+                "relevant": true
+              }
+            ],
+            "crop": { "x": 0.1, "y": 0.1, "width": 0.8, "height": 0.8 },
+            "captionSafeArea": { "x": 0.2, "y": 0.72, "width": 0.6, "height": 0.12 },
+            "confidence": 0.9,
+            "status": "ready",
+            "provenance": {
+              "provider": "fixture",
+              "model": "fixture-framing-v1",
+              "processor": "cpu"
+            }
+          }
+        ],
+        "expected": {
+          "mode": "reframed",
+          "suggestionId": "analysis-portrait-1",
+          "crop": { "x": 0.1, "y": 0.1, "width": 0.8, "height": 0.8 },
+          "nativeCrop": { "left": -0.8, "right": 0.8, "bottom": -0.8, "top": 0.8 }
+        }
+      }
+    },
+    {
+      "id": "moving-subject-falls-back",
+      "input": {
+        "sourceMediaId": "recording-moving",
+        "enabled": true,
+        "cuts": [
+          { "sourceMediaId": "recording-moving", "takeId": "take-moving", "startSec": 1, "endSec": 4 }
+        ],
+        "suggestions": [
+          {
+            "version": 1,
+            "sourceMediaId": "recording-moving",
+            "takeId": "take-moving",
+            "analysisId": "analysis-moving-1",
+            "sourceDurationSec": 8,
+            "interval": { "startSec": 1, "endSec": 4 },
+            "intent": "vlog",
+            "frame": { "uprightWidthPx": 1920, "uprightHeightPx": 1080, "rotationDegrees": 0 },
+            "coverage": "complete",
+            "movement": "moving",
+            "protectedKinds": ["face"],
+            "regions": [
+              {
+                "trackId": "face-moving",
+                "kind": "face",
+                "rect": { "x": 0.15, "y": 0.2, "width": 0.3, "height": 0.3 },
+                "confidence": 0.88,
+                "relevant": true
+              }
+            ],
+            "crop": { "x": 0.05, "y": 0.05, "width": 0.9, "height": 0.9 },
+            "captionSafeArea": { "x": 0.2, "y": 0.72, "width": 0.6, "height": 0.12 },
+            "confidence": 0.86,
+            "status": "ready",
+            "provenance": {
+              "provider": "fixture",
+              "model": "fixture-framing-v1",
+              "processor": "cpu"
+            }
+          }
+        ],
+        "expected": {
+          "mode": "original",
+          "fallbackReason": "moving-subject"
+        }
+      }
+    },
+    {
+      "id": "product-keeps-product-and-hand",
+      "input": {
+        "sourceMediaId": "recording-product",
+        "enabled": true,
+        "cuts": [
+          { "sourceMediaId": "recording-product", "takeId": "take-product", "startSec": 3, "endSec": 7 }
+        ],
+        "suggestions": [
+          {
+            "version": 1,
+            "sourceMediaId": "recording-product",
+            "takeId": "take-product",
+            "analysisId": "analysis-product-1",
+            "sourceDurationSec": 10,
+            "interval": { "startSec": 3, "endSec": 7 },
+            "intent": "product-demo",
+            "frame": { "uprightWidthPx": 1920, "uprightHeightPx": 1080, "rotationDegrees": 90 },
+            "coverage": "complete",
+            "movement": "stable",
+            "protectedKinds": ["product", "hand"],
+            "regions": [
+              {
+                "trackId": "product-1",
+                "kind": "product",
+                "rect": { "x": 0.3, "y": 0.25, "width": 0.4, "height": 0.35 },
+                "confidence": 0.94,
+                "relevant": true
+              },
+              {
+                "trackId": "hand-1",
+                "kind": "hand",
+                "rect": { "x": 0.18, "y": 0.6, "width": 0.24, "height": 0.2 },
+                "confidence": 0.83,
+                "relevant": true
+              }
+            ],
+            "crop": { "x": 0.1, "y": 0.1, "width": 0.8, "height": 0.8 },
+            "captionSafeArea": { "x": 0.2, "y": 0.72, "width": 0.6, "height": 0.12 },
+            "confidence": 0.82,
+            "status": "ready",
+            "provenance": {
+              "provider": "fixture",
+              "model": "fixture-framing-v1",
+              "processor": "cpu"
+            }
+          }
+        ],
+        "expected": {
+          "mode": "original",
+          "fallbackReason": "caption-safe-area-overlaps-protected-region"
+        }
+      }
+    },
+    {
+      "id": "uncertain-vision-falls-back",
+      "input": {
+        "sourceMediaId": "recording-uncertain",
+        "enabled": true,
+        "cuts": [
+          { "sourceMediaId": "recording-uncertain", "takeId": "take-uncertain", "startSec": 0, "endSec": 3 }
+        ],
+        "suggestions": [
+          {
+            "version": 1,
+            "sourceMediaId": "recording-uncertain",
+            "takeId": "take-uncertain",
+            "analysisId": "analysis-uncertain-1",
+            "sourceDurationSec": 5,
+            "interval": { "startSec": 0, "endSec": 3 },
+            "intent": "talking-head",
+            "frame": { "uprightWidthPx": 1080, "uprightHeightPx": 1920, "rotationDegrees": 0 },
+            "coverage": "unknown",
+            "movement": "unknown",
+            "protectedKinds": ["face"],
+            "regions": [],
+            "confidence": 0.3,
+            "status": "uncertain",
+            "provenance": {
+              "provider": "fixture",
+              "model": "fixture-framing-v1",
+              "processor": "cpu"
+            }
+          }
+        ],
+        "expected": {
+          "mode": "original",
+          "fallbackReason": "uncertain-evidence"
+        }
+      }
+    },
+    {
+      "id": "missing-vision-track-falls-back",
+      "input": {
+        "sourceMediaId": "recording-missing-track",
+        "enabled": true,
+        "cuts": [
+          { "sourceMediaId": "recording-missing-track", "takeId": "take-missing", "startSec": 0, "endSec": 2 }
+        ],
+        "suggestions": [],
+        "expected": {
+          "mode": "original",
+          "fallbackReason": "missing-suggestion"
+        }
+      }
+    },
+    {
+      "id": "protected-region-outside-crop-falls-back",
+      "input": {
+        "sourceMediaId": "recording-unsafe",
+        "enabled": true,
+        "cuts": [
+          { "sourceMediaId": "recording-unsafe", "takeId": "take-unsafe", "startSec": 2, "endSec": 4 }
+        ],
+        "suggestions": [
+          {
+            "version": 1,
+            "sourceMediaId": "recording-unsafe",
+            "takeId": "take-unsafe",
+            "analysisId": "analysis-unsafe-1",
+            "sourceDurationSec": 6,
+            "interval": { "startSec": 2, "endSec": 4 },
+            "intent": "talking-head",
+            "frame": { "uprightWidthPx": 1920, "uprightHeightPx": 1080, "rotationDegrees": 0 },
+            "coverage": "complete",
+            "movement": "stable",
+            "protectedKinds": ["face"],
+            "regions": [
+              {
+                "trackId": "face-clipped",
+                "kind": "face",
+                "rect": { "x": 0.72, "y": 0.2, "width": 0.2, "height": 0.2 },
+                "confidence": 0.91,
+                "relevant": true
+              }
+            ],
+            "crop": { "x": 0.05, "y": 0.05, "width": 0.8, "height": 0.8 },
+            "captionSafeArea": { "x": 0.15, "y": 0.72, "width": 0.6, "height": 0.12 },
+            "confidence": 0.9,
+            "status": "ready",
+            "provenance": {
+              "provider": "fixture",
+              "model": "fixture-framing-v1",
+              "processor": "cpu"
+            }
+          }
+        ],
+        "expected": {
+          "mode": "original",
+          "fallbackReason": "protected-region-outside-crop"
+        }
+      }
+    },
+    {
+      "id": "caption-safe-area-outside-crop-falls-back",
+      "input": {
+        "sourceMediaId": "recording-caption-unsafe",
+        "enabled": true,
+        "cuts": [
+          { "sourceMediaId": "recording-caption-unsafe", "takeId": "take-caption-unsafe", "startSec": 1, "endSec": 3 }
+        ],
+        "suggestions": [
+          {
+            "version": 1,
+            "sourceMediaId": "recording-caption-unsafe",
+            "takeId": "take-caption-unsafe",
+            "analysisId": "analysis-caption-unsafe-1",
+            "sourceDurationSec": 5,
+            "interval": { "startSec": 1, "endSec": 3 },
+            "intent": "talking-head",
+            "frame": { "uprightWidthPx": 1920, "uprightHeightPx": 1080, "rotationDegrees": 0 },
+            "coverage": "complete",
+            "movement": "stable",
+            "protectedKinds": ["face"],
+            "regions": [
+              {
+                "trackId": "face-caption-safe",
+                "kind": "face",
+                "rect": { "x": 0.35, "y": 0.18, "width": 0.2, "height": 0.2 },
+                "confidence": 0.91,
+                "relevant": true
+              }
+            ],
+            "crop": { "x": 0.1, "y": 0.02, "width": 0.8, "height": 0.8 },
+            "captionSafeArea": { "x": 0.2, "y": 0.8, "width": 0.6, "height": 0.12 },
+            "confidence": 0.9,
+            "status": "ready",
+            "provenance": {
+              "provider": "fixture",
+              "model": "fixture-framing-v1",
+              "processor": "cpu"
+            }
+          }
+        ],
+        "expected": {
+          "mode": "original",
+          "fallbackReason": "caption-safe-area-outside-crop"
+        }
+      }
+    },
+    {
+      "id": "explicit-opt-in-is-required",
+      "input": {
+        "sourceMediaId": "recording-portrait",
+        "enabled": false,
+        "cuts": [
+          { "sourceMediaId": "recording-portrait", "takeId": "take-1", "startSec": 2, "endSec": 5 }
+        ],
+        "suggestions": [],
+        "expected": {
+          "mode": "original",
+          "fallbackReason": "disabled"
+        }
+      }
+    },
+    {
+      "id": "cut-must-be-covered-by-one-static-suggestion",
+      "input": {
+        "sourceMediaId": "recording-partial",
+        "enabled": true,
+        "cuts": [
+          { "sourceMediaId": "recording-partial", "takeId": "take-partial", "startSec": 2, "endSec": 5 }
+        ],
+        "suggestions": [
+          {
+            "version": 1,
+            "sourceMediaId": "recording-partial",
+            "takeId": "take-partial",
+            "analysisId": "analysis-partial-1",
+            "sourceDurationSec": 8,
+            "interval": { "startSec": 1, "endSec": 4 },
+            "intent": "talking-head",
+            "frame": { "uprightWidthPx": 1920, "uprightHeightPx": 1080, "rotationDegrees": 0 },
+            "coverage": "complete",
+            "movement": "stable",
+            "protectedKinds": ["face"],
+            "regions": [
+              {
+                "trackId": "face-partial",
+                "kind": "face",
+                "rect": { "x": 0.3, "y": 0.2, "width": 0.2, "height": 0.2 },
+                "confidence": 0.9,
+                "relevant": true
+              }
+            ],
+            "crop": { "x": 0.1, "y": 0.1, "width": 0.8, "height": 0.8 },
+            "captionSafeArea": { "x": 0.2, "y": 0.72, "width": 0.6, "height": 0.12 },
+            "confidence": 0.9,
+            "status": "ready",
+            "provenance": {
+              "provider": "fixture",
+              "model": "fixture-framing-v1",
+              "processor": "cpu"
+            }
+          }
+        ],
+        "expected": {
+          "mode": "original",
+          "fallbackReason": "interval-not-covered"
+        }
+      }
+    }
+  ]
+}

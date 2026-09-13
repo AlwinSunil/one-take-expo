@@ -6,6 +6,7 @@ import android.net.Uri
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.effect.Crop
 import androidx.media3.effect.OverlayEffect
 import androidx.media3.effect.Presentation
 import androidx.media3.transformer.Composition
@@ -13,7 +14,12 @@ import androidx.media3.transformer.EditedMediaItem
 import androidx.media3.transformer.EditedMediaItemSequence
 import androidx.media3.transformer.Effects
 
-internal data class MediaSourceSegment(val uri: String, val cut: SourceCut, val captions: List<SourceCaption>)
+internal data class MediaSourceSegment(
+  val uri: String,
+  val cut: SourceCut,
+  val captions: List<SourceCaption>,
+  val crop: NativeFramingCrop? = null,
+)
 
 internal fun mapSegmentCaptions(segments: List<MediaSourceSegment>): List<MappedCaption> {
   var offset = 0L
@@ -53,8 +59,12 @@ internal object MediaComposition {
           .setStartPositionMs(MediaExportTimeline.toMillis(segment.cut.t0))
           .setEndPositionMs(MediaExportTimeline.toMillis(segment.cut.t1)).build()
       ).build()
+      val videoEffects = buildList {
+        segment.crop?.let { crop -> add(Crop(crop.left.toFloat(), crop.right.toFloat(), crop.bottom.toFloat(), crop.top.toFloat())) }
+        add(Presentation.createForWidthAndHeight(720, 1280, Presentation.LAYOUT_SCALE_TO_FIT))
+      }
       EditedMediaItem.Builder(item).setDurationUs(durationMs * 1_000)
-        .setEffects(Effects(emptyList(), listOf(Presentation.createForWidthAndHeight(720, 1280, Presentation.LAYOUT_SCALE_TO_FIT))))
+        .setEffects(Effects(emptyList(), videoEffects))
         .build()
     }
     val sequence = EditedMediaItemSequence.Builder(setOf(C.TRACK_TYPE_AUDIO, C.TRACK_TYPE_VIDEO)).addItems(items).build()

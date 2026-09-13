@@ -40,16 +40,26 @@ export interface Clip {
 }
 
 export interface Project {
+  /** Raw versioned producer envelope. Never derive take identities during reopen. */
+  speechControl?: import('./t1-speech-provider').T1SpeechProviderEnvelope;
+  cleanupReview?: import('./t1-cleanup-review').T1CleanupReviewState;
+  /** Exact accepted draft metadata; missing legacy snapshots remain supported. */
+  scriptSnapshot?: import('./t1-script-draft').ScriptDraftSnapshot;
+  framing?: { enabled: boolean; suggestions: import('./t1-framing').FramingSuggestion[] };
+  tier1Evidence?: import('./t1-contracts').Tier1Evidence;
+  wrapAcknowledgement?: import('./t1-contracts').WrapAcknowledgement;
   schemaVersion?: number;
   recordingStatus?: 'complete' | 'interrupted';
   duration?: number;
   mediaMissing?: boolean;
+  /** File inventory refreshed by the store on load, never supplied by analysis. */
+  availableMediaUris?: string[];
   recoveryMessage?: string;
   captionRevision?: number;
   scriptLines?: ScriptLine[];
   takes?: (TakeEvidence & { recordedAt?: number; eligibleLineIds?: string[] })[];
   recordings?: { id: string; mediaUri: string; duration: number; createdAt: number; evidenceStatus?: 'pending' | 'complete' }[];
-  reviewSegments?: { uri: string; t0: number; t1: number; takeId?: string; captions?: { t0: number; t1: number; text: string }[] }[];
+  reviewSegments?: { uri: string; t0: number; t1: number; takeId?: string; crop?: import('./t1-framing').NativeFramingCrop; captions?: { t0: number; t1: number; text: string }[] }[];
   unavailableTakeIds?: string[];
   pickupRequest?: { lineIds: string[]; requestedAt: number };
   reviewDecisions?: ReviewDecision[];

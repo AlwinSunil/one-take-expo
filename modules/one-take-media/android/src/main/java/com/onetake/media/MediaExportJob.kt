@@ -15,6 +15,61 @@ internal enum class MediaExportStatus {
   INTERRUPTED,
 }
 
+/**
+ * A Media3 crop in centered normalized device coordinates.
+ *
+ * The full frame is [-1, 1] on both axes.  Keeping this representation next
+ * to the request means preview and export consume the exact same validated
+ * crop, while omitting it retains the legacy original-frame behavior.
+ */
+internal data class NativeFramingCrop(
+  val left: Double,
+  val right: Double,
+  val bottom: Double,
+  val top: Double,
+) {
+  init {
+    require(left.isFinite() && right.isFinite() && bottom.isFinite() && top.isFinite()) {
+      "Segment crop coordinates must be finite numbers"
+    }
+    require(left >= -1.0 && right <= 1.0 && bottom >= -1.0 && top <= 1.0) {
+      "Segment crop coordinates must be between -1 and 1"
+    }
+    require(right > left && top > bottom) {
+      "Segment crop bounds must be ordered and non-empty"
+    }
+  }
+
+  companion object {
+    private val COORDINATES = listOf("left", "right", "bottom", "top")
+
+    fun fromMap(value: Any?, label: String): NativeFramingCrop {
+      @Suppress("UNCHECKED_CAST")
+      val map = value as? Map<String, Any?>
+        ?: throw IllegalArgumentException("$label must be an object")
+      val coordinates = COORDINATES.map { name ->
+        val coordinate = map[name]
+        require(coordinate is Number) { "$label field '$name' must be a number" }
+        coordinate.toDouble()
+      }
+      return NativeFramingCrop(
+        left = coordinates[0],
+        right = coordinates[1],
+        bottom = coordinates[2],
+        top = coordinates[3],
+      )
+    }
+
+    fun fromJson(value: JSONObject?, label: String): NativeFramingCrop? {
+      if (value == null) return null
+      val map = COORDINATES.associateWith { name ->
+        if (!value.has(name) || value.isNull(name)) null else value.get(name)
+      }
+      return fromMap(map, label)
+    }
+  }
+}
+
 internal data class MediaExportRequest(
   val id: String,
   val sourceUri: String,
@@ -66,7 +121,12 @@ internal object MediaExportRequestParser {
       val nested = parse(mapOf("id" to id, "sourceUri" to map.string("uri"),
         "cuts" to listOf(mapOf("t0" to map.number("t0", "segment", index), "t1" to map.number("t1", "segment", index))),
         "captions" to (map["captions"] ?: emptyList<Any>())))
-      MediaSourceSegment(nested.sourceUri, nested.cuts.single(), nested.captions)
+      val crop = if (map.containsKey("crop")) {
+        NativeFramingCrop.fromMap(map["crop"], "segment crop at index $index")
+      } else {
+        null
+      }
+      MediaSourceSegment(nested.sourceUri, nested.cuts.single(), nested.captions, crop)
     }
     require(segments.size <= MediaExportTimeline.MAX_CUTS) { "Too many export segments" }
     return MediaExportRequest(id, sourceUri, cuts, captions, segments)
@@ -137,6 +197,10 @@ internal object MediaExportJobJson {
         put("captions", JSONArray().apply { segment.captions.forEach { caption -> put(JSONObject().apply {
           put("t0", caption.t0); put("t1", caption.t1); put("text", caption.text)
         }) } })
+        segment.crop?.let { crop -> put("crop", JSONObject().apply {
+          put("left", crop.left); put("right", crop.right)
+          put("bottom", crop.bottom); put("top", crop.top)
+        }) }
       }) }
     })
     put("status", job.status.name.lowercase(Locale.US))
@@ -169,7 +233,11 @@ internal object MediaExportJobJson {
       val segment = segmentJson.getJSONObject(index)
       val captionJson = segment.optJSONArray("captions") ?: JSONArray()
       MediaSourceSegment(segment.getString("uri"), SourceCut(segment.getDouble("t0"), segment.getDouble("t1")),
-        (0 until captionJson.length()).map { i -> captionJson.getJSONObject(i).let { SourceCaption(it.getDouble("t0"), it.getDouble("t1"), it.getString("text")) } })
+        (0 until captionJson.length()).map { i -> captionJson.getJSONObject(i).let { SourceCaption(it.getDouble("t0"), it.getDouble("t1"), it.getString("text")) } },
+        NativeFramingCrop.fromJson(
+          if (segment.has("crop") && !segment.isNull("crop")) segment.getJSONObject("crop") else null,
+          "segment crop at index $index",
+        ))
     }
     val request = MediaExportRequest(id, sourceUri, cuts, captions, segments)
     MediaExportTimeline.validateCuts(cuts)

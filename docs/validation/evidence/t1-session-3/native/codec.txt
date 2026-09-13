@@ -1,0 +1,5 @@
+09-13 05:24:42.615 18115 18994 I CCodec  : Created component [c2.qti.avc.encoder] for [c2.qti.avc.encoder]
+09-13 05:27:48.561 18115 20382 I CCodec  : Created component [c2.qti.avc.encoder] for [c2.qti.avc.encoder]
+09-13 05:27:49.055 18115 20426 I CCodec  : Created component [c2.qti.avc.encoder] for [c2.qti.avc.encoder]
+09-13 05:27:49.529 18115 20468 I CCodec  : Created component [c2.qti.avc.encoder] for [c2.qti.avc.encoder]
+09-13 05:27:50.155 18115 20511 I CCodec  : Created component [c2.qti.avc.encoder] for [c2.qti.avc.encoder]

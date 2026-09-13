@@ -18,6 +18,9 @@ jobs:
       - run: npm test
       - run: npm run samples
       - run: python3 tests/speech-evaluation.test.py
+      - run: python3 tests/t1-speech-evaluation.test.py
+      - run: node --experimental-strip-types tests/t1-session2-replay.mjs
+      - run: node --experimental-strip-types tools/replay-t1-speech.mjs
       - run: python3 tools/speech-fixtures/run_synthetic.py
       - run: npm run test:samples
       - name: Bundle Android production JavaScript
