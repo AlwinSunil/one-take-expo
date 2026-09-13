@@ -5,10 +5,15 @@ The editor automatically derives red timeline markers from the saved transcript,
 Supported words are `um`, `umm`, `uh`, `uhh`, `erm`, `er`, and `hmm`, matched as whole words without changing transcript text.
 Context-dependent words such as `like`, `so`, and `well` remain unmarked.
 
-Tap a filler chip to review its source recording.
+Tap a filler chip to open its source preview.
+Play the selected range before the Delete filler option becomes available.
+Adjusting either boundary requires another preview.
+Deletion removes that occurrence from the clean sequence and export, while retaining the original recording.
+Undo restores the previous cut selection until another timeline edit changes it.
 Clean previews map markers through the selected source segments, so removed speech has no marker in the output timeline.
 Positions are proportional estimates within transcript segments because transcription does not supply exact word alignment.
 Markers do not automatically delete audio.
+Deleting a filler requires an explicit action after previewing it.
 Fillers omitted by transcription cannot be detected by this approach.
 
 The former acoustic model, native inference bridge, manual analysis panel, and host benchmark have been removed.

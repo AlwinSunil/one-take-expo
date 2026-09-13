@@ -9,6 +9,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { fillerTimelineMarks, type TranscriptTimelineMark } from '@/lib/transcript-filler-timeline';
 import { FillerBands, TranscriptFillerMarkers } from '@/components/review/transcript-filler-markers';
+import { FillerPreview, type FillerPreviewStatus } from '@/components/review/filler-preview';
+import { createFillerRemovalSnapshot, removeFillerFromSegments, restoreFillerRemoval, timelineFields, type FillerRemovalSnapshot, type TimelineFields } from '@/lib/filler-removal';
 import { recordedMediaDuration } from '@/lib/recorded-media';
 import { transcriptForSource } from '@/lib/review-source';
 import { reviewExportSelection } from '@/lib/review-export-selection';
@@ -42,6 +44,21 @@ const time = (seconds: number) => `${Math.floor(seconds / 60)}:${Math.floor(seco
 
 type PreviewSource = 'clean' | 'trim' | 'original';
 type Peek = NonNullable<Project['reviewSegments']>[number];
+
+type FillerPreviewSession = {
+  mark: TranscriptTimelineMark;
+  token: number;
+  sourceUri: string;
+  sourceStart: number;
+  sourceEnd: number;
+  sourceMin: number;
+  sourceMax: number;
+  sourceSegments: NonNullable<Project['reviewSegments']>;
+  timelineBefore: TimelineFields;
+  returnSource: PreviewSource;
+  status: FillerPreviewStatus;
+  error?: string;
+};
 
 function TrimHandle({ value, duration, width, onChange }: {
   value: number; duration: number; width: number; onChange: (value: number) => void;
@@ -176,6 +193,11 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
     Array.isArray(initialProject?.reviewSegments) || Array.isArray(initialProject?.cuts) ? 'clean' : 'trim',
   );
   const [peek, setPeek] = useState<Peek | null>(null);
+  const [fillerPreview, setFillerPreview] = useState<FillerPreviewSession | null>(null);
+  const [undoFillerRemoval, setUndoFillerRemoval] = useState<FillerRemovalSnapshot | null>(null);
+  const fillerPlaybackToken = useRef(0);
+  const fillerPlaybackObserved = useRef(0);
+  const fillerReturnSource = useRef<PreviewSource>('clean');
   const cutIndex = useRef(0);
   const speechReview = useMemo(() => project ? projectWithSpeechEvidence(project, tier1Enabled('takeReview', __DEV__, tier1Test)) : null, [project, tier1Test]);
   const mediaProject = useMemo(() => speechReview ? projectForMediaReview(speechReview.project, status === 'error' ? [...failedMediaUris, uri] : failedMediaUris) : null, [speechReview, failedMediaUris, status, uri]);
@@ -249,25 +271,63 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
     if (useNative && !nativeStarted.current && !isPlaying) { nativeStarted.current = true; setNativePlaying(true); }
   }, [useNative, isPlaying]);
   const valid = Number.isFinite(duration) && duration > 0;
-  const fillerSegments = useMemo(() => peek ? [peek] : previewSource === 'clean' ? activeSegments : valid ? [{ uri, t0: 0, t1: duration }] : [],
-    [peek, previewSource, activeSegments, valid, uri, duration]);
+  const limit = end || duration;
+  const fillerSegments = useMemo(() => peek ? [peek] : previewSource === 'clean' ? activeSegments : valid ? [{ uri,
+    t0: previewSource === 'trim' ? start : 0, t1: previewSource === 'trim' ? limit : duration }] : [],
+    [peek, previewSource, activeSegments, valid, uri, duration, start, limit]);
   const fillerMarks = useMemo(() => project ? fillerTimelineMarks(project, fillerSegments) : [], [project, fillerSegments]);
   const fillerDuration = fillerSegments.reduce((sum, segment) => sum + segment.t1 - segment.t0, 0);
-  function previewTranscriptFiller(mark: TranscriptTimelineMark) {
-    clearPeek();
+  const filmstripSegments = useMemo(() => editTool === 'clean' ? activeSegments : valid ? [{ uri, t0: 0, t1: duration }] : [],
+    [editTool, activeSegments, valid, uri, duration]);
+  const filmstripMarks = useMemo(() => project ? fillerTimelineMarks(project, filmstripSegments) : [], [project, filmstripSegments]);
+  function beginFillerPlayback(session: FillerPreviewSession) {
+    const token = ++fillerPlaybackToken.current;
+    fillerPlaybackObserved.current = 0;
+    const playingSession = { ...session, token, status: 'playing' as const, error: undefined };
+    setFillerPreview(playingSession);
+    setMessage('');
     player.pause();
-    if (NativeCutPreview && availableMediaUris.includes(mark.sourceUri)) {
-      const bound = mark.sourceUri === uri ? duration : sourceDuration(durationChecks[mark.sourceUri]?.duration, project?.recordings?.find(recording => recording.mediaUri === mark.sourceUri)?.duration);
-      if (!bound) return;
-      setPeek({ uri: mark.sourceUri, t0: Math.max(0, mark.sourceTime - 0.5), t1: Math.min(bound, mark.sourceTime + 1.5), captions: [] });
-      setNativeSeek(0);
+    if (NativeCutPreview && availableMediaUris.includes(session.sourceUri)) {
+      setPreviewSource('clean');
+      setPeek({ uri: session.sourceUri, t0: session.sourceStart, t1: session.sourceEnd, captions: [] });
+      setNativeSeek(value => value + 1);
       setNativePlaying(true);
-    } else if (mark.sourceUri === uri) {
-      setPreviewSource('original');
-      player.currentTime = Math.max(0, mark.sourceTime - 0.5);
+      return;
     }
+    if (session.sourceUri === uri) {
+      setPeek(null);
+      setPreviewSource('original');
+      player.currentTime = session.sourceStart;
+      player.play();
+      return;
+    }
+    setFillerPreview({ ...playingSession, status: 'error', error: 'This recording cannot be previewed in the current build.' });
   }
-  const nativeRequest = useMemo(() => JSON.stringify({ id: 'preview', sourceUri: playingSegments[0]?.uri ?? uri, cuts: [], captions: [], segments: playingSegments }), [playingSegments, uri]);
+
+  function previewTranscriptFiller(mark: TranscriptTimelineMark) {
+    const currentProject = latestProject.current;
+    if (!currentProject) {
+      setMessage('The project is still loading. Try this filler again.');
+      return;
+    }
+    const sourceSegment = typeof mark.sourceSegmentIndex === 'number' ? fillerSegments[mark.sourceSegmentIndex] : undefined;
+    const sourceMin = sourceSegment?.uri === mark.sourceUri ? sourceSegment.t0 : mark.sourceTime;
+    const sourceMax = sourceSegment?.uri === mark.sourceUri ? sourceSegment.t1 : (mark.sourceEnd ?? mark.sourceTime + Math.max(0.1, mark.t1 - mark.t0));
+    const sourceStart = Math.max(sourceMin, Math.min(sourceMax, mark.sourceTime));
+    const sourceEnd = Math.min(sourceMax, Math.max(sourceStart + 0.01, mark.sourceEnd ?? sourceStart + Math.max(0.1, mark.t1 - mark.t0)));
+    if (!(sourceEnd > sourceStart) || !(sourceMax > sourceMin)) {
+      setMessage('This filler range is no longer available. Reopen the editor and try again.');
+      return;
+    }
+    const session: FillerPreviewSession = {
+      mark, token: fillerPlaybackToken.current, sourceUri: mark.sourceUri, sourceStart, sourceEnd,
+      sourceMin, sourceMax, sourceSegments: fillerSegments.map(segment => ({ ...segment })),
+      timelineBefore: timelineFields(currentProject), returnSource: previewSource, status: 'ready',
+    };
+    fillerReturnSource.current = previewSource;
+    beginFillerPlayback(session);
+  }
+  const nativeRequest = useMemo(() => JSON.stringify({ id: fillerPreview ? `filler-preview:${fillerPreview.token}` : 'preview', sourceUri: playingSegments[0]?.uri ?? uri, cuts: [], captions: [], segments: playingSegments }), [fillerPreview, playingSegments, uri]);
   useEffect(() => { if (useNative) player.pause(); else setNativePlaying(false); }, [useNative, player]);
   const previewCuts = !useNative && !peek && previewSource === 'clean' && activeCleanReady ? activeLegacyCuts : undefined;
   const autoStarted = useRef(false);
@@ -283,7 +343,6 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
   }, [player, status, previewCuts, previewSource, peek, isPlaying, useNative, activeCleanReady, nativeSourcesAvailable]);
   const previewFullSource = !peek && previewSource === 'original';
   const cleanPreviewEmpty = !peek && previewSource === 'clean' && !activeCleanReady;
-  const limit = end || duration;
   const reviewProject = mediaProject ? { ...mediaProject, duration: valid ? duration : mediaProject.duration } : null;
   const captionCues = useMemo(() => {
     try { return partitionCaptionTimeline((project ? transcriptForSource(project, uri) : []).map(s => ({ ...s, text: sanitizeExportCaption(s.manualCorrection ?? s.correctedText ?? s.text) }))); }
@@ -308,6 +367,88 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
 
   function clearPeek() {
     setPeek(null); setNativePlaying(false); setNativeSeek(0);
+  }
+
+  function closeFillerPreview() {
+    fillerPlaybackToken.current += 1;
+    setFillerPreview(null);
+    player.pause();
+    clearPeek();
+    setPreviewSource(fillerReturnSource.current);
+  }
+
+  function adjustFillerBoundary(boundary: 'start' | 'end', delta: number) {
+    const current = fillerPreview;
+    if (!current) return;
+    const sourceStart = boundary === 'start'
+      ? Math.max(current.sourceMin, Math.min(current.sourceEnd - 0.01, current.sourceStart + delta))
+      : current.sourceStart;
+    const sourceEnd = boundary === 'end'
+      ? Math.min(current.sourceMax, Math.max(current.sourceStart + 0.01, current.sourceEnd + delta))
+      : current.sourceEnd;
+    if (!(sourceEnd > sourceStart)) return;
+    const token = ++fillerPlaybackToken.current;
+    player.pause();
+    clearPeek();
+    setPreviewSource(current.returnSource);
+    setFillerPreview({ ...current, token, sourceStart, sourceEnd, status: 'ready', error: undefined });
+  }
+
+  function removeSelectedFiller() {
+    const session = fillerPreview;
+    const current = latestProject.current;
+    if (!session || session.status !== 'completed' || !current) return;
+    if (JSON.stringify(timelineFields(current)) !== JSON.stringify(session.timelineBefore)) {
+      closeFillerPreview();
+      setMessage('This filler is based on an older timeline. Reopen the preview before deleting it.');
+      return;
+    }
+    let reviewSegments: NonNullable<Project['reviewSegments']>;
+    try {
+      reviewSegments = removeFillerFromSegments(session.sourceSegments, {
+        sourceUri: session.sourceUri,
+        sourceStart: session.sourceStart,
+        sourceEnd: session.sourceEnd,
+        sourceSegmentIndex: session.mark.sourceSegmentIndex,
+        sourceOccurrence: session.mark.sourceOccurrence,
+      });
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : 'This filler is no longer available. Reopen the editor and try again.';
+      setFillerPreview(previous => previous ? { ...previous, status: 'error', error: detail } : previous);
+      return;
+    }
+    const before = timelineFields(current);
+    const hasExistingTimeline = current.reviewSegments !== undefined || current.cuts !== undefined;
+    const next: Project = { ...current, reviewSegments, cuts: undefined,
+      cutsReviewed: session.returnSource !== 'clean' ? true : hasExistingTimeline ? current.cutsReviewed : false };
+    const after = timelineFields(next);
+    setUndoFillerRemoval(createFillerRemovalSnapshot(before, after));
+    setActiveSegments(reviewSegments);
+    setActiveCuts(undefined);
+    closeFillerPreview();
+    setEditing(true);
+    setEditTool('clean');
+    setPreviewSource('clean');
+    setMessage('Filler removed from the clean sequence.');
+    void changeProject(next).catch(() => setMessage('Filler removed here, but the edit was not saved. Retry save.'));
+  }
+
+  function undoLastFillerRemoval() {
+    const snapshot = undoFillerRemoval;
+    const current = latestProject.current;
+    if (!snapshot || !current) return;
+    const restored = restoreFillerRemoval(current, snapshot);
+    if (!restored) {
+      setUndoFillerRemoval(null);
+      setMessage('Undo is unavailable because the timeline changed.');
+      return;
+    }
+    setUndoFillerRemoval(null);
+    const restoredSegments = restored.reviewSegments ?? restored.cuts?.map(cut => ({ ...cut, uri }));
+    if (restoredSegments) setActiveSegments(restoredSegments);
+    setActiveCuts(restored.cuts);
+    setMessage('Filler removal undone.');
+    void changeProject(restored).catch(() => setMessage('Undo is visible here, but it was not saved. Retry save.'));
   }
 
   const exportMode = previewSource === 'original' ? 'original' : previewSource === 'trim' ? 'trim' : 'cut';
@@ -338,7 +479,13 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
   const statusLine = `${previewSource === 'original' ? 'Original' : previewSource === 'trim' ? 'Trimmed' : 'Edited'} · ${time(outputDuration)}`;
 
   useEffect(() => {
-    const subscription = AppState.addEventListener('change', state => { if (state !== 'active') { player.pause(); setNativePlaying(false); } });
+    const subscription = AppState.addEventListener('change', state => {
+      if (state !== 'active') {
+        player.pause(); setNativePlaying(false);
+        const token = ++fillerPlaybackToken.current;
+        setFillerPreview(previous => previous ? { ...previous, token, status: 'ready' } : previous);
+      }
+    });
     return () => subscription.remove();
   }, [player]);
 
@@ -354,6 +501,22 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
 
   useEffect(() => {
     if (!isPlaying || useNative || peek) return;
+    if (fillerPreview?.status === 'playing' && previewSource === 'original' && currentTime >= fillerPreview.sourceEnd - 0.03) {
+      if (fillerPlaybackObserved.current !== fillerPreview.token) {
+        player.currentTime = fillerPreview.sourceStart;
+        return;
+      }
+      player.pause();
+      player.currentTime = fillerPreview.sourceStart;
+      setFillerPreview(previous => previous && previous.token === fillerPlaybackToken.current
+        ? { ...previous, status: 'completed' }
+        : previous);
+      return;
+    }
+    if (fillerPreview?.status === 'playing' && previewSource === 'original'
+      && currentTime >= fillerPreview.sourceStart - 0.02 && currentTime < fillerPreview.sourceEnd - 0.03) {
+      fillerPlaybackObserved.current = fillerPreview.token;
+    }
     if (previewCuts?.length) {
       const cut = previewCuts[cutIndex.current] ?? previewCuts[0];
       if (currentTime >= cut.t1) {
@@ -364,7 +527,7 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
     } else if (currentTime >= (previewFullSource ? duration : limit) || currentTime < (previewFullSource ? 0 : start)) {
       player.pause(); player.currentTime = previewFullSource ? 0 : start;
     }
-  }, [player, isPlaying, currentTime, start, limit, duration, previewFullSource, previewCuts, useNative, peek]);
+  }, [player, isPlaying, currentTime, start, limit, duration, previewFullSource, previewCuts, useNative, peek, fillerPreview, previewSource]);
 
   function seek(value: number) {
     player.pause();
@@ -379,6 +542,7 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
     player.currentTime = Math.max(start, Math.min(limit, value));
   }
 
+  const nativeRenderToken = fillerPlaybackToken.current;
   return <SafeAreaView className="flex-1 bg-black">
     <View className="flex-row items-center justify-between px-4 py-2">
       <Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={protectedBack} className="p-3">
@@ -391,11 +555,20 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
       </View>
     </View>
     <View className="flex-1 bg-neutral-950">
-      {useNative && NativeCutPreview ? <NativeCutPreview style={{ flex: 1 }} request={nativeRequest} playing={nativePlaying} seek={nativeSeek} onState={event => {
+      {useNative && NativeCutPreview ? <NativeCutPreview key={`preview:${nativeRenderToken}`} style={{ flex: 1 }} request={nativeRequest} playing={nativePlaying} seek={nativeSeek} onState={event => {
+        if (nativeRenderToken !== fillerPlaybackToken.current) return;
         const state = event.nativeEvent;
         if (state.position !== undefined) setNativePosition(state.position);
-        if (state.ended) setNativePlaying(false);
+        if (state.ended) {
+          setNativePlaying(false);
+          if (fillerPreview?.status === 'playing' && fillerPlaybackToken.current === fillerPreview.token) {
+            setFillerPreview(previous => previous && previous.token === fillerPreview.token ? { ...previous, status: 'completed' } : previous);
+          }
+        }
         if (state.error) {
+          if (fillerPreview?.status === 'playing' && fillerPlaybackToken.current === fillerPreview.token) {
+            setFillerPreview(previous => previous && previous.token === fillerPreview.token ? { ...previous, status: 'error', error: state.error } : previous);
+          }
           setNativeError(state.error); setNativePlaying(false); clearPeek(); setPreviewSource('clean');
           setFailedMediaUris(previous => [...new Set([...previous, ...playingSegments.map(segment => segment.uri)])]);
         }
@@ -411,6 +584,11 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
         <Text className="text-white text-xs">Back to edit</Text>
       </Pressable>}
     </View>
+    {fillerPreview && <FillerPreview visible label={fillerPreview.mark.label} start={fillerPreview.sourceStart} end={fillerPreview.sourceEnd}
+      min={fillerPreview.sourceMin} max={fillerPreview.sourceMax} status={fillerPreview.status} error={fillerPreview.error}
+      onPreview={() => { const current = fillerPreview; if (current) beginFillerPlayback(current); }}
+      onAdjustStart={delta => adjustFillerBoundary('start', delta)} onAdjustEnd={delta => adjustFillerBoundary('end', delta)}
+      onDelete={removeSelectedFiller} onClose={closeFillerPreview} />}
     {status === 'error' && <Text accessibilityRole="alert" className="text-red-300 px-6 py-2">{playbackError?.message ?? 'This video could not be opened. The file may no longer be available.'}</Text>}
     <View className="px-5 pt-2 w-full self-center" style={{ maxWidth: 600 }}>
       <View className="flex-row items-center justify-between mt-3 mb-2">
@@ -457,7 +635,7 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
             <View pointerEvents="none" style={{ flex: 1, flexDirection: 'row' }}>
               {thumbnails.map((thumbnail, i) => <Image key={i} source={thumbnail} contentFit="cover" style={{ flex: 1, height: 56 }} />)}
             </View>
-            <FillerBands marks={fillerMarks} duration={duration} />
+            <FillerBands marks={filmstripMarks} duration={duration} />
             {previewSource === 'trim' && <>
             <View pointerEvents="none" style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: `${start / duration * 100}%`, backgroundColor: '#000b' }} />
             <View pointerEvents="none" style={{ position: 'absolute', top: 0, bottom: 0, right: 0, width: `${(1 - limit / duration) * 100}%`, backgroundColor: '#000b' }} />
@@ -482,6 +660,12 @@ function VideoEditor({ project: initialProject, uri }: { project: Project | null
         </>}
       </View>}
       <TranscriptFillerMarkers marks={fillerMarks} duration={fillerDuration} showTrack={previewSource === 'clean' || !!peek} onSelect={previewTranscriptFiller} />
+      {!!undoFillerRemoval && <View className="mt-3 rounded-xl border border-red-900 bg-red-950/40 px-3 py-2">
+        <Text className="text-red-200 text-xs">Filler removed from the clean sequence.</Text>
+        <Pressable accessibilityRole="button" accessibilityLabel="Undo filler removal" onPress={undoLastFillerRemoval} className="py-2">
+          <Text className="text-white text-xs font-semibold">Undo removal</Text>
+        </Pressable>
+      </View>}
 
       {project && reviewProject && tier1Enabled('reframing', __DEV__, tier1Test) && <View className="border-t border-neutral-800 py-3">
         <Text className="text-white font-semibold">Optional reframing</Text>
