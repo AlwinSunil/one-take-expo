@@ -68,3 +68,60 @@ Revision encoding differs between proposals (Session 1 string script/edit revisi
 Session 2 can provide capture/source/binding identity and source-relative timing independently.
 The baseline web camera route was reproduced on port 8096 and fails before rendering at SQLite `.wasm` resolution.
 Session 3 owns the Metro asset configuration fix; evidence is `evidence/t15-session-2/web-baseline-blocker.png`.
+
+## Executable camera integration
+
+Explicit development access is `/camera?coachingDevelopment=1` or `/camera?mode=script&coachingDevelopment=1` in a development build.
+It enables the new gaze collector and request jobs; production release acceptance remains false.
+The same original recorder, caption hook and native ImageAnalysis owner remain in use.
+
+`createGazeCollector(scope, sourceZeroMonotonicMs, { onObservation })` is the producer API in `src/features/vision/gaze.ts`.
+Call `sample(performance.now(), latestVisionEvidence)` approximately every 1000 ms and `stop(performance.now())` at the first Stop/background/route-exit boundary.
+`scope.visionSessionId` is the current `vision.evidence.sessionId`, separate from capture/source identity.
+Native binding IDs now change on each reattachment, including background/resume and front/back/front.
+Sampling does not rebind or start another analyzer when recording begins.
+The callback supplies observations for Session 3's future paged metadata sink; the bounded snapshot is diagnostics/recovery context, not a complete durable ledger.
+The current camera has no owner-authored metadata sink to call, so its observations remain development-only in memory and are not claimed persisted.
+
+`createSuggestionJobController()` starts inert; `bind(identity)` never evaluates scenes.
+Only the camera's Visual Suggestions tap calls `start({ ...identity, requestedAtMs: performance.now(), evidence })`.
+The controller evaluates one recent snapshot and bounds an asynchronous evaluator by a 2500 ms timeout.
+It reuses the Tier 0 coach policy's calibrated cue constraints; the current face-only camera adapter supplies no calibrated cues.
+Retry takes a new current snapshot; no periodic refresh or preference restoration invokes an evaluator.
+Job identity includes camera/capture session, native binding/lens generation, zoom and creator intent.
+The inline scrollable result panel precedes the bottom controls, so it does not cover Record/Stop or the prompter/transcript overlays.
+Actual job start/evaluation counters appear only in development diagnostics.
+
+`src/features/capture/stop-handoff.ts` exports `CaptureScope`, `CaptureEvent`, `checkpointCaptureOriginal`, and `buildCaptureStopHandoff`.
+Camera emits record-requested, stop-requested and original-saved events with stable capture/source identity.
+Lifecycle `relativeSeconds` is elapsed time from the record request; original-saved may occur after media duration and is NOT an exportable source range.
+`durationSeconds` comes from the existing native media metadata probe.
+The existing root `saveProject` now completes its durable copy before awaiting caption finalization, matching the pickup checkpoint's existing ordering.
+Save failure keeps the returned original and existing retry closure; optional metadata cannot authorize editing or deletion.
+The capture handoff contains source scope, duration, lifecycle events, and either a gaze snapshot or explicit not-collected state.
+It is marked `metadataPersistence: pending-owner-integration` until Session 3 supplies a durable checkpoint.
+Full raw transcript revisions remain supplied by the existing caption hook and saved-project path, not the bounded visible text.
+Audio alignment retains the existing live-estimate wall-clock start offset; gaze uses a separate JS monotonic record-request anchor.
+Neither timing path claims calibrated sensor/PTS or verified splice boundaries.
+
+## Exact remaining owner edits
+
+Session 3: add the #65 durable observation sink and source metadata checkpoint, preserving every emitted record/overflow range through paged storage.
+Wire the callback at `createGazeCollector` and persist `buildCaptureStopHandoff` with the original before enqueueing final analysis.
+Do not serialize only the 120-observation diagnostic ring as complete collection history.
+Session 3: supply the final-analysis route/job API in the existing editor; camera continues routing directly to `/editor` after durable save, without rendering/export.
+Session 1: publish and merge the follower hook/component and manual-reanchor API; camera must feed accepted caption revisions and all manual/remote movements through it.
+Session 1/3: supply stable important-point/revision pickup fields through the existing pickup request schema; current camera preserves existing requested line/source IDs.
+No unmerged producer or shared-schema implementation is copied here.
+
+## Review corrections
+
+New capture/root/pickup identities use the existing Expo UUID generator; a wall-clock rollback cannot reuse a source ID.
+The JS monotonic anchor now immediately precedes `recordAsync()` rather than collector construction.
+`startVisionBinding` issues a binding-specific compensating stop when an asynchronous start settles after its owner exits.
+Starting recording retains the current binding instead of treating the recording-state render as ownership cancellation.
+The metadata-persistence review finding remains open: the camera's in-memory handoff is lost when its route unmounts until Session 3 supplies and integrates the durable sink/checkpoint.
+This is why #64 and the Stop-to-analysis integration cannot be described as complete or release-ready.
+
+Published executable references: gaze producer `1d7c8d6`; integrated camera/jobs/Stop payload `8709a7f`.
+See `t15-session-2-verification.md` for the issue acceptance matrix and exact command results.

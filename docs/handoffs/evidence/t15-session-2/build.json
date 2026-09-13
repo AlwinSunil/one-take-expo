@@ -1,0 +1,46 @@
+{
+  "host": {
+    "os": "Darwin arm64",
+    "processor": "Apple M5",
+    "node": "v26.7.0"
+  },
+  "nativeBuild": {
+    "configuration": "debug",
+    "architecture": "arm64-v8a",
+    "result": "passed",
+    "apkSha256": "85345e06607a53e14addf9f4ae34612ec15c9b50c0846f3d24116beaa9ac8bc4",
+    "apkBytes": 272200491,
+    "installedForThisTask": false,
+    "containsFinalJavascript": false
+  },
+  "nativeTests": {
+    "one-take-captions": {
+      "tests": 15,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "one-take-media": {
+      "tests": 10,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "packagedArtifacts": {
+    "nativeHashesMatched": 3,
+    "tinyModelHashesMatched": 8
+  },
+  "device": {
+    "readOnlyDiscovery": "I2501 connected",
+    "taskInstalledBuild": null,
+    "gazeAccuracy": null,
+    "measuredCadence": null,
+    "thermalBatteryRecordingImpact": null,
+    "processorMeasurements": null
+  },
+  "limitations": [
+    "Debug APK needs Metro; final JavaScript export is separately verified.",
+    "No staged camera, eye-contact, A/V or named human acceptance."
+  ]
+}
