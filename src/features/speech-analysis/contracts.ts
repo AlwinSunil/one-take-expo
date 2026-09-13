@@ -5,6 +5,8 @@ export interface AnalysisScope {
   sourceId: string;
   scriptRevision: string;
   editRevision: string;
+  /** Captured transcript revision; final jobs require a concrete value. */
+  transcriptRevision?: string;
 }
 export interface ScriptSpan {
   id: string;
@@ -47,6 +49,7 @@ export interface ImportantPoint {
   state: EvidenceState;
 }
 export interface PointMatch {
+  scope: AnalysisScope;
   pointId: string;
   pointRevision: number;
   scriptRevision: string;
@@ -82,5 +85,6 @@ export interface RangeProposal {
 }
 export function sameAnalysisScope(a: AnalysisScope, b: AnalysisScope): boolean {
   return a.projectId === b.projectId && a.sourceId === b.sourceId
-    && a.scriptRevision === b.scriptRevision && a.editRevision === b.editRevision;
+    && a.scriptRevision === b.scriptRevision && a.editRevision === b.editRevision
+    && a.transcriptRevision === b.transcriptRevision;
 }
