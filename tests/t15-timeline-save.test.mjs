@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createTimelineSaveCoordinator } from '../src/features/timeline/save-coordinator.ts';
+import { createTimelineSaveCoordinator, TimelineSaveConflict } from '../src/features/timeline/save-coordinator.ts';
 test('failed owner write retains draft, retries identical operation and never reports saved early', async () => {
   const writes=[];
   let fail=true;
@@ -44,5 +44,20 @@ test('new draft after uncertain failure first retries original id then saves the
   fail=false;
   await save.save();
   assert.deepEqual(writes,[[1,'operation:1'],[1,'operation:1'],[2,'operation:2']]);
+  assert.equal(save.read().status,'saved');
+});
+
+test('known revision conflicts require explicit rebase instead of endlessly retrying stale payload', async () => {
+  let id=0;
+  const writes=[];
+  const save=createTimelineSaveCoordinator(0,async(value,operationId)=>{writes.push([value,operationId]);if(value===1)throw new TimelineSaveConflict('Stale revision');},()=>`operation:${++id}`);
+  save.stage(1);
+  await assert.rejects(save.save(),TimelineSaveConflict);
+  save.stage(2);
+  await assert.rejects(save.save(),/saved project changed/);
+  assert.deepEqual(writes,[[1,'operation:1']]);
+  save.rebaseAfterConflict(3);
+  await save.save();
+  assert.deepEqual(writes,[[1,'operation:1'],[3,'operation:2']]);
   assert.equal(save.read().status,'saved');
 });
