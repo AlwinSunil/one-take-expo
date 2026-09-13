@@ -139,11 +139,14 @@ function readCaptureStorage(): CaptureStorageCheck {
 
 export default function CameraScreen() {
   useKeepAwake();
-  const { mode, script, pickupProjectId: requestedPickupProjectId } = useLocalSearchParams<{
+  const { mode, script, coachingDevelopment, pickupProjectId: requestedPickupProjectId } = useLocalSearchParams<{
     mode?: string;
     script?: string;
     pickupProjectId?: string;
+    coachingDevelopment?: string;
   }>();
+  // Explicit development preview only; Session 3 owns the common release gate.
+  const showDevelopmentCoaching = __DEV__ && coachingDevelopment === '1';
   const isScript = mode === 'script' || !!requestedPickupProjectId;
   const routeScript = typeof script === 'string' ? script : '';
   const isFocused = useIsFocused();
@@ -891,7 +894,8 @@ export default function CameraScreen() {
               <Text className="text-neutral-500 text-xs mt-2 leading-5">Applies to the recorded file, not the live preview. Unsupported qualities fall back to the highest available.</Text>
               <View className="flex-row flex-wrap gap-2 mt-4">{(['2160p', '1080p', '720p', '480p'] as const).map(value => <Pressable key={value} onPress={() => { setVideoQuality(value); setSheet(null); }} className={`rounded-lg px-3 py-2 ${videoQuality === value ? 'bg-white' : 'bg-neutral-900'}`}><Text className={`text-xs ${videoQuality === value ? 'text-black' : 'text-white'}`}>{value}</Text></Pressable>)}</View>
             </> : <CaptureSuggestions enabled={coachEnabled} onEnabledChange={setCoachEnabled}
-              intent={shotIntent} onIntentChange={setShotIntent} evidence={coachEvidence} nowMs={vision.nowMs} />}
+              intent={shotIntent} onIntentChange={setShotIntent} evidence={coachEvidence} nowMs={vision.nowMs}
+              tier1Development={showDevelopmentCoaching} />}
             {__DEV__ && sheet === 'suggestions' && <View className="mt-4 border-t border-neutral-800 pt-4">
               <Text className="text-neutral-400 text-xs">Engine diagnostics · Debug only</Text>
               <Text selectable className="text-neutral-500 text-xs leading-5 mt-2">

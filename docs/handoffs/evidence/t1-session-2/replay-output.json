@@ -1,0 +1,575 @@
+{
+  "synthetic": true,
+  "host": "darwin arm64 / Apple M5 / Node v26.7.0",
+  "processor": "host CPU, JavaScript policy only; no model inference",
+  "benchmark": {
+    "unit": "ms per complete fixture catalog",
+    "warmups": 100,
+    "runs": 500,
+    "p50": 0.01895799999999781,
+    "p95": 0.046416999999998154,
+    "excludes": "camera extraction, inference, device, UI, native export, thermal and memory measurements"
+  },
+  "framing": [
+    {
+      "fixtureId": "portrait-talking-head",
+      "description": "A single face moves gently across an upright portrait take.",
+      "expected": {
+        "originalFrameFallback": false,
+        "reason": "talking-head-subject"
+      },
+      "actual": {
+        "originalFrameFallback": false,
+        "reason": "talking-head-subject",
+        "reasons": [
+          "talking-head-subject",
+          "stable-union-crop"
+        ],
+        "crop": {
+          "x": 0.014629629629629604,
+          "y": 0,
+          "width": 0.8607407407407407,
+          "height": 0.8607407407407407
+        },
+        "confidence": 0.93,
+        "supportingTrackIds": [
+          "face-anna"
+        ],
+        "reasonText": "Keep the selected subject in view."
+      },
+      "provenance": {
+        "source": "fixture",
+        "model": "deterministic-framing-rules",
+        "modelVersion": "1",
+        "processor": "cpu",
+        "runtime": "node-host-fixture",
+        "fixtureId": "portrait-talking-head"
+      },
+      "policy": {
+        "source": "fixture",
+        "developmental": true,
+        "enabledByDefault": false,
+        "execution": "host-cpu",
+        "actualProcessor": "cpu",
+        "inferenceHardware": "none"
+      },
+      "validation": {
+        "valid": true,
+        "errors": []
+      },
+      "passed": true
+    },
+    {
+      "fixtureId": "moving-vlog-subject",
+      "description": "A selected subject travels across the interval and needs one temporal union crop.",
+      "expected": {
+        "originalFrameFallback": false,
+        "reason": "vlog-subject"
+      },
+      "actual": {
+        "originalFrameFallback": false,
+        "reason": "vlog-subject",
+        "reasons": [
+          "vlog-subject",
+          "stable-union-crop"
+        ],
+        "crop": {
+          "x": 0,
+          "y": 0.024999999999999967,
+          "width": 0.87,
+          "height": 0.87
+        },
+        "confidence": 0.93,
+        "supportingTrackIds": [
+          "subject-moving"
+        ],
+        "reasonText": "Keep the moving subject in view across the take."
+      },
+      "provenance": {
+        "source": "fixture",
+        "model": "deterministic-framing-rules",
+        "modelVersion": "1",
+        "processor": "cpu",
+        "runtime": "node-host-fixture",
+        "fixtureId": "moving-vlog-subject"
+      },
+      "policy": {
+        "source": "fixture",
+        "developmental": true,
+        "enabledByDefault": false,
+        "execution": "host-cpu",
+        "actualProcessor": "cpu",
+        "inferenceHardware": "none"
+      },
+      "validation": {
+        "valid": true,
+        "errors": []
+      },
+      "passed": true
+    },
+    {
+      "fixtureId": "product-demo-with-hands",
+      "description": "A selected product and two relevant hands remain in one static crop.",
+      "expected": {
+        "originalFrameFallback": false,
+        "reason": "product-and-hands"
+      },
+      "actual": {
+        "originalFrameFallback": false,
+        "reason": "product-and-hands",
+        "reasons": [
+          "product-and-hands",
+          "stable-union-crop"
+        ],
+        "crop": {
+          "x": 0.06962962962962965,
+          "y": 0.049629629629629635,
+          "width": 0.8607407407407407,
+          "height": 0.8607407407407407
+        },
+        "confidence": 0.93,
+        "supportingTrackIds": [
+          "hand-left",
+          "hand-right",
+          "product-phone"
+        ],
+        "reasonText": "Keep the selected product and relevant hands in view."
+      },
+      "provenance": {
+        "source": "fixture",
+        "model": "deterministic-framing-rules",
+        "modelVersion": "1",
+        "processor": "cpu",
+        "runtime": "node-host-fixture",
+        "fixtureId": "product-demo-with-hands"
+      },
+      "policy": {
+        "source": "fixture",
+        "developmental": true,
+        "enabledByDefault": false,
+        "execution": "host-cpu",
+        "actualProcessor": "cpu",
+        "inferenceHardware": "none"
+      },
+      "validation": {
+        "valid": true,
+        "errors": []
+      },
+      "passed": true
+    },
+    {
+      "fixtureId": "multiple-people-safe",
+      "description": "Two selected faces fit within one conservative union crop.",
+      "expected": {
+        "originalFrameFallback": false,
+        "reason": "talking-head-subject"
+      },
+      "actual": {
+        "originalFrameFallback": false,
+        "reason": "talking-head-subject",
+        "reasons": [
+          "talking-head-subject",
+          "stable-union-crop",
+          "multiple-subjects-preserved"
+        ],
+        "crop": {
+          "x": 0.01962962962962972,
+          "y": 0,
+          "width": 0.8607407407407407,
+          "height": 0.8607407407407407
+        },
+        "confidence": 0.93,
+        "supportingTrackIds": [
+          "face-left",
+          "face-right"
+        ],
+        "reasonText": "Keep the selected subject in view."
+      },
+      "provenance": {
+        "source": "fixture",
+        "model": "deterministic-framing-rules",
+        "modelVersion": "1",
+        "processor": "cpu",
+        "runtime": "node-host-fixture",
+        "fixtureId": "multiple-people-safe"
+      },
+      "policy": {
+        "source": "fixture",
+        "developmental": true,
+        "enabledByDefault": false,
+        "execution": "host-cpu",
+        "actualProcessor": "cpu",
+        "inferenceHardware": "none"
+      },
+      "validation": {
+        "valid": true,
+        "errors": []
+      },
+      "passed": true
+    },
+    {
+      "fixtureId": "multiple-people-unsafe",
+      "description": "Two faces at opposite edges exceed the safe zoom and margin envelope.",
+      "expected": {
+        "originalFrameFallback": true,
+        "reason": "unsafe-multiple-subjects"
+      },
+      "actual": {
+        "originalFrameFallback": true,
+        "reason": "unsafe-multiple-subjects",
+        "reasons": [
+          "unsafe-multiple-subjects"
+        ],
+        "crop": {
+          "x": 0,
+          "y": 0,
+          "width": 1,
+          "height": 1
+        },
+        "confidence": 0,
+        "supportingTrackIds": [],
+        "reasonText": "One crop cannot safely preserve all selected subjects."
+      },
+      "provenance": {
+        "source": "fixture",
+        "model": "deterministic-framing-rules",
+        "modelVersion": "1",
+        "processor": "cpu",
+        "runtime": "node-host-fixture",
+        "fixtureId": "multiple-people-unsafe"
+      },
+      "policy": {
+        "source": "fixture",
+        "developmental": true,
+        "enabledByDefault": false,
+        "execution": "host-cpu",
+        "actualProcessor": "cpu",
+        "inferenceHardware": "none"
+      },
+      "validation": {
+        "valid": true,
+        "errors": []
+      },
+      "passed": true
+    },
+    {
+      "fixtureId": "missing-detections",
+      "description": "The provider has no regions for the selected interval.",
+      "expected": {
+        "originalFrameFallback": true,
+        "reason": "missing-detection"
+      },
+      "actual": {
+        "originalFrameFallback": true,
+        "reason": "missing-detection",
+        "reasons": [
+          "missing-detection"
+        ],
+        "crop": {
+          "x": 0,
+          "y": 0,
+          "width": 1,
+          "height": 1
+        },
+        "confidence": 0,
+        "supportingTrackIds": [],
+        "reasonText": "No reliable region was detected for this selection."
+      },
+      "provenance": {
+        "source": "fixture",
+        "model": "deterministic-framing-rules",
+        "modelVersion": "1",
+        "processor": "cpu",
+        "runtime": "node-host-fixture",
+        "fixtureId": "missing-detections"
+      },
+      "policy": {
+        "source": "fixture",
+        "developmental": true,
+        "enabledByDefault": false,
+        "execution": "host-cpu",
+        "actualProcessor": "cpu",
+        "inferenceHardware": "none"
+      },
+      "validation": {
+        "valid": true,
+        "errors": []
+      },
+      "passed": true
+    },
+    {
+      "fixtureId": "off-frame-detection",
+      "description": "A malformed selected box crosses the right edge of the source.",
+      "expected": {
+        "originalFrameFallback": true,
+        "reason": "off-frame"
+      },
+      "actual": {
+        "originalFrameFallback": true,
+        "reason": "off-frame",
+        "reasons": [
+          "off-frame"
+        ],
+        "crop": {
+          "x": 0,
+          "y": 0,
+          "width": 1,
+          "height": 1
+        },
+        "confidence": 0,
+        "supportingTrackIds": [],
+        "reasonText": "A selected region leaves the source frame."
+      },
+      "provenance": {
+        "source": "fixture",
+        "model": "deterministic-framing-rules",
+        "modelVersion": "1",
+        "processor": "cpu",
+        "runtime": "node-host-fixture",
+        "fixtureId": "off-frame-detection"
+      },
+      "policy": {
+        "source": "fixture",
+        "developmental": true,
+        "enabledByDefault": false,
+        "execution": "host-cpu",
+        "actualProcessor": "cpu",
+        "inferenceHardware": "none"
+      },
+      "validation": {
+        "valid": true,
+        "errors": []
+      },
+      "passed": true
+    },
+    {
+      "fixtureId": "low-confidence",
+      "description": "A selected track is present but below the conservative confidence floor.",
+      "expected": {
+        "originalFrameFallback": true,
+        "reason": "low-confidence"
+      },
+      "actual": {
+        "originalFrameFallback": true,
+        "reason": "low-confidence",
+        "reasons": [
+          "low-confidence"
+        ],
+        "crop": {
+          "x": 0,
+          "y": 0,
+          "width": 1,
+          "height": 1
+        },
+        "confidence": 0,
+        "supportingTrackIds": [],
+        "reasonText": "The detected regions are too uncertain for a safe crop."
+      },
+      "provenance": {
+        "source": "fixture",
+        "model": "deterministic-framing-rules",
+        "modelVersion": "1",
+        "processor": "cpu",
+        "runtime": "node-host-fixture",
+        "fixtureId": "low-confidence"
+      },
+      "policy": {
+        "source": "fixture",
+        "developmental": true,
+        "enabledByDefault": false,
+        "execution": "host-cpu",
+        "actualProcessor": "cpu",
+        "inferenceHardware": "none"
+      },
+      "validation": {
+        "valid": true,
+        "errors": []
+      },
+      "passed": true
+    },
+    {
+      "fixtureId": "discontinuous-track",
+      "description": "A selected track disappears for longer than the safe temporal gap.",
+      "expected": {
+        "originalFrameFallback": true,
+        "reason": "discontinuous-track"
+      },
+      "actual": {
+        "originalFrameFallback": true,
+        "reason": "discontinuous-track",
+        "reasons": [
+          "discontinuous-track"
+        ],
+        "crop": {
+          "x": 0,
+          "y": 0,
+          "width": 1,
+          "height": 1
+        },
+        "confidence": 0,
+        "supportingTrackIds": [],
+        "reasonText": "The selected region is missing for part of the interval."
+      },
+      "provenance": {
+        "source": "fixture",
+        "model": "deterministic-framing-rules",
+        "modelVersion": "1",
+        "processor": "cpu",
+        "runtime": "node-host-fixture",
+        "fixtureId": "discontinuous-track"
+      },
+      "policy": {
+        "source": "fixture",
+        "developmental": true,
+        "enabledByDefault": false,
+        "execution": "host-cpu",
+        "actualProcessor": "cpu",
+        "inferenceHardware": "none"
+      },
+      "validation": {
+        "valid": true,
+        "errors": []
+      },
+      "passed": true
+    },
+    {
+      "fixtureId": "product-demo-missing-hands",
+      "description": "A selected product without relevant hands cannot receive a presenter-only crop.",
+      "expected": {
+        "originalFrameFallback": true,
+        "reason": "hands-missing"
+      },
+      "actual": {
+        "originalFrameFallback": true,
+        "reason": "hands-missing",
+        "reasons": [
+          "hands-missing"
+        ],
+        "crop": {
+          "x": 0,
+          "y": 0,
+          "width": 1,
+          "height": 1
+        },
+        "confidence": 0,
+        "supportingTrackIds": [],
+        "reasonText": "Relevant hands were not tracked for the selected product."
+      },
+      "provenance": {
+        "source": "fixture",
+        "model": "deterministic-framing-rules",
+        "modelVersion": "1",
+        "processor": "cpu",
+        "runtime": "node-host-fixture",
+        "fixtureId": "product-demo-missing-hands"
+      },
+      "policy": {
+        "source": "fixture",
+        "developmental": true,
+        "enabledByDefault": false,
+        "execution": "host-cpu",
+        "actualProcessor": "cpu",
+        "inferenceHardware": "none"
+      },
+      "validation": {
+        "valid": true,
+        "errors": []
+      },
+      "passed": true
+    },
+    {
+      "fixtureId": "product-only-talk-intent",
+      "description": "Product and hands in a talking-head intent have no face-centric subject target.",
+      "expected": {
+        "originalFrameFallback": true,
+        "reason": "no-relevant-subject"
+      },
+      "actual": {
+        "originalFrameFallback": true,
+        "reason": "no-relevant-subject",
+        "reasons": [
+          "no-relevant-subject"
+        ],
+        "crop": {
+          "x": 0,
+          "y": 0,
+          "width": 1,
+          "height": 1
+        },
+        "confidence": 0,
+        "supportingTrackIds": [],
+        "reasonText": "No selected subject is available for this shot intent."
+      },
+      "provenance": {
+        "source": "fixture",
+        "model": "deterministic-framing-rules",
+        "modelVersion": "1",
+        "processor": "cpu",
+        "runtime": "node-host-fixture",
+        "fixtureId": "product-only-talk-intent"
+      },
+      "policy": {
+        "source": "fixture",
+        "developmental": true,
+        "enabledByDefault": false,
+        "execution": "host-cpu",
+        "actualProcessor": "cpu",
+        "inferenceHardware": "none"
+      },
+      "validation": {
+        "valid": true,
+        "errors": []
+      },
+      "passed": true
+    }
+  ],
+  "coaching": [
+    {
+      "id": "tier1-intentional-good",
+      "label": "synthetic-development-only",
+      "expected": "intentional",
+      "actual": {
+        "kind": "intentional"
+      }
+    },
+    {
+      "id": "tier1-product-only",
+      "label": "synthetic-development-only",
+      "expected": "delegate",
+      "actual": {
+        "kind": "delegate",
+        "intent": "product",
+        "recording": false,
+        "speechState": "silent",
+        "betweenLines": false
+      }
+    },
+    {
+      "id": "tier1-speech-active",
+      "label": "synthetic-development-only",
+      "expected": "hidden",
+      "actual": {
+        "kind": "hidden",
+        "reason": "speech-active"
+      }
+    },
+    {
+      "id": "tier1-coverage-priority",
+      "label": "synthetic-development-only",
+      "expected": "hidden",
+      "actual": {
+        "kind": "hidden",
+        "reason": "coverage-or-action-required"
+      }
+    },
+    {
+      "id": "tier1-missing-degraded",
+      "label": "synthetic-development-only",
+      "expected": "hidden",
+      "actual": {
+        "kind": "hidden",
+        "reason": "priority-unknown"
+      }
+    }
+  ]
+}
