@@ -13,7 +13,7 @@ import { createDurablePersistence, T15_TABLES, type EvidenceRecord } from './t15
 import { canonicalJson, createFoundation, validateFoundation, type Observation, type SourceRecord, type AssetReference, type RevisionVector } from './t15-schema';
 import { preserveDurableLegacyEdit } from './t15-legacy';
 import type { AnalysisRequest, AnalysisResult } from './t15-jobs';
-import { PENDING_PICKUP_MESSAGE, projectWithDurableOriginal, mergePickupRecording, normalizeProject, preserveNewRecordings, type PickupRecordingInput } from './project-data';
+import { PENDING_PICKUP_MESSAGE, projectWithDurableOriginal, mergePickupRecording, normalizeProject, preserveNewRecordings, preserveEditsDuringCaptureFinalization, type PickupRecordingInput } from './project-data';
 
 const deletedIds = new Set<string>();
 
@@ -134,6 +134,9 @@ async function writeProjectMetadata(project: Project): Promise<void> {
   if (canonicalOriginal.exists && project.videoUri && project.videoUri !== canonicalOriginal.uri && project.videoUri !== current.videoUri) {
     const source = await d.getFirstAsync<{ value: string }>('SELECT value FROM kv WHERE key = ?', `recording-source:original:${project.id}`);
     if (!source || source.value !== project.videoUri) throw new Error('This project identity already belongs to a different original.');
+  }
+  if (canonicalOriginal.exists && project.videoUri && project.videoUri !== canonicalOriginal.uri && isCacheFile(project.videoUri)) {
+    project = preserveEditsDuringCaptureFinalization(current, project);
   }
   if (current.v15 && canonicalJson(project.v15 ?? null) !== canonicalJson(current.v15)) {
     throw new Error('The durable project changed. Reopen the latest edit before saving.');

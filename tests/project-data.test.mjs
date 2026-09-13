@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizeProject, projectWithDurableOriginal } from '../src/lib/project-data.ts';
+import { normalizeProject, projectWithDurableOriginal, preserveEditsDuringCaptureFinalization } from '../src/lib/project-data.ts';
 import { projectReview } from '../src/lib/project-workflow.ts';
 
 test('legacy projects retain original media and trim and gain stable caption identity', () => {
@@ -92,4 +92,17 @@ test('durable copy preserves explicit capture interruption but clears stale succ
   assert.equal(complete.recordingStatus, 'complete');
   assert.equal(complete.recoveryMessage, undefined);
   assert.match(projectWithDurableOriginal({ ...interrupted, recoveryMessage: undefined }, 'file:///durable.mp4').recoveryMessage, /safely saved/);
+});
+
+
+test('late root capture finalization preserves edits made after its durable checkpoint', () => {
+  const current = { id: 'p', mode: 'assisted', videoUri: 'file:///durable.mp4', clips: [], createdAt: 1,
+    trim: { start: 1, end: 3 }, reviewDecisions: [{ id: 'manual', type: 'take-selection', takeId: 't' }],
+    transcript: [{ id: 's', t0: 0, t1: 2, text: 'raw', manualCorrection: 'creator' }] };
+  const captured = { ...current, videoUri: 'file:///cache.mp4', trim: undefined, reviewDecisions: [], transcript: [{ id: 's', t0: 0, t1: 2, text: 'final raw' }] };
+  const merged = preserveEditsDuringCaptureFinalization(current, captured);
+  assert.deepEqual(merged.trim, current.trim);
+  assert.deepEqual(merged.reviewDecisions, current.reviewDecisions);
+  assert.equal(merged.transcript[0].manualCorrection, 'creator');
+  assert.equal(merged.transcript[0].text, 'final raw');
 });

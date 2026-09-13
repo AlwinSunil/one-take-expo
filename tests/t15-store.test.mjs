@@ -510,7 +510,7 @@ test('real store durability harness covers capture, journals, concurrent pickup/
   });
   const outcomes = await Promise.allSettled([editorSave, pickupSave]);
   assert.equal(outcomes.filter(outcome => outcome.status === 'rejected').length, 0);
-  const withPickup = await getProject(projectId);
+  let withPickup = await getProject(projectId);
   assert.deepEqual(withPickup.trim, { start: 0.75, end: 3.25 });
   assert.ok(withPickup.recordings.some(recording => recording.id === pickupId));
   assert.equal(withPickup.recordings.find(recording => recording.id === pickupId).evidenceStatus, 'complete');
@@ -519,6 +519,10 @@ test('real store durability harness covers capture, journals, concurrent pickup/
   assert.ok(withPickup.v15.revisions.projectRevision > durable.v15.revisions.projectRevision);
   assert.equal(fsModule.__mockFileSystem.hasFile(pickupUri(projectId, pickupId)), true);
 
+  await saveProjectMetadata({ ...project(projectId, captureUri), transcript: withPickup.transcript.filter(segment => !segment.recordingId) });
+  withPickup = await getProject(projectId);
+  assert.deepEqual(withPickup.trim, { start: 0.75, end: 3.25 }, 'late capture cannot erase the editor trim');
+  assert.ok(withPickup.recordings.some(recording => recording.id === pickupId));
   const preferencesBase = withPickup.v15.revisions;
   const corrections = [{ id: 'correction:retry', segmentId: withPickup.transcript[0].id, sourceId: projectId,
     revision: preferencesBase.captionRevision + 1, text: 'Creator correction', baseTranscriptRevision: preferencesBase.transcriptRevision[projectId], origin: 'creator' }];

@@ -176,3 +176,21 @@ export function projectWithDurableOriginal(project: Project, videoUri: string): 
       : undefined,
   };
 }
+
+
+/** A late cache-backed capture finalization supplies evidence, not a new editor snapshot. */
+export function preserveEditsDuringCaptureFinalization(current: Project, captured: Project): Project {
+  const merged = { ...captured };
+  for (const key of ['trim', 'cuts', 'cutsReviewed', 'reviewSegments', 'reviewDecisions', 'previousReviewDecisions', 'framing', 'cleanupReview', 'v15'] as const) {
+    if (key in current) Object.assign(merged, { [key]: current[key] });
+  }
+  merged.transcript = captured.transcript.map(segment => {
+    const previous = current.transcript.find(item => item.id === segment.id && item.recordingId === segment.recordingId);
+    if (!previous) return segment;
+    return { ...segment,
+      ...(Object.prototype.hasOwnProperty.call(previous, 'manualCorrection') ? { manualCorrection: previous.manualCorrection } : {}),
+      ...(previous.correctedText !== undefined ? { correctedText: previous.correctedText } : {}),
+    };
+  });
+  return merged;
+}
