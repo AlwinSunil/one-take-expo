@@ -850,7 +850,7 @@ export default function CameraScreen() {
     <View className="w-full self-center px-4" style={{ maxWidth: 520 }}>
       {!!error && <Text accessibilityRole="alert" numberOfLines={3} className="text-red-300 text-xs text-center py-2">{error}</Text>}
       {(storageCheck.state === 'warning' || storageCheck.state === 'blocked') && <Text accessibilityRole="alert" numberOfLines={3} className="text-amber-200 text-xs text-center pb-2">{storageCheck.message}</Text>}
-      {!!cameraMountFailure && <Pressable accessibilityRole="button" accessibilityLabel="Retry camera" onPress={() => { setCameraMountFailure(null); setReady(false); setError(''); setCameraRetry(value => value + 1); }} className="self-center rounded-lg bg-neutral-900 border border-neutral-700 px-4 py-2 mb-2 active:opacity-70"><Text className="text-neutral-200 text-xs font-semibold">Retry camera</Text></Pressable>}
+      {!!cameraMountFailure && <Pressable accessibilityRole="button" accessibilityLabel="Retry camera" onPress={() => { setCameraMountFailure(null); setReady(false); setError(''); setCameraRetry(value => value + 1); }} className="self-center rounded-lg bg-neutral-900 border border-neutral-800 px-4 py-2 mb-2 active:opacity-70"><Text className="text-neutral-200 text-xs font-semibold">Retry camera</Text></Pressable>}
       {isScript && recording && <View className="pb-2"><CaptureControls active={recording} onCommand={receiveCaptureCommand} /></View>}
       <View className="flex-row items-center border-b border-neutral-800 py-2">
         <View className="flex-1 items-center"><IconButton icon="grid_3x3" label={grid ? 'Hide grid' : 'Show grid'} onPress={() => setGrid(v => !v)} /></View>
@@ -866,7 +866,7 @@ export default function CameraScreen() {
       <View className="flex-row items-center py-5">
         <Pressable accessibilityRole="button" accessibilityLabel="Visual Suggestions" disabled={preparing || recording || saving} accessibilityState={{ disabled: preparing || recording || saving }} onPress={() => setSheet('suggestions')} className="flex-1 items-center py-2 active:opacity-60" style={{ opacity: preparing || recording || saving ? 0.4 : 1 }}>
           <View className="bg-amber-400 rounded-full px-5 py-2"><Sparkles size={20} strokeWidth={1.75} color="black" /></View>
-          <Text className="text-neutral-400 text-[10px] mt-2 tracking-widest">SUGGESTIONS</Text>
+          <Text className="text-neutral-500 text-[11px] mt-2 tracking-widest font-semibold">SUGGESTIONS</Text>
         </Pressable>
         <View className="flex-1 items-center">
           <Pressable accessibilityRole="button" accessibilityLabel={preparing ? 'Cancel recording preparation' : recording ? 'Stop recording' : 'Start recording'} disabled={!ready || saving || storageBlocked || !scriptDocumentLoaded || (!!requestedPickupProjectId && !pickupProject)} onPress={record}
@@ -876,7 +876,7 @@ export default function CameraScreen() {
         </View>
         <View className="flex-1 items-center">
           <IconButton icon="flip_camera_android" label="Switch front or rear camera" disabled={preparing || recording || saving} onPress={() => { setReady(false); setZoom(0); setFacing(v => v === 'back' ? 'front' : 'back'); }} />
-          <Text className="text-neutral-400 text-[10px] mt-2 tracking-widest">FLIP</Text>
+          <Text className="text-neutral-500 text-[11px] mt-2 tracking-widest font-semibold">FLIP</Text>
         </View>
       </View>
     </View>
@@ -885,11 +885,11 @@ export default function CameraScreen() {
         <Pressable className="flex-1" accessibilityLabel="Dismiss panel" onPress={() => setSheet(null)} />
         <SafeAreaView edges={['bottom']} className="bg-neutral-950" style={{ maxHeight: '70%' }}>
           <ScrollView contentContainerStyle={{ padding: 24 }}>
-            <View className="flex-row items-center justify-between"><Text className="text-white text-lg font-semibold">{sheet === 'settings' ? 'Camera settings' : 'Visual Suggestions'}</Text><IconButton icon="close" label="Close panel" onPress={() => setSheet(null)} /></View>
+            <View className="flex-row items-center justify-between"><Text className="text-white text-base font-semibold">{sheet === 'settings' ? 'Camera settings' : 'Visual Suggestions'}</Text><IconButton icon="close" label="Close panel" onPress={() => setSheet(null)} /></View>
             {sheet === 'settings' ? <>
               <Text className="text-neutral-300 text-sm mt-3">Maximum recording quality</Text>
               <Text className="text-neutral-500 text-xs mt-2 leading-5">Applies to the recorded file, not the live preview. Unsupported qualities fall back to the highest available.</Text>
-              <View className="flex-row flex-wrap gap-2 mt-4">{(['2160p', '1080p', '720p', '480p'] as const).map(value => <Pressable key={value} onPress={() => { setVideoQuality(value); setSheet(null); }} className={`rounded-lg px-3 py-2 ${videoQuality === value ? 'bg-white' : 'bg-neutral-900'}`}><Text className={`text-xs ${videoQuality === value ? 'text-black' : 'text-white'}`}>{value}</Text></Pressable>)}</View>
+              <View className="flex-row flex-wrap gap-2 mt-4">{(['2160p', '1080p', '720p', '480p'] as const).map(value => <Pressable key={value} onPress={() => { setVideoQuality(value); setSheet(null); }} className={`rounded-xl px-4 py-3 active:opacity-70 ${videoQuality === value ? 'bg-white' : 'bg-neutral-900'}`}><Text className={`text-xs font-semibold ${videoQuality === value ? 'text-black' : 'text-white'}`}>{value}</Text></Pressable>)}</View>
             </> : <CaptureSuggestions enabled={coachEnabled} onEnabledChange={setCoachEnabled}
               intent={shotIntent} onIntentChange={setShotIntent} evidence={coachEvidence} nowMs={vision.nowMs} />}
             {__DEV__ && sheet === 'suggestions' && <View className="mt-4 border-t border-neutral-800 pt-4">
@@ -925,7 +925,7 @@ export default function CameraScreen() {
           <Pressable disabled={saving} accessibilityRole="button" accessibilityLabel="Retake video" onPress={retake} className="flex-1 bg-neutral-900 border border-neutral-800 rounded-xl py-3.5 active:opacity-70">
             <Text className="text-neutral-200 text-xs font-semibold text-center">Retake</Text>
           </Pressable>
-          {isScript && !captureCoverage.safeToWrap && <Pressable disabled={saving} accessibilityRole="button" accessibilityLabel="Continue recording" onPress={continueRecording} className="flex-1 bg-neutral-900 border border-amber-800 rounded-xl py-3.5 active:opacity-70">
+          {isScript && !captureCoverage.safeToWrap && <Pressable disabled={saving} accessibilityRole="button" accessibilityLabel="Continue recording" onPress={continueRecording} className="flex-1 bg-neutral-900 border border-amber-700 rounded-xl py-3.5 active:opacity-70">
             <Text className="text-amber-100 text-xs font-semibold text-center">Continue recording</Text>
           </Pressable>}
           <Pressable disabled={saving} accessibilityRole="button" accessibilityLabel="Continue to editor" onPress={continueToEditor} className="flex-1 bg-white rounded-xl py-3.5 active:opacity-80">

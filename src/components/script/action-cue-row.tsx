@@ -20,15 +20,15 @@ const STATUS_LABEL: Record<ActionCueStatus, string> = {
  */
 export function ActionCueRow({ cue, onRequiredChange, onStatusChange }: ActionCueRowProps) {
   return (
-    <View className="bg-neutral-900 border-l-2 border-amber-300 px-3 py-2 mt-1">
+    <View className="bg-neutral-900 border-l-2 border-amber-300 px-3 py-2.5 mt-2">
       <Text className="text-amber-200 text-xs font-semibold">Action · {cue.text}</Text>
-      <View className="flex-row flex-wrap items-center mt-1">
+      <View className="flex-row flex-wrap items-center mt-2">
         <Pressable
           accessibilityRole="switch"
           accessibilityState={{ checked: cue.required }}
           accessibilityLabel={`${cue.required ? 'Required' : 'Optional'} action: ${cue.text}`}
           onPress={() => onRequiredChange?.(cue.id, !cue.required)}
-          className="pr-4 py-1 active:opacity-70">
+          className="pr-4 py-2 active:opacity-70">
           <Text className="text-neutral-300 text-[11px]">
             {cue.required ? 'Required · tap to make optional' : 'Optional · tap to require'}
           </Text>
@@ -39,21 +39,21 @@ export function ActionCueRow({ cue, onRequiredChange, onStatusChange }: ActionCu
               accessibilityRole="button"
               accessibilityLabel={`Mark action done: ${cue.text}`}
               onPress={() => onStatusChange?.(cue.id, cue.status === 'done' ? 'pending' : 'done')}
-              className="pr-4 py-1 active:opacity-70">
+              className="pr-4 py-2 active:opacity-70">
               <Text className="text-white text-[11px]">{cue.status === 'done' ? 'Undo done' : 'I did this'}</Text>
             </Pressable>
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={`Skip action: ${cue.text}`}
               onPress={() => onStatusChange?.(cue.id, cue.status === 'skipped' ? 'pending' : 'skipped')}
-              className="pr-4 py-1 active:opacity-70">
+              className="pr-4 py-2 active:opacity-70">
               <Text className="text-neutral-300 text-[11px]">{cue.status === 'skipped' ? 'Unskip' : 'Skip it'}</Text>
             </Pressable>
           </>
         )}
       </View>
       {cue.required && (
-        <Text className={`text-[11px] ${cue.status === 'done' ? 'text-neutral-400' : 'text-amber-200'}`}>
+        <Text className={`text-[11px] mt-1 ${cue.status === 'done' ? 'text-neutral-400' : 'text-amber-200'}`}>
           {STATUS_LABEL[cue.status]}
         </Text>
       )}

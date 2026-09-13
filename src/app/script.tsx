@@ -93,8 +93,8 @@ export default function ScriptInput() {
   return (
     <SafeAreaView className="flex-1 bg-black">
       <ScrollView className="flex-1" keyboardShouldPersistTaps="handled">
-        <View className="px-5 pt-4 pb-5 max-w-[480px] w-full self-center">
-          <Text className="text-white text-lg font-bold">Script</Text>
+        <View className="px-5 pt-4 pb-5 max-w-[600px] w-full self-center">
+          <Text className="text-white text-3xl font-bold">Script</Text>
           <Text className="text-neutral-500 text-[11px] mt-0.5">
             {doc.spokenWordCount} spoken words · about {doc.readTime} to read
           </Text>
@@ -107,13 +107,13 @@ export default function ScriptInput() {
             placeholder="Enter or paste your script…"
             placeholderTextColor="#525252"
             textAlignVertical="top"
-            className="bg-neutral-900 border border-neutral-800 text-white text-sm p-4 mt-3 min-h-[180px] max-h-[320px]"
+            className="bg-neutral-900 border border-neutral-800 rounded-xl text-white text-sm p-4 mt-3 min-h-[180px] max-h-[320px]"
           />
 
           {!!saveError && <Text className="text-red-300 text-xs mt-2">{saveError}</Text>}
 
           <View className="flex-row gap-3 mt-3">
-            <Pressable onPress={paste} className="flex-1 bg-neutral-900 border border-neutral-800 py-4 active:opacity-70">
+            <Pressable onPress={paste} className="flex-1 bg-neutral-900 border border-neutral-800 rounded-xl py-3.5 active:opacity-70">
               <Text className="text-neutral-200 text-sm font-semibold text-center">
                 Paste from Clipboard
               </Text>
@@ -121,7 +121,7 @@ export default function ScriptInput() {
             <Pressable
               disabled={!script.trim() || saving}
               onPress={cont}
-              className="flex-1 bg-white py-4 active:opacity-80 disabled:opacity-30">
+              className="flex-1 bg-white rounded-xl py-3.5 active:opacity-80 disabled:opacity-40">
               <Text className="text-black text-sm font-bold text-center">Continue</Text>
             </Pressable>
           </View>
@@ -149,7 +149,7 @@ export default function ScriptInput() {
                 />
               ))}
               {doc.removedLines.length > 0 && (
-                <Text className="text-neutral-600 text-[11px] mt-3">
+                <Text className="text-neutral-500 text-[11px] mt-3">
                   {doc.removedLines.length} deleted{' '}
                   {doc.removedLines.length === 1 ? 'line is' : 'lines are'} kept in this draft&apos;s
                   history, so any takes recorded for them are not lost.

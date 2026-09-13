@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, Switch, Text, View } from 'react-native';
 
 import { CompositionCoach } from './composition-coach';
 import type { CoachCue, CoachIntent, CoachVisionEvidence } from './policy';
@@ -22,19 +22,25 @@ export function CaptureSuggestions({ enabled, onEnabledChange, intent, onIntentC
 }) {
   const [shown, setShown] = useState<{ intent: CoachIntent; cue: CoachCue; at: number } | null>(null);
   const current = shown?.intent === intent ? shown : null;
-  return <View style={{ gap: 16, paddingTop: 16 }}>
-    <Pressable accessibilityRole="switch" accessibilityLabel="Composition suggestions"
-      accessibilityState={{ checked: enabled }} onPress={() => onEnabledChange(!enabled)}
-      className="min-h-12 rounded-xl border border-neutral-700 px-4 py-3">
-      <Text className="text-white text-sm">Composition suggestions · {enabled ? 'On' : 'Off'}</Text>
-    </Pressable>
+  return <View className="pt-4">
+    <View accessibilityRole="none" className="min-h-12 flex-row items-center justify-between py-3">
+      <Pressable accessibilityRole="switch" accessibilityLabel="Composition suggestions"
+        accessibilityState={{ checked: enabled }} onPress={() => onEnabledChange(!enabled)}
+        className="flex-1 py-2 active:opacity-70">
+        <Text className="text-white text-sm font-semibold">Composition suggestions</Text>
+      </Pressable>
+      <Switch accessibilityLabel="Composition suggestions" value={enabled}
+        onValueChange={onEnabledChange}
+        trackColor={{ false: '#404040', true: '#fcd34d' }}
+        thumbColor="#ffffff" />
+    </View>
     {enabled && <>
       <CompositionCoach enabled intent={intent} onIntentChange={onIntentChange}
         evidence={evidence} nowMs={nowMs} recording={false} speechState="silent"
         takeId={`setup:${intent}`} activeCue={current?.cue ?? null} lastPromptAtMs={current?.at ?? null}
         onPromptShown={cue => setShown({ intent, cue, at: nowMs })} />
-      <View className="rounded-xl bg-neutral-900 p-4">
-        <Text className="text-neutral-200 text-sm font-semibold">Manual setup tips</Text>
+      <View className="border-t border-neutral-800 pt-4">
+        <Text className="text-neutral-500 text-[11px] tracking-widest font-semibold">SETUP TIPS</Text>
         <Text className="text-neutral-300 text-sm leading-6 mt-2">{setupTips[intent]}</Text>
       </View>
     </>}

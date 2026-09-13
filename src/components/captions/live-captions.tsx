@@ -41,7 +41,7 @@ export function LiveCaptions({ text, isFinal, status, reason, retryable, onRetry
   return <View className="mx-4 mt-3 rounded-xl bg-black/80 px-3">
     <Pressable accessibilityRole="button" accessibilityLabel={`${expanded ? 'Hide' : 'Show'} live captions`}
       accessibilityState={{ expanded }} onPress={() => setExpanded(value => !value)}
-      className="flex-row justify-between items-center py-3" style={{ minHeight: 44 }}>
+      className="flex-row justify-between items-center py-3" style={{ minHeight: 48 }}>
       <Text className="text-neutral-200 text-xs flex-1">{label}</Text>
       <Text className="text-white text-xs ml-3">{expanded ? 'Hide' : 'Show'}</Text>
     </Pressable>
@@ -52,7 +52,7 @@ export function LiveCaptions({ text, isFinal, status, reason, retryable, onRetry
           : text || (status === 'preparing' ? 'Getting ready…' : 'Speak clearly near the microphone to see captions.')}
       </Text>
       {failed && retryable && onRetry && <Pressable accessibilityRole="button" accessibilityLabel="Try captions again"
-        onPress={onRetry} className="self-start rounded-lg bg-white/15 px-3 mb-3 justify-center" style={{ minHeight: 44 }}>
+        onPress={onRetry} className="self-start rounded-lg bg-white/15 px-3 mb-3 justify-center" style={{ minHeight: 48 }}>
         <Text className="text-white text-xs">Try captions again</Text>
       </Pressable>}
       {status === 'delayed' && <Text className="text-amber-200 text-xs pb-3">Keep recording. Review the transcript after stopping.</Text>}
