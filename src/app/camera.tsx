@@ -1,5 +1,6 @@
 import { CameraType, CameraView, useCameraPermissions, useMicrophonePermissions } from 'expo-camera';
 import { useEvent } from 'expo';
+import { uuid } from 'expo-modules-core';
 import { Paths } from 'expo-file-system';
 import { useKeepAwake } from 'expo-keep-awake';
 import { router, useFocusEffect, useIsFocused, useLocalSearchParams } from 'expo-router';
@@ -20,6 +21,7 @@ import {
 } from '@/lib/store';
 import type { Project } from '@/lib/session';
 import { recordedMediaDuration } from '@/lib/recorded-media';
+import { buildCaptureStopHandoff, captureEvent, checkpointCaptureOriginal, type CaptureEvent, type CaptureScope } from '@/features/capture/stop-handoff';
 import { projectCaptureDocument, requestedPickupLineIds, recordingTranscript } from '@/features/capture/project-handoff';
 import { projectScriptLines } from '@/lib/project-workflow';
 import { useLiveCaptions } from '@/hooks/use-live-captions';
@@ -45,7 +47,9 @@ import {
 import { setCaptureInputActive, subscribeCaptureInput } from '@/features/capture/input';
 import { loadAcceptedScriptDocument } from '@/lib/script-draft';
 import { parseScript, setCueStatus, type ScriptDocument } from '@/lib/script-lines';
+import { createGazeCollector } from '@/features/vision/gaze';
 import { useVision } from '@/features/vision/use-vision';
+import { createSuggestionJobController } from '@/features/coach/suggestion-job';
 import { CaptureSuggestions } from '@/features/coach/capture-suggestions';
 import type { CoachIntent, CoachVisionEvidence } from '@/features/coach/policy';
 import {
@@ -160,6 +164,12 @@ export default function CameraScreen() {
   const capturePhase = useRef<CapturePhase>('idle');
   const stopLatch = useRef(createStopLatch());
   const startedAt = useRef(0);
+  const sourceZeroMonotonicMs = useRef(0);
+  const captureScope = useRef<CaptureScope | null>(null);
+  const captureEvents = useRef<CaptureEvent[]>([]);
+  const gazeCollector = useRef<ReturnType<typeof createGazeCollector> | null>(null);
+  const gazeTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const captureHandoff = useRef<ReturnType<typeof buildCaptureStopHandoff> | null>(null);
   const [recording, setRecording] = useState(false);
   const [preparing, setPreparing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -168,7 +178,7 @@ export default function CameraScreen() {
   const [seconds, setSeconds] = useState(0);
   const [grid, setGrid] = useState(true);
   const [zoom, setZoom] = useState(0);
-  const [sheet, setSheet] = useState<'settings' | 'suggestions' | null>(null);
+  const [sheet, setSheet] = useState<'settings' | null>(null);
   const [videoQuality, setVideoQuality] = useState<'2160p' | '1080p' | '720p' | '480p'>('2160p');
   const [error, setError] = useState('');
   const [chunk, setChunk] = useState(0);
@@ -193,7 +203,10 @@ export default function CameraScreen() {
   const [cameraRetry, setCameraRetry] = useState(0);
   const [requestingPermission, setRequestingPermission] = useState(false);
   const [appInForeground, setAppInForeground] = useState(AppState.currentState === 'active');
-  const [coachEnabled, setCoachEnabled] = useState(true);
+  const [suggestionsVisible, setSuggestionsVisible] = useState(false);
+  const [suggestionJobs] = useState(createSuggestionJobController);
+  const [suggestionSnapshot, setSuggestionSnapshot] = useState(suggestionJobs.getSnapshot);
+  const [cameraSessionId] = useState(() => `camera:${uuid.v4()}`);
   const [shotIntent, setShotIntent] = useState<CoachIntent>('talking-head');
   const vision = useVision({
     enabled: isFocused && appInForeground && previewUri === null
@@ -202,12 +215,38 @@ export default function CameraScreen() {
     lensFacing: facing,
     recording: preparing || recording || saving,
   });
+  const latestVisionEvidence = useRef(vision.evidence);
+  latestVisionEvidence.current = vision.evidence;
   // Face presence alone cannot certify lighting, background, or visible crop.
   const coachEvidence: CoachVisionEvidence = vision.evidence.status === 'pending'
     ? { status: 'pending', reason: 'model-loading' }
     : vision.evidence.status === 'ready'
       ? { status: 'ready', frameCapturedAtMs: vision.evidence.frameCapturedAtMs, observations: {} }
       : { status: 'unavailable', reason: 'unknown' };
+  const suggestionIdentity = useMemo(() => ({
+    sessionId: captureScope.current?.captureSessionId ?? cameraSessionId,
+    lensGeneration: `${vision.evidence.sessionId ?? 'unavailable'}:${facing}:${cameraRetry}:${zoom}`,
+    intent: shotIntent,
+  }), [cameraSessionId, recording, preparing, facing, cameraRetry, zoom, shotIntent, vision.evidence.sessionId]);
+  useEffect(() => suggestionJobs.subscribe(setSuggestionSnapshot), [suggestionJobs]);
+  useEffect(() => { suggestionJobs.bind(suggestionIdentity); }, [suggestionIdentity, suggestionJobs]);
+  useEffect(() => {
+    if (!isFocused || !appInForeground || !ready || previewUri) {
+      suggestionJobs.cancel(!appInForeground ? 'background' : 'navigation');
+      setSuggestionsVisible(false);
+    }
+    return () => { suggestionJobs.cancel('route-exit'); };
+  }, [isFocused, appInForeground, ready, previewUri, suggestionJobs]);
+  const dismissSuggestions = useCallback(() => {
+    suggestionJobs.cancel('dismissed');
+    setSuggestionsVisible(false);
+  }, [suggestionJobs]);
+  function requestSuggestions() {
+    setSuggestionsVisible(true);
+    if (!showDevelopmentCoaching) return;
+    suggestionJobs.bind(suggestionIdentity);
+    suggestionJobs.start({ ...suggestionIdentity, requestedAtMs: performance.now(), evidence: coachEvidence });
+  }
   const permissionRequesting = useRef(false);
   const commandGate = useRef(createCaptureCommandGate());
   const scratchRequested = useRef(false);
@@ -228,7 +267,20 @@ export default function CameraScreen() {
     void Promise.all([getCameraPermission(), getMicPermission()]).catch(() => {});
   }, [getCameraPermission, getMicPermission]);
 
+  const endCaptureSignals = useCallback((kind: 'stop-requested' | 'recording-ended' = 'recording-ended') => {
+    if (gazeTimer.current !== null) clearInterval(gazeTimer.current);
+    gazeTimer.current = null;
+    const nowMs = performance.now();
+    gazeCollector.current?.stop(nowMs);
+    if (captureScope.current && !captureEvents.current.some(event => event.kind === 'stop-requested' || event.kind === 'recording-ended')) {
+      captureEvents.current.push(captureEvent(captureScope.current, kind, sourceZeroMonotonicMs.current, nowMs));
+    }
+  }, []);
+
   const stopActiveCapture = useCallback((reason: CaptureStopReason) => {
+    endCaptureSignals('stop-requested');
+    suggestionJobs.cancel('stop');
+    setSuggestionsVisible(false);
     const phase = capturePhase.current;
     if (phase !== 'preparing' && phase !== 'recording') return;
     if (reason !== 'user') interrupted.current = true;
@@ -242,7 +294,7 @@ export default function CameraScreen() {
     setSaving(true);
     camera.current?.stopRecording();
     void captions.stop().catch(() => {});
-  }, [captions.stop]);
+  }, [captions.stop, endCaptureSignals, suggestionJobs]);
 
   useFocusEffect(useCallback(() => {
     activeScreen.current = AppState.currentState === 'active';
@@ -470,9 +522,14 @@ export default function CameraScreen() {
     }
     if (pendingSave.current) { setError('This recording still needs saving. Retry Save before recording another take.'); return; }
     if (busy.current || !ready || !camera.current || !activeScreen.current) return;
+    dismissSuggestions();
     busy.current = true;
     interrupted.current = false;
     capturePhase.current = 'preparing';
+    captureScope.current = null;
+    captureEvents.current = [];
+    gazeCollector.current = null;
+    captureHandoff.current = null;
     stopLatch.current.reset();
     const generation = ++recordingGeneration.current;
     let captureDocument = scriptDocumentLoaded ? scriptDocument : parseScript(routeScript);
@@ -511,10 +568,10 @@ export default function CameraScreen() {
         pickupLineIds = requestedPickupLineIds(targetProject);
         setScriptDocument(captureDocument); setRequestedLines(pickupLineIds);
         if (pickupLineIds.length === 0) throw new Error('Every spoken line is already covered. You can wrap this project.');
-        pickupRecordingId = `${targetProject.id}:pickup:${Date.now()}`;
+        pickupRecordingId = `${targetProject.id}:pickup:${uuid.v4()}`;
       } else {
         project = {
-          id: `recording-${Date.now()}`,
+          id: `recording-${uuid.v4()}`,
           mode: isScript ? 'script' : 'assisted',
           script: isScript ? captureDocument.text : undefined,
           videoUri: null,
@@ -542,15 +599,34 @@ export default function CameraScreen() {
         pickupStarted = true;
         if (stopLatch.current.requested || !activeScreen.current || generation !== recordingGeneration.current) return;
       }
-      const captureTakeId = pickupRecordingId || project?.id || `recording-${Date.now()}`;
+      const captureTakeId = pickupRecordingId || project?.id || `recording-${uuid.v4()}`;
       activeCaptureTakeId.current = captureTakeId;
       commandGate.current.begin(captureTakeId);
       setCaptureInputActive(true);
       capturePhase.current = 'recording';
       setPreparing(false);
       startedAt.current = Date.now();
+      sourceZeroMonotonicMs.current = performance.now();
+      const recordingPromise = camera.current.recordAsync();
+      captureScope.current = { projectId: targetProject?.id ?? project!.id, sourceId: captureTakeId,
+        takeId: captureTakeId, captureSessionId: `${captureTakeId}:capture:${generation}`,
+        generation: latestVisionEvidence.current.sessionId ?? `unavailable:${generation}` };
+      captureEvents.current = [captureEvent(captureScope.current, 'record-requested', sourceZeroMonotonicMs.current, sourceZeroMonotonicMs.current)];
+      if (showDevelopmentCoaching) {
+        gazeCollector.current = createGazeCollector({ ...captureScope.current,
+          visionSessionId: latestVisionEvidence.current.sessionId ?? `unavailable:${generation}`,
+          lensFacing: facing, previewMirrored: facing === 'front',
+        }, sourceZeroMonotonicMs.current);
+        gazeCollector.current.sample(performance.now(), latestVisionEvidence.current);
+        gazeTimer.current = setInterval(() => {
+          gazeCollector.current?.sample(performance.now(), latestVisionEvidence.current);
+        }, 1000);
+      }
       setRecording(true);
-      const result = await camera.current.recordAsync();
+      const result = await recordingPromise;
+      endCaptureSignals();
+      suggestionJobs.cancel('stop');
+      setSuggestionsVisible(false);
       if (!result) throw new Error('No video was returned. Please try again.');
       pickupReturned = true;
       returnedUri = result.uri;
@@ -571,7 +647,12 @@ export default function CameraScreen() {
       if (targetProject) {
         const targetId = targetProject.id;
         pendingSave.current = () => checkpointProjectPickup(targetId, pickupRecordingId, { videoUri: result.uri, duration });
-        setRecordedProject(await pendingSave.current());
+        setRecordedProject(await checkpointCaptureOriginal(pendingSave.current, () => {
+          if (captureScope.current) {
+            captureEvents.current.push(captureEvent(captureScope.current, 'original-saved', sourceZeroMonotonicMs.current, performance.now()));
+            captureHandoff.current = buildCaptureStopHandoff(captureScope.current, duration, captureEvents.current, gazeCollector.current?.snapshot() ?? null);
+          }
+        }));
       }
       // Make the returned original discoverable before waiting for analysis.
       // If the process stops during caption cleanup, Projects can recover it.
@@ -583,7 +664,12 @@ export default function CameraScreen() {
         };
         setRecordedProject(recoverable);
         pendingSave.current = () => saveProject(recoverable);
-        await saveProjectMetadata(recoverable);
+        setRecordedProject(await checkpointCaptureOriginal(pendingSave.current, () => {
+          if (captureScope.current) {
+            captureEvents.current.push(captureEvent(captureScope.current, 'original-saved', sourceZeroMonotonicMs.current, performance.now()));
+            captureHandoff.current = buildCaptureStopHandoff(captureScope.current, duration, captureEvents.current, gazeCollector.current?.snapshot() ?? null);
+          }
+        }));
        }
       let transcript = captions.transcript.current;
       try {
@@ -674,6 +760,9 @@ export default function CameraScreen() {
       if (kind === 'camera-busy') setCameraMountFailure(kind);
       setError(returnedUri && e instanceof Error ? e.message : captureFailureMessage(kind));
     } finally {
+      endCaptureSignals();
+      suggestionJobs.cancel('stop');
+      setSuggestionsVisible(false);
       if (pickupStarted && !pickupReturned && targetProject) await cancelProjectPickup(targetProject.id, pickupRecordingId).catch(error => setError(String(error)));
       commandGate.current.end();
       activeCaptureTakeId.current = null;
@@ -850,6 +939,20 @@ export default function CameraScreen() {
       </View>
     </View>
 
+    {suggestionsVisible && <View className="bg-neutral-950 border-t border-neutral-800 px-4" style={{ maxHeight: 190 }}>
+      <ScrollView contentContainerStyle={{ paddingVertical: 12 }}>
+        {showDevelopmentCoaching ? <CaptureSuggestions snapshot={suggestionSnapshot}
+          onRetry={requestSuggestions} onDismiss={dismissSuggestions}
+          intent={shotIntent} onIntentChange={setShotIntent}
+          diagnostics={__DEV__ ? suggestionJobs.getDiagnostics() : undefined} /> : <View>
+          <Text className="text-neutral-300 text-sm">Visual analysis is not enabled in this build.</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel="Dismiss Visual Suggestions" onPress={dismissSuggestions} className="min-h-12 justify-center"><Text className="text-white">Dismiss</Text></Pressable>
+        </View>}
+        {__DEV__ && <Text selectable className="text-neutral-500 text-xs mt-3">
+          {`Debug · Engine ${vision.diagnostics?.engine ?? 'unknown'} · Processor ${vision.diagnostics?.processor ?? 'unknown'}\nGaze samples ${gazeCollector.current?.snapshot().acceptedSampleCount ?? 0} · Gaps ${gazeCollector.current?.snapshot().samplingGapCount ?? 0} · Metadata persistence pending`}
+        </Text>}
+      </ScrollView>
+    </View>}
     <View className="w-full self-center px-4" style={{ maxWidth: 520 }}>
       {!!error && <Text accessibilityRole="alert" numberOfLines={3} className="text-red-300 text-xs text-center py-2">{error}</Text>}
       {(storageCheck.state === 'warning' || storageCheck.state === 'blocked') && <Text accessibilityRole="alert" numberOfLines={3} className="text-amber-200 text-xs text-center pb-2">{storageCheck.message}</Text>}
@@ -864,10 +967,10 @@ export default function CameraScreen() {
             }
             return ZOOM_STOPS[(best + 1) % ZOOM_STOPS.length] ?? 0;
           })} className="h-12 min-w-12 items-center justify-center"><Text className="text-white text-lg font-medium">{zoom === 0 ? 'WIDE' : `${Math.round(zoom * 100)}%`}</Text></Pressable></View>
-        <View className="flex-1 items-center border-l border-neutral-800"><IconButton icon="tune" label="Camera settings" disabled={preparing || recording || saving} onPress={() => setSheet('settings')} /></View>
+        <View className="flex-1 items-center border-l border-neutral-800"><IconButton icon="tune" label="Camera settings" disabled={preparing || recording || saving} onPress={() => { dismissSuggestions(); setSheet('settings'); }} /></View>
       </View>
       <View className="flex-row items-center py-5">
-        <Pressable accessibilityRole="button" accessibilityLabel="Visual Suggestions" disabled={preparing || recording || saving} accessibilityState={{ disabled: preparing || recording || saving }} onPress={() => setSheet('suggestions')} className="flex-1 items-center py-2 active:opacity-60" style={{ opacity: preparing || recording || saving ? 0.4 : 1 }}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Visual Suggestions" disabled={preparing || saving} accessibilityState={{ disabled: preparing || saving }} onPress={requestSuggestions} className="flex-1 items-center py-2 active:opacity-60" style={{ opacity: preparing || saving ? 0.4 : 1 }}>
           <View className="bg-amber-400 rounded-full px-5 py-2"><Sparkles size={20} strokeWidth={1.75} color="black" /></View>
           <Text className="text-neutral-500 text-[11px] mt-2 tracking-widest font-semibold">SUGGESTIONS</Text>
         </Pressable>
@@ -893,17 +996,7 @@ export default function CameraScreen() {
               <Text className="text-neutral-300 text-sm mt-3">Maximum recording quality</Text>
               <Text className="text-neutral-500 text-xs mt-2 leading-5">Applies to the recorded file, not the live preview. Unsupported qualities fall back to the highest available.</Text>
               <View className="flex-row flex-wrap gap-2 mt-4">{(['2160p', '1080p', '720p', '480p'] as const).map(value => <Pressable key={value} onPress={() => { setVideoQuality(value); setSheet(null); }} className={`rounded-xl px-4 py-3 active:opacity-70 ${videoQuality === value ? 'bg-white' : 'bg-neutral-900'}`}><Text className={`text-xs font-semibold ${videoQuality === value ? 'text-black' : 'text-white'}`}>{value}</Text></Pressable>)}</View>
-            </> : <CaptureSuggestions enabled={coachEnabled} onEnabledChange={setCoachEnabled}
-              intent={shotIntent} onIntentChange={setShotIntent} evidence={coachEvidence} nowMs={vision.nowMs}
-              tier1Development={showDevelopmentCoaching} />}
-            {__DEV__ && sheet === 'suggestions' && <View className="mt-4 border-t border-neutral-800 pt-4">
-              <Text className="text-neutral-400 text-xs">Engine diagnostics · Debug only</Text>
-              <Text selectable className="text-neutral-500 text-xs leading-5 mt-2">
-                {vision.diagnostics
-                  ? `Engine: ${vision.diagnostics.engine ?? 'unknown'}\nProcessor: ${vision.diagnostics.processor ?? 'unknown'}\nNPU: ${vision.diagnostics.npuStatus ?? 'unavailable'}\n${vision.diagnostics.npuUnavailableReason ?? ''}\nFrames: ${vision.diagnostics.framesProcessed ?? 0}\nInference p95: ${vision.diagnostics.p95InferenceMs ?? 'unknown'} ms`
-                  : 'Diagnostics unavailable in this build.'}
-              </Text>
-            </View>}
+            </> : null}
           </ScrollView>
         </SafeAreaView>
       </View>

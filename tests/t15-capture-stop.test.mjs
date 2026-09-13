@@ -33,3 +33,16 @@ test('save failure preserves retry and never emits original-saved; analysis fail
   assert.equal(original.uri, 'file:///original');
   assert.deepEqual(calls, ['durable']);
 });
+
+test('Stop payload rejects a foreign source or a save that has not completed', async () => {
+  const { buildCaptureStopHandoff } = await import('../src/features/capture/stop-handoff.ts');
+  const requested = captureEvent(scope, 'record-requested', 0, 0);
+  const saved = captureEvent(scope, 'original-saved', 0, 4000);
+  assert.throws(() => buildCaptureStopHandoff(scope, 3, [requested], null));
+  assert.throws(() => buildCaptureStopHandoff({ ...scope, sourceId: 'other' }, 3, [saved], null));
+  const result = buildCaptureStopHandoff(scope, 3, [requested, saved], null);
+  assert.deepEqual(result.gaze, { status: 'not-collected' });
+  assert.equal(result.metadataPersistence, 'pending-owner-integration');
+  assert.equal(result.durationSeconds, 3);
+  assert.equal(result.events[1].relativeSeconds, 4); // Lifecycle time may follow media end.
+});

@@ -8,6 +8,8 @@ import nativeVision, {
   type VisionStatusEvent,
 } from '../../../modules/one-take-vision';
 
+import { startVisionBinding } from './binding';
+
 import {
   beginVisionSession,
   createVisionState,
@@ -149,9 +151,13 @@ export function useVision({
       return;
     }
 
-    let cancelled = false;
-    void nativeVision.start(nativeSessionId, lensFacing).then(result => {
-      if (cancelled || activeIdentity.current !== startIdentity) return;
+    const module = nativeVision;
+    void startVisionBinding(
+      () => module.start(nativeSessionId, lensFacing),
+      () => activeIdentity.current === startIdentity,
+      () => module.stop(nativeSessionId),
+    ).then(result => {
+      if (!result || activeIdentity.current !== startIdentity) return;
       if (result.status === 'unavailable') {
         updateState(reduceVisionEvent(
           stateRef.current,
@@ -168,7 +174,7 @@ export function useVision({
         ));
       }
     }).catch(() => {
-      if (cancelled || activeIdentity.current !== startIdentity) return;
+      if (activeIdentity.current !== startIdentity) return;
       updateState(reduceVisionEvent(
         stateRef.current,
         {
@@ -184,9 +190,6 @@ export function useVision({
       ));
     });
 
-    return () => {
-      cancelled = true;
-    };
   }, [enabled, ready, recording, key, sessionId, lensFacing]);
 
   useEffect(() => {
